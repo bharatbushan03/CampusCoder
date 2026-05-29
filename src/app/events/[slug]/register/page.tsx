@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2, AlertTriangle, MessageSquare, PhoneCall } from 'lucide-react';
+import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2, AlertTriangle, MessageSquare, PhoneCall, LayoutDashboard } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
@@ -271,12 +271,17 @@ export default function EventRegistrationPage() {
             </div>
           </div>
 
-          <div className="flex justify-center gap-4 border-t border-slate-900 pt-6">
-            <Link href="/events">
-              <Button variant="secondary" size="sm">Browse Other Sprints</Button>
+          <div className="flex flex-col sm:flex-row justify-center gap-4 border-t border-slate-900 pt-6">
+            <Link href="/dashboard" className="flex-1 sm:flex-initial">
+              <Button variant="primary" size="sm" className="w-full flex items-center justify-center gap-2">
+                <LayoutDashboard className="h-4 w-4" /> Go to My Dashboard
+              </Button>
             </Link>
-            <Link href="/">
-              <Button variant="outline" size="sm" className="text-slate-400 hover:text-slate-200">Return Home</Button>
+            <Link href="/events" className="flex-1 sm:flex-initial">
+              <Button variant="secondary" size="sm" className="w-full">Browse Other Sprints</Button>
+            </Link>
+            <Link href="/" className="flex-1 sm:flex-initial">
+              <Button variant="outline" size="sm" className="w-full text-slate-400 hover:text-slate-200">Return Home</Button>
             </Link>
           </div>
         </Card>
