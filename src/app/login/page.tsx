@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Terminal, KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { createClient } from '@/utils/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setErrorMsg('Please enter both email and password.');
@@ -23,13 +24,47 @@ export default function LoginPage() {
     setErrorMsg('');
     setIsSubmitting(true);
 
-    // Simulate login redirect
-    setTimeout(() => {
+    try {
+      const supabase = createClient() as any;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setErrorMsg(error.message);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (data?.user) {
+        // Fetch role from profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          // If no profile exists yet, redirect to home
+          router.push('/');
+          router.refresh();
+          return;
+        }
+
+        if (profile.role === 'admin' || profile.role === 'organizer') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/');
+        }
+        router.refresh();
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An unexpected error occurred.');
       setIsSubmitting(false);
-      // Simply route to admin dashboard for demo purposes
-      router.push('/admin/dashboard');
-    }, 1200);
+    }
   };
+
 
   return (
     <div className="tech-grid min-h-screen flex items-center justify-center py-20 px-4">
@@ -82,9 +117,9 @@ export default function LoginPage() {
                 <label className="block text-xs font-mono uppercase tracking-wider text-slate-400">
                   Password
                 </label>
-                <a href="#" className="text-xs text-emerald-400 hover:text-emerald-300">
+                <Link href="/forgot-password" className="text-xs text-emerald-400 hover:text-emerald-300">
                   Forgot?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -124,7 +159,7 @@ export default function LoginPage() {
           <div className="text-center mt-6 pt-6 border-t border-slate-900">
             <p className="text-xs text-slate-400">
               New to CampusCoder?{' '}
-              <Link href="/register" className="text-emerald-400 hover:underline">
+              <Link href="/signup" className="text-emerald-400 hover:underline">
                 Create an account &rarr;
               </Link>
             </p>
