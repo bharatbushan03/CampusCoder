@@ -20,6 +20,13 @@ import { Card } from '@/components/ui/Card';
 import { placeholderEvents } from '@/lib/placeholderData';
 
 export default function HomePage() {
+  const getSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  };
+
   // Get first 3 upcoming events
   const featuredEvents = placeholderEvents.slice(0, 3);
 
@@ -229,7 +236,7 @@ export default function HomePage() {
                   <span className="truncate">{event.location}</span>
                 </div>
                 
-                <Link href={`/events/${event.id}`} className="block">
+                <Link href={`/events/${event.slug || getSlug(event.title)}`} className="block">
                   <Button variant="secondary" size="sm" className="w-full justify-between group-hover:bg-slate-800">
                     Learn & Register <ArrowUpRight className="h-4 w-4" />
                   </Button>
