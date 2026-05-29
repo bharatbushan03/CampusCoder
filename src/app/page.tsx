@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Terminal,
@@ -13,13 +15,51 @@ import {
   ArrowRight,
   Clock,
   MapPin,
-  ArrowUpRight
+  ArrowUpRight,
+  Megaphone,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { placeholderEvents } from '@/lib/placeholderData';
+import { createClient } from '@/utils/supabase/client';
 
 export default function HomePage() {
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [communityLinks, setCommunityLinks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const supabase = createClient() as any;
+        const now = new Date().toISOString();
+
+        const [annRes, linksRes] = await Promise.all([
+          supabase
+            .from('announcements')
+            .select('*')
+            .eq('is_active', true)
+            .lte('publish_date', now)
+            .order('publish_date', { ascending: false })
+            .limit(3),
+          supabase
+            .from('community_links')
+            .select('*')
+            .eq('is_active', true)
+        ]);
+
+        if (annRes.data) setAnnouncements(annRes.data);
+        if (linksRes.data) setCommunityLinks(linksRes.data);
+      } catch (err) {
+        console.warn('Home page fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   const getSlug = (title: string) => {
     return title
       .toLowerCase()
@@ -110,6 +150,61 @@ export default function HomePage() {
         {/* Ambient background glows */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none"></div>
       </section>
+
+      {/* Announcements & Community Links Section */}
+      {(announcements.length > 0 || communityLinks.length > 0) && (
+        <section className="py-12 bg-slate-900/20 border-b border-emerald-500/5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Announcements Column */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Megaphone className="h-4 w-4 text-emerald-400" />
+                  <h3 className="text-sm font-mono font-bold uppercase tracking-wider text-slate-400">Latest Announcements</h3>
+                </div>
+                {announcements.length > 0 ? (
+                  <div className="space-y-3">
+                    {announcements.map((ann) => (
+                      <div key={ann.id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/30 transition-colors">
+                        <h4 className="text-sm font-bold text-white mb-1">{ann.title}</h4>
+                        <p className="text-xs text-slate-400 leading-relaxed">{ann.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 font-mono italic">No active announcements.</p>
+                )}
+              </div>
+
+              {/* Community Links Column */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-4 w-4 text-emerald-400" />
+                  <h3 className="text-sm font-mono font-bold uppercase tracking-wider text-slate-400">Join Channels</h3>
+                </div>
+                {communityLinks.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+                    {communityLinks.map((link) => (
+                      <a 
+                        key={link.id} 
+                        href={link.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all group"
+                      >
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-tight">{link.platform}</span>
+                        <ExternalLink className="h-3 w-3 text-emerald-500/50 group-hover:text-emerald-400" />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 font-mono italic">Links coming soon.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 2. About CampusCoder */}
       <section className="py-20 md:py-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-b border-emerald-500/10">

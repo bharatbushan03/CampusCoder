@@ -202,6 +202,8 @@ export interface Database {
           title: string;
           message: string;
           event_id: string | null;
+          is_active: boolean;
+          publish_date: string;
           created_by: string | null;
           created_at: string;
         };
@@ -210,6 +212,8 @@ export interface Database {
           title: string;
           message: string;
           event_id?: string | null;
+          is_active?: boolean;
+          publish_date?: string;
           created_by?: string | null;
           created_at?: string;
         };
@@ -218,6 +222,8 @@ export interface Database {
           title?: string;
           message?: string;
           event_id?: string | null;
+          is_active?: boolean;
+          publish_date?: string;
           created_by?: string | null;
           created_at?: string;
         };

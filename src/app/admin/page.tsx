@@ -63,14 +63,20 @@ export default function AdminDashboardPage() {
   const [announceForm, setAnnounceForm] = useState({
     title: '',
     message: '',
-    event_id: ''
+    event_id: '',
+    publish_date: '',
+    is_active: true
   });
 
   const [linkForm, setLinkForm] = useState({
-    platform: '',
+    platform: 'Discord',
     url: '',
     is_active: true
   });
+
+  const [customPlatform, setCustomPlatform] = useState('');
+  const [editingAnnounceId, setEditingAnnounceId] = useState<string | null>(null);
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
 
   const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
   const [isSubmittingAnnounce, setIsSubmittingAnnounce] = useState(false);
@@ -241,7 +247,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleCreateAnnouncement = async (e: React.FormEvent) => {
+  const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!announceForm.title || !announceForm.message) {
       alert('Please enter title and message.');
@@ -251,34 +257,88 @@ export default function AdminDashboardPage() {
     setIsSubmittingAnnounce(true);
     try {
       const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('announcements')
-        .insert({
-          title: announceForm.title,
-          message: announceForm.message,
-          event_id: announceForm.event_id || null,
-          created_by: currentUserId
-        });
+      const announcementData = {
+        title: announceForm.title,
+        message: announceForm.message,
+        event_id: announceForm.event_id || null,
+        publish_date: announceForm.publish_date ? new Date(announceForm.publish_date).toISOString() : new Date().toISOString(),
+        is_active: announceForm.is_active,
+        created_by: currentUserId
+      };
 
-      if (error) throw error;
+      if (editingAnnounceId) {
+        const { error } = await supabase
+          .from('announcements')
+          .update(announcementData)
+          .eq('id', editingAnnounceId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('announcements')
+          .insert(announcementData);
+        if (error) throw error;
+      }
 
       setShowAnnounceModal(false);
       setAnnounceForm({
         title: '',
         message: '',
-        event_id: ''
+        event_id: '',
+        publish_date: '',
+        is_active: true
       });
+      setEditingAnnounceId(null);
       await loadDashboardData();
     } catch (err: any) {
-      alert('Failed to post announcement: ' + err.message);
+      alert('Failed to save announcement: ' + err.message);
     } finally {
       setIsSubmittingAnnounce(false);
     }
   };
 
-  const handleCreateLink = async (e: React.FormEvent) => {
+  const handleEditAnnouncementClick = (announce: any) => {
+    setEditingAnnounceId(announce.id);
+    let localDateStr = '';
+    if (announce.publish_date) {
+      const d = new Date(announce.publish_date);
+      const offset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - (offset * 60 * 1000));
+      localDateStr = local.toISOString().slice(0, 16);
+    } else {
+      const d = new Date(announce.created_at);
+      const offset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - (offset * 60 * 1000));
+      localDateStr = local.toISOString().slice(0, 16);
+    }
+    setAnnounceForm({
+      title: announce.title,
+      message: announce.message,
+      event_id: announce.event_id || '',
+      publish_date: localDateStr,
+      is_active: announce.is_active !== undefined ? announce.is_active : true
+    });
+    setShowAnnounceModal(true);
+  };
+
+  const handleToggleAnnouncementActive = async (announceId: string, currentStatus: boolean) => {
+    try {
+      const supabase = createClient() as any;
+      const { error } = await supabase
+        .from('announcements')
+        .update({ is_active: !currentStatus })
+        .eq('id', announceId);
+
+      if (error) throw error;
+      await loadDashboardData();
+    } catch (err: any) {
+      alert('Failed to update announcement status: ' + err.message);
+    }
+  };
+
+  const handleSaveLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!linkForm.platform || !linkForm.url) {
+    const finalPlatform = linkForm.platform === 'Custom' ? customPlatform : linkForm.platform;
+    if (!finalPlatform || !linkForm.url) {
       alert('Please enter platform and URL.');
       return;
     }
@@ -286,28 +346,56 @@ export default function AdminDashboardPage() {
     setIsSubmittingLink(true);
     try {
       const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('community_links')
-        .insert({
-          platform: linkForm.platform,
-          url: linkForm.url,
-          is_active: linkForm.is_active
-        });
+      const linkData = {
+        platform: finalPlatform,
+        url: linkForm.url,
+        is_active: linkForm.is_active
+      };
 
-      if (error) throw error;
+      if (editingLinkId) {
+        const { error } = await supabase
+          .from('community_links')
+          .update(linkData)
+          .eq('id', editingLinkId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('community_links')
+          .insert(linkData);
+        if (error) throw error;
+      }
 
       setShowLinkModal(false);
       setLinkForm({
-        platform: '',
+        platform: 'Discord',
         url: '',
         is_active: true
       });
+      setCustomPlatform('');
+      setEditingLinkId(null);
       await loadDashboardData();
     } catch (err: any) {
       alert('Failed to save community link: ' + err.message);
     } finally {
       setIsSubmittingLink(false);
     }
+  };
+
+  const handleEditLinkClick = (link: any) => {
+    setEditingLinkId(link.id);
+    const standardPlatforms = ['Discord', 'WhatsApp', 'LinkedIn', 'GitHub', 'HackerRank'];
+    const isStandard = standardPlatforms.includes(link.platform);
+    setLinkForm({
+      platform: isStandard ? link.platform : 'Custom',
+      url: link.url,
+      is_active: link.is_active
+    });
+    if (!isStandard) {
+      setCustomPlatform(link.platform);
+    } else {
+      setCustomPlatform('');
+    }
+    setShowLinkModal(true);
   };
 
   // State manipulation triggers (Publish, cancel, complete)
@@ -434,7 +522,20 @@ export default function AdminDashboardPage() {
             variant="secondary" 
             size="sm" 
             className="flex items-center gap-1.5"
-            onClick={() => setShowAnnounceModal(true)}
+            onClick={() => {
+              const now = new Date();
+              const offset = now.getTimezoneOffset();
+              const local = new Date(now.getTime() - (offset * 60 * 1000));
+              setAnnounceForm({
+                title: '',
+                message: '',
+                event_id: '',
+                publish_date: local.toISOString().slice(0, 16),
+                is_active: true
+              });
+              setEditingAnnounceId(null);
+              setShowAnnounceModal(true);
+            }}
           >
             <Megaphone className="h-4 w-4 text-emerald-400" /> Post Announcement
           </Button>
@@ -442,7 +543,16 @@ export default function AdminDashboardPage() {
             variant="outline" 
             size="sm" 
             className="flex items-center gap-1.5 border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/30"
-            onClick={() => setShowLinkModal(true)}
+            onClick={() => {
+              setLinkForm({
+                platform: 'Discord',
+                url: '',
+                is_active: true
+              });
+              setCustomPlatform('');
+              setEditingLinkId(null);
+              setShowLinkModal(true);
+            }}
           >
             <Link2 className="h-4 w-4 text-emerald-500" /> Add Link
           </Button>
@@ -723,32 +833,64 @@ export default function AdminDashboardPage() {
           <div className="space-y-4">
             {announcements.length > 0 ? (
               <div className="grid grid-cols-1 gap-4">
-                {announcements.map((announce) => (
-                  <Card key={announce.id} hoverEffect={false} className="border-slate-900 bg-slate-950/20 p-5 flex justify-between items-start">
-                    <div className="space-y-2">
+                {announcements.map((announce) => {
+                  const isScheduled = announce.publish_date && new Date(announce.publish_date) > new Date();
+                  return (
+                    <Card key={announce.id} hoverEffect={false} className="border-slate-900 bg-slate-950/20 p-5 flex justify-between items-start">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1 rounded bg-emerald-500/10 border border-emerald-500/25">
+                            <Megaphone className="h-4 w-4 text-emerald-400" />
+                          </span>
+                          <h3 className="font-bold text-white text-base">{announce.title}</h3>
+                          <span className={`inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-[9px] font-mono font-medium border capitalize ${
+                            announce.is_active 
+                              ? isScheduled
+                                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}>
+                            {announce.is_active ? (isScheduled ? 'scheduled' : 'active') : 'inactive'}
+                          </span>
+                        </div>
+                        <p className="text-slate-300 text-sm leading-relaxed max-w-3xl">{announce.message}</p>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 pt-1 font-mono">
+                          <span>Publish Date: {new Date(announce.publish_date || announce.created_at).toLocaleString()}</span>
+                          {announce.events && (
+                            <span className="text-emerald-500/80">• Event: {announce.events.title}</span>
+                          )}
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <span className="p-1 rounded bg-emerald-500/10 border border-emerald-500/25">
-                          <Megaphone className="h-4 w-4 text-emerald-400" />
-                        </span>
-                        <h3 className="font-bold text-white text-base">{announce.title}</h3>
+                        <button
+                          onClick={() => handleToggleAnnouncementActive(announce.id, announce.is_active)}
+                          className={`p-1.5 rounded border transition-all cursor-pointer flex items-center gap-1 text-[11px] font-mono ${
+                            announce.is_active 
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                              : 'bg-slate-900 border-slate-800 text-slate-500'
+                          }`}
+                          title={announce.is_active ? 'Deactivate' : 'Activate'}
+                        >
+                          <Power className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleEditAnnouncementClick(announce)}
+                          className="text-slate-500 hover:text-emerald-400 p-1.5 hover:bg-slate-900/60 rounded transition-colors cursor-pointer"
+                          title="Edit Announcement"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAnnouncement(announce.id)}
+                          className="text-slate-500 hover:text-red-400 p-2 hover:bg-slate-900/40 rounded transition-colors cursor-pointer"
+                          title="Delete Announcement"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                      <p className="text-slate-300 text-sm leading-relaxed max-w-3xl">{announce.message}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 pt-1 font-mono">
-                        <span>Posted on: {new Date(announce.created_at).toLocaleDateString()}</span>
-                        {announce.events && (
-                          <span className="text-emerald-500/80">• Event: {announce.events.title}</span>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteAnnouncement(announce.id)}
-                      className="text-slate-500 hover:text-red-400 p-2 hover:bg-slate-900/40 rounded transition-colors cursor-pointer"
-                      title="Delete Announcement"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12 bg-slate-900/10 border border-slate-900 rounded-xl">
@@ -772,7 +914,7 @@ export default function AdminDashboardPage() {
                       </div>
                       <p className="text-xs text-slate-400 font-mono truncate max-w-xs">{link.url}</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleToggleLinkActive(link.id, link.is_active)}
                         className={`p-1.5 rounded border transition-all cursor-pointer flex items-center gap-1 text-[11px] font-mono ${
@@ -783,6 +925,13 @@ export default function AdminDashboardPage() {
                         title={link.is_active ? 'Active (Click to disable)' : 'Inactive (Click to enable)'}
                       >
                         <Power className="h-3.5 w-3.5" /> {link.is_active ? 'Active' : 'Offline'}
+                      </button>
+                      <button
+                        onClick={() => handleEditLinkClick(link)}
+                        className="text-slate-500 hover:text-emerald-400 p-1.5 hover:bg-slate-900/60 rounded transition-colors cursor-pointer"
+                        title="Edit Link"
+                      >
+                        <Edit className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDeleteLink(link.id)}
@@ -1027,23 +1176,27 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* 2. Create Announcement Modal */}
+      {/* 2. Create/Edit Announcement Modal */}
       {showAnnounceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-6 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-900 pb-4">
               <h2 className="text-lg font-bold text-white flex items-center gap-2 font-mono">
-                <Megaphone className="h-5 w-5 text-emerald-400" /> Post Announcement
+                <Megaphone className="h-5 w-5 text-emerald-400" /> {editingAnnounceId ? 'Edit Announcement' : 'Post Announcement'}
               </h2>
               <button 
-                onClick={() => setShowAnnounceModal(false)}
+                onClick={() => {
+                  setShowAnnounceModal(false);
+                  setEditingAnnounceId(null);
+                  setAnnounceForm({ title: '', message: '', event_id: '', publish_date: '', is_active: true });
+                }}
                 className="p-1 rounded hover:bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateAnnouncement} className="space-y-4">
+            <form onSubmit={handleSaveAnnouncement} className="space-y-4">
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Announcement Title *
@@ -1074,6 +1227,21 @@ export default function AdminDashboardPage() {
                 </select>
               </div>
 
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                    Publish Date *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    required
+                    value={announceForm.publish_date}
+                    onChange={(e) => setAnnounceForm({ ...announceForm, publish_date: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Message Content *
@@ -1088,11 +1256,28 @@ export default function AdminDashboardPage() {
                 ></textarea>
               </div>
 
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="announce_active"
+                  checked={announceForm.is_active}
+                  onChange={(e) => setAnnounceForm({ ...announceForm, is_active: e.target.checked })}
+                  className="rounded border-slate-800 text-emerald-500 bg-slate-900 focus:ring-0"
+                />
+                <label htmlFor="announce_active" className="text-xs text-slate-400 font-mono">
+                  Make announcement active immediately
+                </label>
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-900">
                 <Button 
                   type="button" 
                   variant="secondary" 
-                  onClick={() => setShowAnnounceModal(false)}
+                  onClick={() => {
+                    setShowAnnounceModal(false);
+                    setEditingAnnounceId(null);
+                    setAnnounceForm({ title: '', message: '', event_id: '', publish_date: '', is_active: true });
+                  }}
                 >
                   Cancel
                 </Button>
@@ -1101,7 +1286,7 @@ export default function AdminDashboardPage() {
                   variant="primary" 
                   disabled={isSubmittingAnnounce}
                 >
-                  {isSubmittingAnnounce ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Post to Feed'}
+                  {isSubmittingAnnounce ? <Loader2 className="h-4 w-4 animate-spin" /> : (editingAnnounceId ? 'Update Announcement' : 'Post to Feed')}
                 </Button>
               </div>
             </form>
@@ -1109,36 +1294,61 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* 3. Add Community Link Modal */}
+      {/* 3. Add/Edit Community Link Modal */}
       {showLinkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
           <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-6 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-900 pb-4">
               <h2 className="text-lg font-bold text-white flex items-center gap-2 font-mono">
-                <Link2 className="h-5 w-5 text-emerald-400" /> Add Community Link
+                <Link2 className="h-5 w-5 text-emerald-400" /> {editingLinkId ? 'Edit Community Link' : 'Add Community Link'}
               </h2>
               <button 
-                onClick={() => setShowLinkModal(false)}
+                onClick={() => {
+                  setShowLinkModal(false);
+                  setEditingLinkId(null);
+                  setLinkForm({ platform: 'Discord', url: '', is_active: true });
+                  setCustomPlatform('');
+                }}
                 className="p-1 rounded hover:bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateLink} className="space-y-4">
+            <form onSubmit={handleSaveLink} className="space-y-4">
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Platform Name *
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Discord, Telegram, WhatsApp"
+                <select
                   value={linkForm.platform}
                   onChange={(e) => setLinkForm({ ...linkForm, platform: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                >
+                  <option value="Discord">Discord</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="GitHub">GitHub</option>
+                  <option value="HackerRank">HackerRank</option>
+                  <option value="Custom">Custom Platform</option>
+                </select>
               </div>
+
+              {linkForm.platform === 'Custom' && (
+                <div>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                    Platform Custom Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Telegram, Slack"
+                    value={customPlatform}
+                    onChange={(e) => setCustomPlatform(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
@@ -1171,7 +1381,12 @@ export default function AdminDashboardPage() {
                 <Button 
                   type="button" 
                   variant="secondary" 
-                  onClick={() => setShowLinkModal(false)}
+                  onClick={() => {
+                    setShowLinkModal(false);
+                    setEditingLinkId(null);
+                    setLinkForm({ platform: 'Discord', url: '', is_active: true });
+                    setCustomPlatform('');
+                  }}
                 >
                   Cancel
                 </Button>
@@ -1180,7 +1395,7 @@ export default function AdminDashboardPage() {
                   variant="primary" 
                   disabled={isSubmittingLink}
                 >
-                  {isSubmittingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Link'}
+                  {isSubmittingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : (editingLinkId ? 'Update Link' : 'Save Link')}
                 </Button>
               </div>
             </form>
