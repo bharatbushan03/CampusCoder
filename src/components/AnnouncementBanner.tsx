@@ -15,7 +15,6 @@ export const AnnouncementBanner: React.FC = () => {
         const supabase = createClient() as any;
         const nowStr = new Date().toISOString();
 
-        // Fetch latest active announcement where publish_date is in the past
         const { data, error } = await supabase
           .from('announcements')
           .select(`
@@ -34,7 +33,6 @@ export const AnnouncementBanner: React.FC = () => {
 
         if (data && data.length > 0) {
           const latest = data[0];
-          // Check if dismissed in localStorage
           const dismissedId = localStorage.getItem('dismissed_announcement_id');
           if (dismissedId !== latest.id) {
             setAnnouncement(latest);
@@ -42,19 +40,7 @@ export const AnnouncementBanner: React.FC = () => {
           }
         }
       } catch (err) {
-        console.warn('Announcement banner fetch bypassed or database offline:', err);
-        // Fallback for preview/local mode
-        const dismissedId = localStorage.getItem('dismissed_announcement_id');
-        if (dismissedId !== 'demo-announcement') {
-          setAnnouncement({
-            id: 'demo-announcement',
-            title: 'Welcome to CampusCoder!',
-            message: 'Our brand new community console is now live. Check out upcoming sprints!',
-            event_id: null,
-            events: null
-          });
-          setVisible(true);
-        }
+        console.warn('Announcement banner fetch error:', err);
       }
     };
 
@@ -71,32 +57,41 @@ export const AnnouncementBanner: React.FC = () => {
   if (!visible || !announcement) return null;
 
   return (
-    <div className="w-full bg-emerald-500/10 border-b border-emerald-500/20 backdrop-blur-sm relative z-50 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 py-2 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-emerald-500/20">
-            <Megaphone className="h-3.5 w-3.5 text-emerald-400 animate-bounce" />
-          </span>
-          <p className="text-xs text-slate-300 truncate">
-            <span className="font-semibold text-emerald-400 font-mono mr-1.5">[{announcement.title}]</span>
-            {announcement.message}
-          </p>
-          {announcement.events && (
-            <Link 
-              href={`/events/${announcement.events.slug}`}
-              className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 shrink-0 ml-2 font-mono"
+    <div className="sticky top-0 z-[60] w-full">
+      <div className="bg-emerald-500/10 backdrop-blur-md border-b border-emerald-500/20 px-4 py-2.5 shadow-2xl overflow-hidden relative group">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 relative z-10">
+          <div className="flex items-center gap-3 overflow-hidden flex-1">
+            <div className="flex-shrink-0 h-7 w-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
+              <Megaphone className="h-3.5 w-3.5 text-emerald-400" />
+            </div>
+            <p className="text-xs md:text-sm font-medium text-slate-200 truncate pr-4 leading-none">
+              <span className="text-emerald-400 font-bold uppercase tracking-widest text-[10px] mr-3 border border-emerald-500/30 px-1.5 py-0.5 rounded bg-emerald-500/5 font-mono hidden sm:inline-block">Alert</span>
+              {announcement.title}: <span className="text-slate-400 font-normal">{announcement.message}</span>
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {announcement.events && (
+              <Link 
+                href={`/events/${announcement.events.slug}`}
+                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase tracking-widest text-emerald-400 hover:text-white transition-all group/btn"
+              >
+                Learn More <ArrowRight className="h-3 w-3 group-hover/btn:translate-x-0.5 transition-transform" />
+              </Link>
+            )}
+            
+            <button
+              onClick={handleDismiss}
+              className="h-7 w-7 rounded-lg hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-white transition-colors group/x cursor-pointer"
+              aria-label="Dismiss"
             >
-              Details <ArrowRight className="h-3 w-3" />
-            </Link>
-          )}
+              <X className="h-3.5 w-3.5 group-hover/x:rotate-90 transition-transform duration-300" />
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={handleDismiss}
-          className="p-1 rounded hover:bg-emerald-500/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
-          aria-label="Dismiss announcement"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        
+        {/* Progress line decorative */}
+        <div className="absolute bottom-0 left-0 h-[1px] bg-emerald-500/40 w-full animate-pulse"></div>
       </div>
     </div>
   );

@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #090d16;
-  --foreground: #f3f4f6;
-  --card-bg: rgba(15, 23, 42, 0.6);
-  --border-color: rgba(16, 185, 129, 0.1);
-  --border-hover: rgba(16, 185, 129, 0.35);
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card-bg: rgba(15, 23, 42, 0.4);
+  --border-color: rgba(30, 41, 59, 0.5);
+  --border-hover: rgba(16, 185, 129, 0.3);
   --accent: #10b981;
   --accent-glow: rgba(16, 185, 129, 0.15);
-  --accent-hover: #34d399;
+  --accent-hover: #059669;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
 }
 
 @theme inline {
@@ -20,6 +22,14 @@
   
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-float: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 body {
@@ -27,44 +37,81 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   background-image: 
-    radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.04) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.03) 0%, transparent 40%);
+    radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.02) 0%, transparent 50%);
   background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: var(--slate-950);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.2);
+  background: rgba(30, 41, 59, 0.8);
   border-radius: 9999px;
+  border: 2px solid var(--slate-950);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.4);
 }
 
-/* Glow effects and animation utilities */
+/* Base Styles */
+h1, h2, h3, h4, h5, h6 {
+  @apply tracking-tight font-bold text-slate-50;
+}
+
+/* UI Components Enhancements */
+.glass-panel {
+  @apply bg-slate-900/40 backdrop-blur-xl border border-slate-800/60;
+}
+
 .glow-box {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.05);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glow-box:hover {
-  box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);
-  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 40px rgba(16, 185, 129, 0.1);
+  border-color: var(--border-hover);
 }
 
-.text-glow {
-  text-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400;
 }
 
 .tech-grid {
-  background-size: 50px 50px;
+  background-size: 40px 40px;
   background-image: 
-    linear-gradient(to right, rgba(16, 185, 129, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+    linear-gradient(to right, rgba(16, 185, 129, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.02) 1px, transparent 1px);
+}
+
+/* Table Enhancements */
+.admin-table {
+  @apply w-full border-separate border-spacing-0;
+}
+.admin-table th {
+  @apply bg-slate-900/80 px-6 py-4 text-left text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800;
+}
+.admin-table td {
+  @apply px-6 py-4 text-sm text-slate-300 border-b border-slate-900/50 transition-colors;
+}
+.admin-table tr:hover td {
+  @apply bg-slate-800/20 text-white;
+}
+
+/* Form Enhancements */
+.form-input {
+  @apply w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 
+         placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20
+         transition-all duration-200;
+}
+
+/* Loading Skeletons */
+.skeleton {
+  @apply bg-slate-800 animate-pulse rounded;
 }
