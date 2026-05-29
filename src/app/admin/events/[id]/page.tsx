@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, Terminal, Calendar, Clock, MapPin, Users, 
   ExternalLink, Mail, Save, AlertTriangle, CheckCircle2, 
-  Loader2, Eye, Info, Send
+  Loader2, Eye, Info, Send, Layers
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -251,6 +251,45 @@ export default function EventManagementPage({ params }: PageProps) {
                     )}
                     {event.meeting_link_sent_at ? 'Resend to All' : 'Send to Registered'}
                   </Button>
+                </div>
+              </div>
+
+              {/* Archive Details Section */}
+              <div className="pt-6 border-t border-slate-900 space-y-4">
+                <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-emerald-400" /> Archive Details
+                </h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-mono text-slate-500 uppercase">Recording URL (YouTube/Loom)</label>
+                    <input 
+                      type="url"
+                      value={event.recording_url || ''}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        const supabase = createClient() as any;
+                        await supabase.from('events').update({ recording_url: val }).eq('id', id);
+                        setEvent({...event, recording_url: val});
+                      }}
+                      placeholder="https://..."
+                      className="w-full bg-slate-950 border border-slate-900 rounded px-3 py-1.5 text-xs text-slate-300 font-mono focus:border-emerald-500/30"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-mono text-slate-500 uppercase">Archive Summary (Post-event recap)</label>
+                    <textarea 
+                      value={event.summary || ''}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        const supabase = createClient() as any;
+                        await supabase.from('events').update({ summary: val }).eq('id', id);
+                        setEvent({...event, summary: val});
+                      }}
+                      placeholder="Relive the session highlights..."
+                      rows={3}
+                      className="w-full bg-slate-950 border border-slate-900 rounded px-3 py-2 text-xs text-slate-300 focus:border-emerald-500/30 resize-none"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
