@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Calendar, Users, LogOut, Terminal, Menu, X, Bell, Link2 } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, LogOut, Terminal, Menu, X, Bell, Link2, BookOpen } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
 interface AdminSidebarProps {
@@ -22,6 +22,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
     { label: 'Registrations', href: '/admin/registrations', icon: Users },
     { label: 'Announcements', href: '/admin/announcements', icon: Bell },
     { label: 'Community Links', href: '/admin/community-links', icon: Link2 },
+    { label: 'Resource Library', href: '/admin/resources', icon: BookOpen },
   ];
 
   const isLinkActive = (href: string) => pathname === href;

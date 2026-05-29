@@ -58,6 +58,8 @@ export interface Database {
           banner_url: string | null;
           status: 'draft' | 'published' | 'completed' | 'cancelled';
           meeting_link_sent_at: string | null;
+          summary: string | null;
+          recording_url: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -78,6 +80,8 @@ export interface Database {
           banner_url?: string | null;
           status?: 'draft' | 'published' | 'completed' | 'cancelled';
           meeting_link_sent_at?: string | null;
+          summary?: string | null;
+          recording_url?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -98,9 +102,43 @@ export interface Database {
           banner_url?: string | null;
           status?: 'draft' | 'published' | 'completed' | 'cancelled';
           meeting_link_sent_at?: string | null;
+          summary?: string | null;
+          recording_url?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      resources: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          link: string;
+          category: string;
+          event_id: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          link: string;
+          category: string;
+          event_id?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          description?: string | null;
+          link?: string;
+          category?: string;
+          event_id?: string | null;
+          is_active?: boolean;
+          created_at?: string;
         };
       };
       event_owners: {
