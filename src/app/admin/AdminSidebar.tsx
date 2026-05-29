@@ -18,7 +18,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
 
   const sidebarLinks = [
     { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-    { label: 'Manage Events', href: '/events', icon: Calendar },
+    { label: 'Manage Events', href: '/admin/events', icon: Calendar },
     { label: 'Registrations', href: '/admin', icon: Users },
   ];
 
