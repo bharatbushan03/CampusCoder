@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Terminal, Menu, X, LogOut, LayoutDashboard } from 'lucide-react';
+import { Terminal, Menu, X, LogOut, LayoutDashboard, ShieldAlert } from 'lucide-react';
 import { Button } from './ui/Button';
 import { createClient } from '@/utils/supabase/client';
 
@@ -178,13 +178,20 @@ export const Navbar: React.FC = () => {
                       )}
                     </div>
                     <div className="py-1">
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-900 hover:text-emerald-400 transition-colors"
+                      >
+                        <LayoutDashboard className="h-3.5 w-3.5" /> My Dashboard
+                      </Link>
                       {(profile?.role === 'admin' || profile?.role === 'organizer') && (
                         <Link
                           href="/admin"
                           onClick={() => setDropdownOpen(false)}
                           className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-900 hover:text-emerald-400 transition-colors"
                         >
-                          <LayoutDashboard className="h-3.5 w-3.5" /> Admin Dashboard
+                          <ShieldAlert className="h-3.5 w-3.5" /> Admin Console
                         </Link>
                       )}
                     </div>
@@ -266,13 +273,20 @@ export const Navbar: React.FC = () => {
                       </span>
                     )}
                   </div>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-2 rounded px-3 py-2 text-base text-slate-300 hover:text-emerald-400 transition-colors"
+                  >
+                    <LayoutDashboard className="h-4 w-4" /> My Dashboard
+                  </Link>
                   {(profile?.role === 'admin' || profile?.role === 'organizer') && (
                     <Link
                       href="/admin"
                       onClick={() => setIsOpen(false)}
                       className="flex items-center gap-2 rounded px-3 py-2 text-base text-slate-300 hover:text-emerald-400 transition-colors"
                     >
-                      <LayoutDashboard className="h-4 w-4" /> Admin Dashboard
+                      <ShieldAlert className="h-4 w-4" /> Admin Console
                     </Link>
                   )}
                   <button
