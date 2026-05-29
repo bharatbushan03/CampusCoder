@@ -28,7 +28,36 @@ export async function middleware(request: NextRequest) {
   );
 
   // This refreshes the session cookie if expired
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const url = new URL(request.url);
+  const nextPath = url.pathname;
+
+  // 1. Protect Admin Routes
+  if (nextPath.startsWith('/admin')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // Check Role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
+      // Not authorized, redirect to home or unauthorized page
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
+
+  // 2. Protect Student Dashboard
+  if (nextPath.startsWith('/dashboard')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
 
   return supabaseResponse;
 }

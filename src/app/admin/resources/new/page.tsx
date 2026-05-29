@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, Globe, FileText, Link2, Info } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { resourceSchema } from '@/lib/validation';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
@@ -33,17 +35,30 @@ export default function NewResourcePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const payload = {
+      ...form,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      link: form.link.trim(),
+      event_id: form.event_id || null
+    };
+
+    const validation = resourceSchema.safeParse(payload);
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const supabase = createClient() as any;
-      const { error } = await supabase.from('resources').insert({
-        ...form,
-        event_id: form.event_id || null
-      });
+      const { error } = await supabase.from('resources').insert(payload);
       if (error) throw error;
+      toast.success('Resource added');
       router.push('/admin/resources');
     } catch (err: any) {
-      alert('Failed: ' + err.message);
+      toast.error(err.message);
     } finally {
       setIsSubmitting(false);
     }

@@ -8,6 +8,8 @@ import {
   Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { eventSchema } from '@/lib/validation';
+import { toast } from 'sonner';
 
 interface Speaker {
   id?: string;
@@ -176,8 +178,26 @@ export default function EventForm({
   // Form submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !slug || !date || !startTime || !endTime) {
-      alert('Please fill out all required fields.');
+
+    const eventData = {
+      title: title.trim(),
+      slug: slug.trim(),
+      short_description: shortDescription?.trim() || null,
+      full_description: fullDescription?.trim() || null,
+      event_type: eventType,
+      mode,
+      date,
+      start_time: startTime,
+      end_time: endTime,
+      meeting_link: meetingLink?.trim() || null,
+      registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
+      status
+    };
+
+    const validation = eventSchema.safeParse(eventData);
+    if (!validation.success) {
+      const firstError = validation.error.issues[0].message;
+      toast.error(firstError);
       return;
     }
 
@@ -189,31 +209,14 @@ export default function EventForm({
       if (uploadedUrl) {
         finalBannerUrl = uploadedUrl;
       } else {
-        // Use local object preview URL as fallback for local demo
         finalBannerUrl = bannerPreview;
       }
     }
 
-    const eventData = {
-      title,
-      slug,
-      short_description: shortDescription || null,
-      full_description: fullDescription || null,
-      event_type: eventType,
-      mode,
-      date,
-      start_time: startTime,
-      end_time: endTime,
-      meeting_link: meetingLink || null,
-      registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
-      banner_url: finalBannerUrl || null,
-      status
-    };
-
     try {
-      await onSubmit(eventData, speakers);
-    } catch (err) {
-      console.error(err);
+      await onSubmit({ ...eventData, banner_url: finalBannerUrl }, speakers);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save event');
     } finally {
       setUploadProgress(false);
     }

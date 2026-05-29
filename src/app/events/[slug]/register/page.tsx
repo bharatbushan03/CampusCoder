@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { sendRegistrationEmails } from '@/app/actions/emailActions';
+import { registrationSchema } from '@/lib/validation';
+import { toast } from 'sonner';
 
 export default function EventRegistrationPage() {
   const params = useParams();
@@ -108,19 +110,22 @@ export default function EventRegistrationPage() {
     e.preventDefault();
     setErrorMsg('');
 
-    // Local form checks
-    if (!formData.fullName || !formData.email || !formData.phone || !formData.branch || !formData.consent) {
-      setErrorMsg('Please fill out all required fields and check the consent box.');
-      return;
+    // 1. Rate Limiting Check (Simple throttle)
+    const lastSub = localStorage.getItem('last_rsvp_timestamp');
+    if (lastSub) {
+      const diff = Date.now() - parseInt(lastSub);
+      if (diff < 60000) { // 1 minute throttle
+        toast.error('Too many requests. Please wait a minute before another RSVP.');
+        return;
+      }
     }
 
-    if (!validateEmail(formData.email)) {
-      setErrorMsg('Please enter a valid email address.');
-      return;
-    }
-
-    if (!validatePhone(formData.phone)) {
-      setErrorMsg('Please enter a valid phone number (at least 10 digits).');
+    // 2. Zod Validation
+    const validation = registrationSchema.safeParse(formData);
+    if (!validation.success) {
+      const firstError = validation.error.issues[0].message;
+      setErrorMsg(firstError);
+      toast.error(firstError);
       return;
     }
 
@@ -129,42 +134,49 @@ export default function EventRegistrationPage() {
     try {
       const supabase = createClient() as any;
 
-      // 1. Prevent duplicate registrations for same event using email
-      const { data: duplicateCheck, error: checkError } = await supabase
+      // 3. Duplicate Check
+      const { data: duplicateCheck } = await supabase
         .from('registrations')
         .select('id')
         .eq('event_id', event.id)
-        .eq('email', formData.email)
+        .eq('email', formData.email.toLowerCase())
         .limit(1);
 
-      if (checkError) throw checkError;
-
       if (duplicateCheck && duplicateCheck.length > 0) {
-        setErrorMsg('You have already registered for this event with this email address.');
+        setErrorMsg('This email is already registered for this sprint.');
+        toast.error('Already registered');
         setIsSubmitting(false);
         return;
       }
 
-      // 2. Save Registration Data
+      // 4. Save Registration
       const { error: insertError } = await supabase
         .from('registrations')
         .insert({
           event_id: event.id,
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          college: formData.college,
-          branch: formData.branch,
+          full_name: formData.fullName.trim(),
+          email: formData.email.toLowerCase().trim(),
+          phone: formData.phone.trim(),
+          college: formData.college.trim(),
+          branch: formData.branch.trim(),
           year: formData.year,
           coding_level: formData.codingLevel,
           preferred_language: formData.preferredLanguage,
-          reason_to_join: formData.reasonToJoin || null,
+          reason_to_join: formData.reasonToJoin?.trim() || null,
           attendance_status: 'registered'
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.code === '23505') { // Unique constraint violation
+          throw new Error('Duplicate registration detected by server.');
+        }
+        throw insertError;
+      }
 
-      // 3. Send Confirmation Emails (Student & Admin)
+      // 5. Track successful RSVP
+      localStorage.setItem('last_rsvp_timestamp', Date.now().toString());
+
+      // 6. Async Emails
       try {
         await sendRegistrationEmails(
           { 
@@ -176,16 +188,15 @@ export default function EventRegistrationPage() {
           event
         );
       } catch (emailErr) {
-        console.error('Email notification failed but registration was saved:', emailErr);
+        console.error('Non-critical: Email failed');
       }
 
+      toast.success('Registration Confirmed!');
       setIsSuccess(true);
     } catch (err: any) {
-      console.warn('Supabase integration offline, simulating local registration confirmation.');
-      // Local fallback simulator
-      setTimeout(() => {
-        setIsSuccess(true);
-      }, 1000);
+      console.error(err);
+      toast.error(err.message || 'Registration failed. Please try again.');
+      setErrorMsg(err.message || 'System error. Registration failed.');
     } finally {
       setIsSubmitting(false);
     }

@@ -77,7 +77,21 @@ export async function sendMeetingLinkToAll(eventId: string, force: boolean = fal
   try {
     const supabase = (await createClient()) as any;
 
-    // Fetch Event Details
+    // 1. Role Check
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Unauthorized' };
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
+      return { success: false, error: 'Forbidden' };
+    }
+
+    // 2. Fetch Event Details
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('*')
