@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Terminal, AlertTriangle } from 'lucide-react';
 import EventForm from '../EventForm';
-import { createClient } from '@/utils/supabase/client';
+import { createEvent } from '@/app/actions/adminActions';
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -17,57 +17,13 @@ export default function CreateEventPage() {
     setErrorMsg('');
 
     try {
-      const supabase = createClient() as any;
-
-      // Get authenticated user ID to track who created it
-      const { data: { user } } = await supabase.auth.getUser();
-      const createdBy = user ? user.id : null;
-
-      // 1. Insert event
-      const { data: insertedEvent, error: eventError } = await supabase
-        .from('events')
-        .insert({
-          ...eventData,
-          created_by: createdBy
-        })
-        .select()
-        .single();
-
-      if (eventError) {
-        throw eventError;
-      }
-
-      if (!insertedEvent) {
-        throw new Error('Event insertion failed. No data returned.');
-      }
-
-      // 2. Insert speakers if any
-      if (speakers && speakers.length > 0) {
-        const speakersToInsert = speakers.map((speaker) => ({
-          event_id: insertedEvent.id,
-          name: speaker.name,
-          role: speaker.role || null,
-          email: speaker.email || null,
-          bio: speaker.bio || null,
-          profile_image_url: speaker.profile_image_url || null
-        }));
-
-        const { error: speakersError } = await supabase
-          .from('event_owners')
-          .insert(speakersToInsert);
-
-        if (speakersError) {
-          console.error('Failed to insert event owners:', speakersError);
-          // We can proceed even if speaker insertion failed, but log it
-        }
-      }
-
-      // Redirect on success
+      await createEvent(eventData, speakers);
       router.push('/admin/events');
       router.refresh();
     } catch (err: any) {
       console.error('Event creation error:', err);
       setErrorMsg(err.message || 'An error occurred while creating the event.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -92,7 +48,7 @@ export default function CreateEventPage() {
       )}
 
       {/* Form Wrapper */}
-      <EventForm 
+      <EventForm
         onSubmit={handleFormSubmit}
         isSubmitting={isSubmitting}
         submitButtonText="Create Coding Sprint"

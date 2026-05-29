@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { sendRegistrationEmails } from '@/app/actions/emailActions';
+import { registerForEvent } from '@/app/actions/registrationActions';
 import { registrationSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 
@@ -120,7 +121,7 @@ export default function EventRegistrationPage() {
       }
     }
 
-    // 2. Zod Validation
+    // 2. Zod Validation (Client-side for UX)
     const validation = registrationSchema.safeParse(formData);
     if (!validation.success) {
       const firstError = validation.error.issues[0].message;
@@ -132,64 +133,11 @@ export default function EventRegistrationPage() {
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient() as any;
+      // 3. Server Action Call
+      await registerForEvent(formData, event.id);
 
-      // 3. Duplicate Check
-      const { data: duplicateCheck } = await supabase
-        .from('registrations')
-        .select('id')
-        .eq('event_id', event.id)
-        .eq('email', formData.email.toLowerCase())
-        .limit(1);
-
-      if (duplicateCheck && duplicateCheck.length > 0) {
-        setErrorMsg('This email is already registered for this sprint.');
-        toast.error('Already registered');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // 4. Save Registration
-      const { error: insertError } = await supabase
-        .from('registrations')
-        .insert({
-          event_id: event.id,
-          full_name: formData.fullName.trim(),
-          email: formData.email.toLowerCase().trim(),
-          phone: formData.phone.trim(),
-          college: formData.college.trim(),
-          branch: formData.branch.trim(),
-          year: formData.year,
-          coding_level: formData.codingLevel,
-          preferred_language: formData.preferredLanguage,
-          reason_to_join: formData.reasonToJoin?.trim() || null,
-          attendance_status: 'registered'
-        });
-
-      if (insertError) {
-        if (insertError.code === '23505') { // Unique constraint violation
-          throw new Error('Duplicate registration detected by server.');
-        }
-        throw insertError;
-      }
-
-      // 5. Track successful RSVP
+      // 4. Track successful RSVP
       localStorage.setItem('last_rsvp_timestamp', Date.now().toString());
-
-      // 6. Async Emails
-      try {
-        await sendRegistrationEmails(
-          { 
-            full_name: formData.fullName, 
-            email: formData.email, 
-            college: formData.college, 
-            branch: formData.branch 
-          }, 
-          event
-        );
-      } catch (emailErr) {
-        console.error('Non-critical: Email failed');
-      }
 
       toast.success('Registration Confirmed!');
       setIsSuccess(true);

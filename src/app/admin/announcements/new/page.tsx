@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Bell } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
 import AnnouncementForm from '../AnnouncementForm';
+import { createAnnouncement } from '@/app/actions/adminActions';
 
 export default function NewAnnouncementPage() {
   const router = useRouter();
@@ -14,13 +14,7 @@ export default function NewAnnouncementPage() {
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('announcements')
-        .insert([data]);
-
-      if (error) throw error;
-      
+      await createAnnouncement(data);
       router.push('/admin/announcements');
       router.refresh();
     } catch (err: any) {
@@ -42,7 +36,7 @@ export default function NewAnnouncementPage() {
         <p className="text-sm text-slate-400">Broadcast a new update to the community.</p>
       </div>
 
-      <AnnouncementForm 
+      <AnnouncementForm
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
         submitButtonText="Post Announcement"

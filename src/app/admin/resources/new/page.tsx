@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, Globe, FileText, Link2, Info } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { createResource } from '@/app/actions/adminActions';
 import { resourceSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { createClient } from '@/utils/supabase/client';
 
 export default function NewResourcePage() {
   const router = useRouter();
@@ -52,9 +53,7 @@ export default function NewResourcePage() {
 
     setIsSubmitting(true);
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase.from('resources').insert(payload);
-      if (error) throw error;
+      await createResource(payload);
       toast.success('Resource added');
       router.push('/admin/resources');
     } catch (err: any) {
@@ -166,9 +165,9 @@ export default function NewResourcePage() {
         </Card>
 
         <div className="flex justify-end">
-          <Button 
-            type="submit" 
-            variant="primary" 
+          <Button
+            type="submit"
+            variant="primary"
             disabled={isSubmitting}
             className="flex items-center gap-2 font-bold px-8"
           >
