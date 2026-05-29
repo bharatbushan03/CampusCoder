@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
 import CommunityLinkForm from '../CommunityLinkForm';
+import { createCommunityLink } from '@/app/actions/adminActions';
 
 export default function NewCommunityLinkPage() {
   const router = useRouter();
@@ -14,13 +14,7 @@ export default function NewCommunityLinkPage() {
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('community_links')
-        .insert([data]);
-
-      if (error) throw error;
-      
+      await createCommunityLink(data);
       router.push('/admin/community-links');
       router.refresh();
     } catch (err: any) {
@@ -42,7 +36,7 @@ export default function NewCommunityLinkPage() {
         <p className="text-sm text-slate-400">Create a new social endpoint for the community.</p>
       </div>
 
-      <CommunityLinkForm 
+      <CommunityLinkForm
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
         submitButtonText="Create Link"

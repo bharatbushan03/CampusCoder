@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Terminal, AlertTriangle, Loader2 } from 'lucide-react';
 import EventForm from '../../EventForm';
+import { updateEvent } from '@/app/actions/adminActions';
 import { createClient } from '@/utils/supabase/client';
 
 interface PageProps {
@@ -21,7 +22,7 @@ export default function EditEventPage({ params }: PageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Fetch current event and speakers
+  // Fetch current event and speakers (Read-only, so client side is okay)
   useEffect(() => {
     const fetchEventData = async () => {
       try {
@@ -62,47 +63,13 @@ export default function EditEventPage({ params }: PageProps) {
     setErrorMsg('');
 
     try {
-      const supabase = createClient() as any;
-
-      // 1. Update event details
-      const { error: eventError } = await supabase
-        .from('events')
-        .update(updatedEventData)
-        .eq('id', id);
-
-      if (eventError) throw eventError;
-
-      // 2. Clear previous speakers and insert new ones
-      const { error: deleteError } = await supabase
-        .from('event_owners')
-        .delete()
-        .eq('event_id', id);
-
-      if (deleteError) throw deleteError;
-
-      if (updatedSpeakers && updatedSpeakers.length > 0) {
-        const speakersToInsert = updatedSpeakers.map((speaker) => ({
-          event_id: id,
-          name: speaker.name,
-          role: speaker.role || null,
-          email: speaker.email || null,
-          bio: speaker.bio || null,
-          profile_image_url: speaker.profile_image_url || null
-        }));
-
-        const { error: insertError } = await supabase
-          .from('event_owners')
-          .insert(speakersToInsert);
-
-        if (insertError) throw insertError;
-      }
-
-      // Redirect on success
+      await updateEvent(id, updatedEventData, updatedSpeakers);
       router.push('/admin/events');
       router.refresh();
     } catch (err: any) {
       console.error('Event edit submit failed:', err);
       setErrorMsg(err.message || 'An error occurred while updating the event.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -139,7 +106,7 @@ export default function EditEventPage({ params }: PageProps) {
 
       {/* Form Wrapper */}
       {eventData && (
-        <EventForm 
+        <EventForm
           initialData={eventData}
           initialSpeakers={speakers}
           onSubmit={handleFormSubmit}
