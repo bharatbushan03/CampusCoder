@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
   Calendar, Layers, Trophy, AlertTriangle, PlusCircle, Trash2, 
-  Loader2, Mail, Edit, Search, Filter, ArrowLeft, ArrowUpRight, Users
+  Loader2, Mail, Edit, Search, Filter, ArrowLeft, ArrowUpRight, Users, Eye
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
@@ -214,35 +214,11 @@ export default function AdminEventsListingPage() {
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Link href={`/admin/events/${ev.id}/registrations`}>
-                          <button className="text-[10px] font-mono px-2 py-1 bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 hover:border-cyan-500/30 rounded flex items-center gap-1 cursor-pointer" title="View Registrations">
-                            <Users className="h-3 w-3" /> RSVPs
+                        <Link href={`/admin/events/${ev.id}`}>
+                          <button className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 rounded flex items-center gap-1 cursor-pointer">
+                            <Eye className="h-3 w-3" /> Manage
                           </button>
                         </Link>
-                        <Link href={`/admin/events/${ev.id}/edit`}>
-                          <button className="text-[10px] font-mono px-2 py-1 bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/30 rounded flex items-center gap-1 cursor-pointer">
-                            <Edit className="h-3 w-3" /> Edit
-                          </button>
-                        </Link>
-                        {ev.status === 'published' && ev.meeting_link && (
-                          <button
-                            onClick={() => handleSendMeetingLink(ev.id, ev.title)}
-                            disabled={isSendingLinks === ev.id}
-                            className={`text-[10px] font-mono px-2 py-1 rounded flex items-center gap-1 cursor-pointer transition-colors ${
-                              isSendingLinks === ev.id 
-                                ? 'bg-slate-800 text-slate-500 border border-slate-700' 
-                                : 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20'
-                            }`}
-                            title="Send Meeting Link to all registered students"
-                          >
-                            {isSendingLinks === ev.id ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Mail className="h-3 w-3" />
-                            )}
-                            Blast Link
-                          </button>
-                        )}
                         {ev.status !== 'published' && (
                           <button
                             onClick={() => handleUpdateStatus(ev.id, 'published')}

@@ -57,6 +57,7 @@ export interface Database {
           registration_deadline: string | null;
           banner_url: string | null;
           status: 'draft' | 'published' | 'completed' | 'cancelled';
+          meeting_link_sent_at: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -76,6 +77,7 @@ export interface Database {
           registration_deadline?: string | null;
           banner_url?: string | null;
           status?: 'draft' | 'published' | 'completed' | 'cancelled';
+          meeting_link_sent_at?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -95,6 +97,7 @@ export interface Database {
           registration_deadline?: string | null;
           banner_url?: string | null;
           status?: 'draft' | 'published' | 'completed' | 'cancelled';
+          meeting_link_sent_at?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
