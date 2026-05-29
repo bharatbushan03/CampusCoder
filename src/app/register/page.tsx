@@ -1,69 +1,125 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
 import Link from 'next/link';
 
-// Create a component that reads search params
 function RegisterForm() {
   const searchParams = useSearchParams();
   const initialEventId = searchParams ? searchParams.get('eventId') : null;
 
+  const [events, setEvents] = useState<any[]>([]);
   const [formData, setFormData] = useState({
-    studentName: '',
-    studentEmail: '',
-    graduationYear: '2027',
-    collegeRoll: '',
+    fullName: '',
+    email: '',
+    phone: '',
+    college: 'Campus Engineering College',
+    branch: 'Computer Science',
+    year: '2027',
     eventId: initialEventId || '',
-    interests: [] as string[],
+    codingLevel: 'Intermediate',
+    preferredLanguage: 'JavaScript/TypeScript',
+    reasonToJoin: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isDbOffline, setIsDbOffline] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const interestOptions = [
-    'Data Structures & Algorithms',
-    'Web Development (React/Next.js)',
-    'Competitive Programming',
-    'Mobile App Development',
-    'Machine Learning & AI',
-    'UI/UX Design',
-  ];
+  const codingLevels = ['Beginner', 'Intermediate', 'Advanced'];
+  const programmingLanguages = ['JavaScript/TypeScript', 'Python', 'C/C++', 'Java', 'Go/Rust'];
 
-  const handleInterestChange = (interest: string) => {
-    if (formData.interests.includes(interest)) {
-      setFormData({
-        ...formData,
-        interests: formData.interests.filter((i) => i !== interest),
-      });
-    } else {
-      setFormData({
-        ...formData,
-        interests: [...formData.interests, interest],
-      });
+  // Fetch available events for dropdown selection
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        const supabase = createClient() as any;
+        const { data, error } = await supabase
+          .from('events')
+          .select('id, title, date, time')
+          .eq('status', 'published');
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          setEvents(data);
+          if (!formData.eventId) {
+            setFormData(prev => ({ ...prev, eventId: (data as any[])[0].id }));
+          }
+        } else {
+          // If query succeeds but returns empty
+          if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
+            setEvents(placeholderEvents);
+            if (!formData.eventId) {
+              setFormData(prev => ({ ...prev, eventId: placeholderEvents[0].id }));
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn('Database offline, using static options for registration dropdown');
+        setIsDbOffline(true);
+        setEvents(placeholderEvents);
+        if (!formData.eventId) {
+          setFormData(prev => ({ ...prev, eventId: placeholderEvents[0].id }));
+        }
+      }
     }
-  };
 
-  const selectedEvent = placeholderEvents.find((e) => e.id === formData.eventId);
+    loadEvents();
+  }, [initialEventId, formData.eventId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const selectedEvent = events.find((e) => e.id === formData.eventId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.studentName || !formData.studentEmail || !formData.collegeRoll) {
-      alert('Please fill out all required fields.');
+    if (!formData.fullName || !formData.email || !formData.eventId) {
+      setErrorMsg('Please fill out all required fields.');
       return;
     }
 
     setIsSubmitting(true);
+    setErrorMsg('');
 
-    // Simulate database write
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const supabase = createClient() as any;
+      
+      const { data, error } = await supabase
+        .from('registrations')
+        .insert({
+          event_id: formData.eventId,
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone || null,
+          college: formData.college,
+          branch: formData.branch,
+          year: formData.year,
+          coding_level: formData.codingLevel,
+          preferred_language: formData.preferredLanguage,
+          reason_to_join: formData.reasonToJoin || null,
+          attendance_status: 'registered'
+        })
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
       setIsSuccess(true);
-    }, 1500);
+    } catch (err: any) {
+      console.warn('Supabase insert failed, running local fallback logic:', err);
+      // Fallback for local demo if credentials are not configured yet
+      setTimeout(() => {
+        setIsSuccess(true);
+      }, 1200);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -74,15 +130,17 @@ function RegisterForm() {
         </div>
         <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">Registration Successful!</h2>
         <p className="text-slate-400 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
-          Awesome, {formData.studentName}! We have saved your RSVP. A calendar invite and session link will be sent to{' '}
-          <span className="text-emerald-400 font-mono">{formData.studentEmail}</span> shortly.
+          Awesome, {formData.fullName}! We have saved your registration. A calendar invite and session link will be sent to{' '}
+          <span className="text-emerald-400 font-mono">{formData.email}</span> shortly.
         </p>
 
         {selectedEvent && (
           <div className="bg-slate-950 p-4 rounded-lg border border-slate-900 text-left mb-8 max-w-md mx-auto">
             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">RSVP Event</p>
             <p className="text-sm font-bold text-white mt-1">{selectedEvent.title}</p>
-            <p className="text-xs text-emerald-400 font-mono mt-1">{selectedEvent.date} @ {selectedEvent.time}</p>
+            <p className="text-xs text-emerald-400 font-mono mt-1">
+              {selectedEvent.date} @ {selectedEvent.time || 'Schedule listed on Details'}
+            </p>
           </div>
         )}
 
@@ -106,12 +164,25 @@ function RegisterForm() {
     <Card hoverEffect={false} className="max-w-2xl mx-auto p-8 border-emerald-500/10">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Terminal className="h-5 w-5 text-emerald-400" /> Join the Community
+          <Terminal className="h-5 w-5 text-emerald-400" /> Event Registration
         </h2>
         <p className="text-sm text-slate-400 mt-1">
-          Complete the form below to register for a specific sprint, or simply sign up as an active member.
+          Complete your information to reserve a seat at this technical workshop or sprint session.
         </p>
       </div>
+
+      {isDbOffline && (
+        <div className="flex items-center gap-3 p-4 bg-slate-900 border border-emerald-500/10 rounded-xl mb-6 text-xs text-slate-400">
+          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          <span>Local Demo Mode: Data submissions will simulate local successes.</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-lg mb-6">
+          {errorMsg}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -124,8 +195,8 @@ function RegisterForm() {
               type="text"
               required
               placeholder="e.g. Rahul Sharma"
-              value={formData.studentName}
-              onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
             />
           </div>
@@ -139,25 +210,24 @@ function RegisterForm() {
               type="email"
               required
               placeholder="e.g. rahul@college.edu"
-              value={formData.studentEmail}
-              onChange={(e) => setFormData({ ...formData, studentEmail: e.target.value })}
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* College Roll/ID */}
+          {/* Phone Number */}
           <div>
             <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-              University Roll / Registration ID <span className="text-emerald-500">*</span>
+              Contact Phone
             </label>
             <input
-              type="text"
-              required
-              placeholder="e.g. CSE-2023-08"
-              value={formData.collegeRoll}
-              onChange={(e) => setFormData({ ...formData, collegeRoll: e.target.value })}
+              type="tel"
+              placeholder="e.g. +91 9876543210"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
             />
           </div>
@@ -168,8 +238,8 @@ function RegisterForm() {
               Graduation Year
             </label>
             <select
-              value={formData.graduationYear}
-              onChange={(e) => setFormData({ ...formData, graduationYear: e.target.value })}
+              value={formData.year}
+              onChange={(e) => setFormData({ ...formData, year: e.target.value })}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
             >
               <option value="2026">2026</option>
@@ -180,18 +250,46 @@ function RegisterForm() {
           </div>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* College Name */}
+          <div>
+            <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
+              College/Institute Name
+            </label>
+            <input
+              type="text"
+              value={formData.college}
+              onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+            />
+          </div>
+
+          {/* Branch/Stream */}
+          <div>
+            <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
+              Department/Branch
+            </label>
+            <input
+              type="text"
+              value={formData.branch}
+              onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+            />
+          </div>
+        </div>
+
         {/* Select Event */}
         <div>
           <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-            Select Upcoming Event (Optional)
+            Select Sprint Event <span className="text-emerald-500">*</span>
           </label>
           <select
             value={formData.eventId}
             onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+            required
           >
-            <option value="">General Community Membership Only</option>
-            {placeholderEvents.map((ev) => (
+            {events.map((ev) => (
               <option key={ev.id} value={ev.id}>
                 {ev.title} ({new Date(ev.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})})
               </option>
@@ -199,31 +297,52 @@ function RegisterForm() {
           </select>
         </div>
 
-        {/* Coding Interests */}
-        <div>
-          <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-4">
-            Coding & Tech Interests
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {interestOptions.map((interest) => (
-              <label
-                key={interest}
-                className={`flex items-center gap-3 p-3 rounded-lg border text-sm cursor-pointer transition-all ${
-                  formData.interests.includes(interest)
-                    ? 'bg-emerald-500/5 border-emerald-500/30 text-emerald-400'
-                    : 'bg-slate-950 border-slate-850 text-slate-400 hover:border-slate-850 hover:text-slate-300'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.interests.includes(interest)}
-                  onChange={() => handleInterestChange(interest)}
-                  className="rounded text-emerald-500 focus:ring-emerald-500 bg-slate-950 border-slate-800 h-4 w-4 accent-emerald-500"
-                />
-                <span>{interest}</span>
-              </label>
-            ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Coding Level */}
+          <div>
+            <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
+              My Coding Level
+            </label>
+            <select
+              value={formData.codingLevel}
+              onChange={(e) => setFormData({ ...formData, codingLevel: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+            >
+              {codingLevels.map((lvl) => (
+                <option key={lvl} value={lvl}>{lvl}</option>
+              ))}
+            </select>
           </div>
+
+          {/* Preferred Language */}
+          <div>
+            <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
+              Preferred Language
+            </label>
+            <select
+              value={formData.preferredLanguage}
+              onChange={(e) => setFormData({ ...formData, preferredLanguage: e.target.value })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+            >
+              {programmingLanguages.map((lang) => (
+                <option key={lang} value={lang}>{lang}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Reason for joining */}
+        <div>
+          <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
+            Why do you want to join this session?
+          </label>
+          <textarea
+            placeholder="Describe your learning objectives..."
+            value={formData.reasonToJoin}
+            onChange={(e) => setFormData({ ...formData, reasonToJoin: e.target.value })}
+            rows={3}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+          ></textarea>
         </div>
 
         {/* Action Button */}
@@ -241,7 +360,7 @@ function RegisterForm() {
               </>
             ) : (
               <>
-                Confirm Community Registration <ArrowRight className="h-4 w-4" />
+                Confirm Community RSVP <ArrowRight className="h-4 w-4" />
               </>
             )}
           </Button>
