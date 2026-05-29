@@ -71,7 +71,7 @@ export async function sendRegistrationEmails(registrationData: any, eventData: a
   }
 }
 
-export async function sendMeetingLinkToAll(eventId: string) {
+export async function sendMeetingLinkToAll(eventId: string, force: boolean = false) {
   if (!resend) return { success: false, error: 'Email service not configured' };
 
   try {
@@ -86,6 +86,11 @@ export async function sendMeetingLinkToAll(eventId: string) {
 
     if (eventError || !event) throw new Error('Event not found');
     if (!event.meeting_link) throw new Error('Meeting link not set for this event');
+    
+    // Check if already sent
+    if (event.meeting_link_sent_at && !force) {
+      return { success: false, error: 'Meeting link already sent. Use force to resend.' };
+    }
 
     // Fetch all registrations for this event
     const { data: registrations, error: regError } = await supabase
@@ -94,9 +99,9 @@ export async function sendMeetingLinkToAll(eventId: string) {
       .eq('event_id', eventId);
 
     if (regError) throw regError;
-    if (!registrations || registrations.length === 0) return { success: true, message: 'No registrations found' };
+    if (!registrations || registrations.length === 0) return { success: true, message: 'No registrations found', count: 0 };
 
-    // Send emails (in a real production app, you might want to batch these or use a queue)
+    // Send emails
     const emailPromises = registrations.map((reg: any) => 
       resend!.emails.send({
         from: FROM_EMAIL,
@@ -106,6 +111,8 @@ export async function sendMeetingLinkToAll(eventId: string) {
           <MeetingLinkEmail
             studentName={reg.full_name}
             eventTitle={event.title}
+            eventDate={new Date(event.date).toLocaleDateString()}
+            eventTime={`${event.start_time} - ${event.end_time}`}
             meetingLink={event.meeting_link!}
           />
         ),
@@ -113,6 +120,14 @@ export async function sendMeetingLinkToAll(eventId: string) {
     );
 
     await Promise.all(emailPromises);
+
+    // Update sent timestamp
+    const { error: updateError } = await supabase
+      .from('events')
+      .update({ meeting_link_sent_at: new Date().toISOString() })
+      .eq('id', eventId);
+    
+    if (updateError) console.error('Failed to update sent timestamp:', updateError);
 
     return { success: true, count: registrations.length };
   } catch (error: any) {
