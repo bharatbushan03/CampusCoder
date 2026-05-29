@@ -20,6 +20,7 @@ export default function EventRegistrationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [isDbOffline, setIsDbOffline] = useState(false);
+  const [communityLinks, setCommunityLinks] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -61,6 +62,14 @@ export default function EventRegistrationPage() {
         if (data) {
           setEvent(data);
         }
+
+        // Fetch Community Links
+        const { data: linksData } = await supabase
+          .from('community_links')
+          .select('*')
+          .eq('is_active', true);
+        
+        if (linksData) setCommunityLinks(linksData);
       } catch (err: any) {
         console.warn('Database offline, looking up registration target in local static events');
         setIsDbOffline(true);
@@ -70,6 +79,11 @@ export default function EventRegistrationPage() {
         } else {
           setErrorMsg('This event does not exist.');
         }
+
+        setCommunityLinks([
+          { platform: 'Discord', url: 'https://discord.gg/campuscoder' },
+          { platform: 'WhatsApp', url: 'https://chat.whatsapp.com/campuscoder' }
+        ]);
       } finally {
         setLoadingEvent(false);
       }
@@ -217,23 +231,27 @@ export default function EventRegistrationPage() {
           {/* Discord and WhatsApp Community Buttons */}
           <div className="space-y-4 max-w-sm mx-auto mb-10">
             <p className="text-xs text-slate-400 font-medium">Join our tech channels for slides & discussions:</p>
-            <div className="grid grid-cols-2 gap-4">
-              <a
-                href="https://discord.gg/campuscoder"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg bg-[#5865F2] hover:bg-[#4752C4] text-white transition-colors"
-              >
-                <MessageSquare className="h-4 w-4" /> Discord Link
-              </a>
-              <a
-                href="https://whatsapp.com/channel/campuscoder"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg bg-[#25D366] hover:bg-[#20BA5A] text-white transition-colors"
-              >
-                <PhoneCall className="h-4 w-4" /> WhatsApp Link
-              </a>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {communityLinks.map((link) => {
+                const isDiscord = link.platform.toLowerCase().includes('discord');
+                const isWhatsApp = link.platform.toLowerCase().includes('whatsapp');
+                
+                return (
+                  <a
+                    key={link.id || link.platform}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg text-white transition-colors ${
+                      isDiscord ? 'bg-[#5865F2] hover:bg-[#4752C4]' : 
+                      isWhatsApp ? 'bg-[#25D366] hover:bg-[#20BA5A]' : 
+                      'bg-slate-800 hover:bg-slate-700'
+                    }`}
+                  >
+                    <MessageSquare className="h-4 w-4" /> {link.platform} Link
+                  </a>
+                );
+              })}
             </div>
           </div>
 

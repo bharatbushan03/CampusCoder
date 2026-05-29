@@ -94,6 +94,8 @@ create table public.announcements (
     title text not null,
     message text not null,
     event_id uuid references public.events on delete cascade,
+    is_active boolean default true not null,
+    publish_date timestamp with time zone default timezone('utc'::text, now()) not null,
     created_by uuid references auth.users on delete set null,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
