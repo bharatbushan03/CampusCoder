@@ -74,7 +74,7 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/admin/dashboard" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
+                <Link href="/admin" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
                   Admin Dashboard
                 </Link>
               </li>

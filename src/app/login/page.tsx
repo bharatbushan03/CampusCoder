@@ -53,7 +53,7 @@ export default function LoginPage() {
         }
 
         if (profile.role === 'admin' || profile.role === 'organizer') {
-          router.push('/admin/dashboard');
+          router.push('/admin');
         } else {
           router.push('/');
         }

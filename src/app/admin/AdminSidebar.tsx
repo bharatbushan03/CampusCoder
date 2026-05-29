@@ -17,9 +17,9 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const sidebarLinks = [
-    { label: 'Overview', href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'Overview', href: '/admin', icon: LayoutDashboard },
     { label: 'Manage Events', href: '/events', icon: Calendar },
-    { label: 'Registrations', href: '/admin/dashboard#registrations', icon: Users },
+    { label: 'Registrations', href: '/admin', icon: Users },
   ];
 
   const isLinkActive = (href: string) => pathname === href;

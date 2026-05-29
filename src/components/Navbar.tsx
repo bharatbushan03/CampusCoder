@@ -24,7 +24,7 @@ export const Navbar: React.FC = () => {
     { label: 'Home', href: '/' },
     { label: 'Events', href: '/events' },
     { label: 'Register', href: '/register' },
-    ...(isAdminPath ? [{ label: 'Admin Panel', href: '/admin/dashboard' }] : []),
+    ...(isAdminPath ? [{ label: 'Admin Panel', href: '/admin' }] : []),
   ];
 
   const isActive = (href: string) => pathname === href;
@@ -180,7 +180,7 @@ export const Navbar: React.FC = () => {
                     <div className="py-1">
                       {(profile?.role === 'admin' || profile?.role === 'organizer') && (
                         <Link
-                          href="/admin/dashboard"
+                          href="/admin"
                           onClick={() => setDropdownOpen(false)}
                           className="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-900 hover:text-emerald-400 transition-colors"
                         >
@@ -202,7 +202,7 @@ export const Navbar: React.FC = () => {
             ) : (
               <>
                 {!isAdminPath && (
-                  <Link href="/admin/dashboard" className="text-sm text-slate-400 hover:text-white transition-colors mr-2">
+                  <Link href="/admin" className="text-sm text-slate-400 hover:text-white transition-colors mr-2">
                     Admin
                   </Link>
                 )}
@@ -268,7 +268,7 @@ export const Navbar: React.FC = () => {
                   </div>
                   {(profile?.role === 'admin' || profile?.role === 'organizer') && (
                     <Link
-                      href="/admin/dashboard"
+                      href="/admin"
                       onClick={() => setIsOpen(false)}
                       className="flex items-center gap-2 rounded px-3 py-2 text-base text-slate-300 hover:text-emerald-400 transition-colors"
                     >
@@ -289,7 +289,7 @@ export const Navbar: React.FC = () => {
                 <>
                   {!isAdminPath && (
                     <Link
-                      href="/admin/dashboard"
+                      href="/admin"
                       onClick={() => setIsOpen(false)}
                       className="px-3 py-2 text-base text-slate-400 hover:text-white"
                     >
