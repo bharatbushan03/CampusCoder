@@ -1,0 +1,72 @@
+import { CodingEvent } from '@/types';
+
+export const placeholderEvents: CodingEvent[] = [
+  {
+    id: 'ev-1',
+    title: 'Cracking the Coding Interview: AMA & Roadmap',
+    description: 'Learn the core strategies to tackle interviews at Tier-1 companies. We will cover DSA pathways, resume building, and mock interviews.',
+    longDescription: 'Are you preparing for tech placements or internships? Join this exclusive AMA session with seniors and alumni working in top-tier companies. We will break down the exact roadmap for mastering Data Structures & Algorithms, building high-impact portfolio projects, optimization techniques for competitive coding, and strategies to stand out in resumes. Bring your questions and get direct feedback!',
+    date: '2026-06-05',
+    time: '18:00 - 19:30',
+    location: 'Google Meet',
+    type: 'placement_prep',
+    speaker: {
+      name: 'Aditya Sen',
+      role: 'Software Engineer @ Microsoft (Alumni)',
+    },
+    seatsTotal: 150,
+    seatsRegistered: 98,
+    tags: ['DSA', 'Placements', 'Resume Tips', 'Interviews'],
+  },
+  {
+    id: 'ev-2',
+    title: 'Hands-on React & Next.js Workshop',
+    description: 'Build and deploy a modern web application using Next.js, App Router, and Tailwind CSS from scratch.',
+    longDescription: 'Get ready to code! In this interactive coding session, we will build a real-world project from absolute scratch using Next.js and Tailwind CSS. You will learn about server components, routing, handling state, connecting databases, and deploying your web app to Vercel. Recommended for beginners and intermediate developers looking to learn modern web architecture.',
+    date: '2026-06-12',
+    time: '14:00 - 17:00',
+    location: 'Discord Developer Voice Channel',
+    type: 'workshop',
+    speaker: {
+      name: 'Sneha Patel',
+      role: 'Full Stack Developer & Community Lead',
+    },
+    seatsTotal: 100,
+    seatsRegistered: 84,
+    tags: ['React', 'Next.js', 'Web Dev', 'TailwindCSS'],
+  },
+  {
+    id: 'ev-3',
+    title: 'Weekly Coding Sprint: HackerRank practice',
+    description: 'Solve competitive programming challenges together. Focused on dynamic programming and graph traversals.',
+    longDescription: 'Sharpen your problem-solving skills! Join our weekly coding practice session where we live-solve curated problem sets on HackerRank. Seniors will walk through alternative solutions, optimizing space and time complexity, and how to write clean code under pressure. Perfect for anyone looking to build consistency in coding.',
+    date: '2026-06-19',
+    time: '19:00 - 21:00',
+    location: 'HackerRank Platform & Discord',
+    type: 'coding_session',
+    speaker: {
+      name: 'Rahul Verma',
+      role: 'Competitive Programmer (Rank 1200+)',
+    },
+    seatsTotal: 200,
+    seatsRegistered: 142,
+    tags: ['Competitive Programming', 'HackerRank', 'DP', 'Graphs'],
+  },
+  {
+    id: 'ev-4',
+    title: 'Campus Hackathon: Ideathon Edition',
+    description: 'Pitch ideas, form student developer teams, and build prototypes within 48 hours for local community solutions.',
+    longDescription: 'Unleash your creativity at our annual Summer Ideathon! Collaborate with UI/UX designers, copywriters, and developers to build prototypes addressing real-world local problems. Mentors will be available 24/7 to guide you through project scopes, UX architecture, and tech implementation. Exciting goodies, cash prizes, and internship certificates await!',
+    date: '2026-06-26',
+    time: '09:00 (Fri) - 17:00 (Sun)',
+    location: 'College Seminar Hall & GitHub',
+    type: 'hackathon',
+    speaker: {
+      name: 'CampusCoder Tech Panel',
+      role: 'Industry Mentors & Organizers',
+    },
+    seatsTotal: 80,
+    seatsRegistered: 37,
+    tags: ['Hackathon', 'Team Building', 'Prototyping', 'Product Pitch'],
+  }
+];
