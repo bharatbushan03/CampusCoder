@@ -26,6 +26,13 @@ import { placeholderEvents } from '@/lib/placeholderData';
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
+
+  const getSlug = (title: string) => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  };
   const [timeFilter, setTimeFilter] = useState<'upcoming' | 'completed'>('upcoming');
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,7 +300,7 @@ export default function EventsPage() {
                         {eventType.replace('_', ' ')}
                       </span>
                       
-                      <Link href={`/events/${event.id}`}>
+                      <Link href={`/events/${event.slug || getSlug(event.title)}`}>
                         <h3 className="text-lg font-bold text-white mb-2 group-hover:text-emerald-400 transition-colors line-clamp-1">
                           {event.title}
                         </h3>
@@ -323,7 +330,7 @@ export default function EventsPage() {
 
                   {/* Register Call to Action */}
                   <div className="p-6 pt-0">
-                    <Link href={`/events/${event.id}`} className="block">
+                    <Link href={`/events/${event.slug || getSlug(event.title)}`} className="block">
                       <Button
                         variant={isUpcoming ? 'primary' : 'outline'}
                         className="w-full flex items-center justify-center gap-2 text-xs py-2"
