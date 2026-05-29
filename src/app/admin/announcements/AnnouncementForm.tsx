@@ -7,6 +7,8 @@ import {
   Bell, Calendar, Loader2, Save, AlignLeft, Type, Info
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { announcementSchema } from '@/lib/validation';
+import { toast } from 'sonner';
 
 interface AnnouncementFormProps {
   initialData?: any;
@@ -56,17 +58,23 @@ export default function AnnouncementForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !message) {
-      alert('Title and Message are required.');
-      return;
-    }
-    onSubmit({
-      title,
-      message,
+    
+    const payload = {
+      title: title.trim(),
+      message: message.trim(),
       event_id: eventId || null,
       is_active: isActive,
       publish_date: new Date(publishDate).toISOString()
-    });
+    };
+
+    const validation = announcementSchema.safeParse(payload);
+    if (!validation.success) {
+      const error = validation.error.issues[0].message;
+      toast.error(error);
+      return;
+    }
+
+    await onSubmit(payload);
   };
 
   return (

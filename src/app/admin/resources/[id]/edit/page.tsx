@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, Globe, FileText, Link2, Info } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { resourceSchema } from '@/lib/validation';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
@@ -23,7 +25,7 @@ export default function EditResourcePage({ params }: PageProps) {
     title: '',
     description: '',
     link: '',
-    category: 'roadmaps',
+    category: 'roadmaps' as any,
     event_id: '',
     is_active: true
   });
@@ -50,7 +52,7 @@ export default function EditResourcePage({ params }: PageProps) {
         });
         setEvents(eventsRes.data || []);
       } catch (err: any) {
-        alert('Error: ' + err.message);
+        toast.error('Error loading resource');
         router.push('/admin/resources');
       } finally {
         setLoading(false);
@@ -61,18 +63,30 @@ export default function EditResourcePage({ params }: PageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const payload = {
+      ...form,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      link: form.link.trim(),
+      event_id: form.event_id || null
+    };
+
+    const validation = resourceSchema.safeParse(payload);
+    if (!validation.success) {
+      toast.error(validation.error.issues[0].message);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const supabase = createClient() as any;
-      const { error } = await supabase.from('resources').update({
-        ...form,
-        event_id: form.event_id || null
-      }).eq('id', id);
-      
+      const { error } = await supabase.from('resources').update(payload).eq('id', id);
       if (error) throw error;
+      toast.success('Changes saved');
       router.push('/admin/resources');
     } catch (err: any) {
-      alert('Failed: ' + err.message);
+      toast.error(err.message);
     } finally {
       setIsSubmitting(false);
     }

@@ -7,6 +7,9 @@ import {
   Link2, Globe, Loader2, Save
 } from 'lucide-react';
 
+import { communityLinkSchema } from '@/lib/validation';
+import { toast } from 'sonner';
+
 interface CommunityLinkFormProps {
   initialData?: any;
   onSubmit: (data: any) => Promise<void>;
@@ -26,11 +29,21 @@ export default function CommunityLinkForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!platform || !url) {
-      alert('Platform and URL are required.');
+    
+    const payload = {
+      platform: platform.trim(),
+      url: url.trim(),
+      is_active: isActive
+    };
+
+    const validation = communityLinkSchema.safeParse(payload);
+    if (!validation.success) {
+      const error = validation.error.issues[0].message;
+      toast.error(error);
       return;
     }
-    await onSubmit({ platform, url, is_active: isActive });
+
+    await onSubmit(payload);
   };
 
   return (
