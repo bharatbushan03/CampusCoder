@@ -373,7 +373,7 @@ export default function EventDetailsPage() {
               )}
 
               {/* Action register button */}
-              <Link href={isRegistrationDisabled ? '#' : `/register?eventId=${event.id}`} className="block">
+              <Link href={isRegistrationDisabled ? '#' : `/events/${slug}/register`} className="block">
                 <Button
                   variant="primary"
                   size="lg"
