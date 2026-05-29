@@ -9,11 +9,13 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { sendMeetingLinkToAll } from '@/app/actions/emailActions';
 
 export default function AdminEventsListingPage() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<any[]>([]);
   const [isDbOffline, setIsDbOffline] = useState(false);
+  const [isSendingLinks, setIsSendingLinks] = useState<string | null>(null);
   
   // Filtering & search
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,8 +36,8 @@ export default function AdminEventsListingPage() {
       console.warn('Database offline, using mock data for events table:', err);
       setIsDbOffline(true);
       setEvents([
-        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', status: 'published' },
-        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', event_type: 'webinar', mode: 'online', date: '2026-06-12', start_time: '18:00', end_time: '19:30', status: 'published' },
+        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', status: 'published', meeting_link: 'https://meet.google.com/abc' },
+        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', event_type: 'webinar', mode: 'online', date: '2026-06-12', start_time: '18:00', end_time: '19:30', status: 'published', meeting_link: 'https://meet.google.com/def' },
         { id: '3', title: 'Weekly Coding Sprint: HackerRank practice', slug: 'weekly-coding-sprint-hackerrank', event_type: 'coding_session', mode: 'online', date: '2026-05-20', start_time: '17:00', end_time: '19:00', status: 'completed' }
       ]);
     } finally {
@@ -46,6 +48,24 @@ export default function AdminEventsListingPage() {
   useEffect(() => {
     loadEvents();
   }, []);
+
+  const handleSendMeetingLink = async (eventId: string, title: string) => {
+    if (!confirm(`Are you sure you want to send the meeting link email to ALL registered students for "${title}"?`)) return;
+    
+    setIsSendingLinks(eventId);
+    try {
+      const res = await sendMeetingLinkToAll(eventId);
+      if (res.success) {
+        alert(`Successfully sent meeting link to ${res.count || 0} students.`);
+      } else {
+        alert(`Error: ${res.error}`);
+      }
+    } catch (err: any) {
+      alert('Failed to trigger email blast: ' + err.message);
+    } finally {
+      setIsSendingLinks(null);
+    }
+  };
 
   const handleUpdateStatus = async (eventId: string, status: 'published' | 'completed' | 'cancelled' | 'draft') => {
     try {
@@ -204,6 +224,25 @@ export default function AdminEventsListingPage() {
                             <Edit className="h-3 w-3" /> Edit
                           </button>
                         </Link>
+                        {ev.status === 'published' && ev.meeting_link && (
+                          <button
+                            onClick={() => handleSendMeetingLink(ev.id, ev.title)}
+                            disabled={isSendingLinks === ev.id}
+                            className={`text-[10px] font-mono px-2 py-1 rounded flex items-center gap-1 cursor-pointer transition-colors ${
+                              isSendingLinks === ev.id 
+                                ? 'bg-slate-800 text-slate-500 border border-slate-700' 
+                                : 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/20'
+                            }`}
+                            title="Send Meeting Link to all registered students"
+                          >
+                            {isSendingLinks === ev.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Mail className="h-3 w-3" />
+                            )}
+                            Blast Link
+                          </button>
+                        )}
                         {ev.status !== 'published' && (
                           <button
                             onClick={() => handleUpdateStatus(ev.id, 'published')}

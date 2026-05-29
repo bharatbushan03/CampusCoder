@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
+import { sendRegistrationEmails } from '@/app/actions/emailActions';
 
 export default function EventRegistrationPage() {
   const params = useParams();
@@ -162,6 +163,21 @@ export default function EventRegistrationPage() {
         });
 
       if (insertError) throw insertError;
+
+      // 3. Send Confirmation Emails (Student & Admin)
+      try {
+        await sendRegistrationEmails(
+          { 
+            full_name: formData.fullName, 
+            email: formData.email, 
+            college: formData.college, 
+            branch: formData.branch 
+          }, 
+          event
+        );
+      } catch (emailErr) {
+        console.error('Email notification failed but registration was saved:', emailErr);
+      }
 
       setIsSuccess(true);
     } catch (err: any) {
