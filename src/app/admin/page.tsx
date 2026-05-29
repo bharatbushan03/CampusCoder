@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
   Calendar, Users, Eye, PlusCircle, CheckCircle2, UserCheck, Mail, 
   Loader2, AlertTriangle, Layers, Trophy, Megaphone, 
-  Link2, Trash2, X, Search, Filter, Plus, Power, Edit
+  Link2, Trash2, X, Search, Filter, Plus, Power, Edit, ArrowUpRight
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
@@ -615,342 +616,126 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      {/* Tabs Layout */}
-      <div className="space-y-6">
-        <div className="flex border-b border-slate-900 overflow-x-auto pb-px gap-6">
-          <button
-            onClick={() => setActiveTab('registrations')}
-            className={`pb-3 text-sm font-semibold font-mono tracking-tight transition-all relative whitespace-nowrap cursor-pointer ${
-              activeTab === 'registrations' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Registrations Log
-            {activeTab === 'registrations' && (
-              <span className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('events')}
-            className={`pb-3 text-sm font-semibold font-mono tracking-tight transition-all relative whitespace-nowrap cursor-pointer ${
-              activeTab === 'events' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Sprints Manager ({events.length})
-            {activeTab === 'events' && (
-              <span className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('announcements')}
-            className={`pb-3 text-sm font-semibold font-mono tracking-tight transition-all relative whitespace-nowrap cursor-pointer ${
-              activeTab === 'announcements' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Announcements ({announcements.length})
-            {activeTab === 'announcements' && (
-              <span className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('links')}
-            className={`pb-3 text-sm font-semibold font-mono tracking-tight transition-all relative whitespace-nowrap cursor-pointer ${
-              activeTab === 'links' ? 'text-emerald-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Community Links
-            {activeTab === 'links' && (
-              <span className="absolute bottom-0 left-0 w-full h-[2px] bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-            )}
-          </button>
+      {/* Main Overview Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column: Recent Registrations */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white font-mono flex items-center gap-2">
+              <Users className="h-5 w-5 text-emerald-400" /> Recent Registrations
+            </h2>
+            <Link href="/admin/registrations">
+              <Button variant="outline" size="sm" className="text-[10px] font-mono py-1 px-3 h-auto">
+                View All
+              </Button>
+            </Link>
+          </div>
+          
+          {registrations.length > 0 ? (
+            <Card hoverEffect={false} className="border-slate-900 p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-900 bg-slate-950/60 font-mono text-[10px] text-slate-500">
+                      <th className="py-3 px-6 font-semibold">Student</th>
+                      <th className="py-3 px-6 font-semibold">Event Target</th>
+                      <th className="py-3 px-6 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-900/60 text-xs text-slate-300">
+                    {registrations.slice(0, 5).map((reg) => (
+                      <tr key={reg.id} className="hover:bg-slate-900/20 transition-colors">
+                        <td className="py-3 px-6">
+                          <div className="font-semibold text-white">{reg.full_name}</div>
+                          <div className="text-[10px] text-slate-500 truncate max-w-[150px]">{reg.email}</div>
+                        </td>
+                        <td className="py-3 px-6 font-medium text-slate-400">
+                          {reg.events?.title || 'General'}
+                        </td>
+                        <td className="py-3 px-6">
+                          <span className="inline-flex items-center gap-1 text-[9px] font-mono text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 px-1.5 py-0.5 rounded capitalize">
+                            {reg.attendance_status || 'registered'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : (
+            <div className="text-center py-10 bg-slate-900/10 border border-slate-900 rounded-xl">
+              <p className="text-xs font-mono text-slate-500">No recent registrations.</p>
+            </div>
+          )}
         </div>
 
-        {/* Tab contents */}
-
-        {/* A. Registrations Log */}
-        {activeTab === 'registrations' && (
+        {/* Right Column: Announcements & Links Widgets */}
+        <div className="space-y-8">
+          {/* Active Announcements Widget */}
           <div className="space-y-4">
-            {/* Search/Filters bar */}
-            <div className="flex flex-col sm:flex-row gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="Search by student name or email..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
-              </div>
-              <div className="relative w-full sm:w-64">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                <select
-                  value={eventFilter}
-                  onChange={(e) => setEventFilter(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
-                >
-                  <option value="">All Events</option>
-                  {events.map((e) => (
-                    <option key={e.id} value={e.id}>{e.title}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-emerald-400" /> Active Announcements
+              </h2>
+              <Link href="/admin/announcements">
+                <Button variant="outline" size="sm" className="text-[10px] font-mono py-1 px-3 h-auto">
+                  Manage
+                </Button>
+              </Link>
             </div>
-
-            {/* Table */}
-            {filteredRegistrations.length > 0 ? (
-              <Card hoverEffect={false} className="border-slate-900 p-0 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-900 bg-slate-950/60 font-mono text-xs text-slate-500">
-                        <th className="py-4 px-6 font-semibold">Student</th>
-                        <th className="py-4 px-6 font-semibold">Event Target</th>
-                        <th className="py-4 px-6 font-semibold">Date Registered</th>
-                        <th className="py-4 px-6 font-semibold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-900/60 text-sm text-slate-300">
-                      {filteredRegistrations.map((reg) => (
-                        <tr key={reg.id} className="hover:bg-slate-900/20 transition-colors">
-                          <td className="py-4 px-6">
-                            <div className="font-semibold text-white">{reg.full_name}</div>
-                            <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                              <Mail className="h-3 w-3" /> {reg.email}
-                            </div>
-                          </td>
-                          <td className="py-4 px-6 font-medium text-slate-200">
-                            {reg.events?.title || 'General Registration'}
-                          </td>
-                          <td className="py-4 px-6 font-mono text-xs text-slate-400">
-                            {new Date(reg.registered_at).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium font-mono text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 px-2 py-0.5 rounded capitalize">
-                              <CheckCircle2 className="h-3.5 w-3.5" /> {reg.attendance_status || 'registered'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            ) : (
-              <div className="text-center py-12 bg-slate-900/10 border border-slate-900 rounded-xl">
-                <p className="text-sm font-mono text-slate-500">No registrations found matching the filters.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* B. Sprints Manager */}
-        {activeTab === 'events' && (
-          <div className="space-y-4">
-            {events.length > 0 ? (
-              <Card hoverEffect={false} className="border-slate-900 p-0 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-900 bg-slate-950/60 font-mono text-xs text-slate-500">
-                        <th className="py-4 px-6 font-semibold">Sprint Title</th>
-                        <th className="py-4 px-6 font-semibold">Date & Type</th>
-                        <th className="py-4 px-6 font-semibold">Status</th>
-                        <th className="py-4 px-6 font-semibold text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-900/60 text-sm text-slate-300">
-                      {events.map((ev) => (
-                        <tr key={ev.id} className="hover:bg-slate-900/20 transition-colors">
-                          <td className="py-4 px-6">
-                            <div className="font-semibold text-white">{ev.title}</div>
-                            <div className="text-xs text-slate-500 font-mono mt-0.5">slug: {ev.slug}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="font-mono text-xs text-slate-200">{ev.date} @ {ev.start_time}</div>
-                            <div className="text-xs text-emerald-400 capitalize mt-0.5">{ev.event_type.replace('_', ' ')} • {ev.mode}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-[10px] font-mono font-medium border capitalize ${
-                              ev.status === 'published' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                              ev.status === 'completed' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
-                              ev.status === 'cancelled' ? 'bg-red-500/10 border-red-500/20 text-red-400' :
-                              'bg-slate-800 border-slate-700 text-slate-400'
-                            }`}>
-                              {ev.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              {ev.status !== 'published' && (
-                                <button
-                                  onClick={() => handleUpdateEventStatus(ev.id, 'published')}
-                                  className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 rounded transition-colors cursor-pointer"
-                                >
-                                  Publish
-                                </button>
-                              )}
-                              {ev.status === 'published' && (
-                                <button
-                                  onClick={() => handleUpdateEventStatus(ev.id, 'completed')}
-                                  className="text-[10px] font-mono px-2 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-colors cursor-pointer"
-                                >
-                                  Complete
-                                </button>
-                              )}
-                              {ev.status !== 'cancelled' && ev.status !== 'completed' && (
-                                <button
-                                  onClick={() => handleUpdateEventStatus(ev.id, 'cancelled')}
-                                  className="text-[10px] font-mono px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors cursor-pointer"
-                                >
-                                  Cancel
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDeleteEvent(ev.id)}
-                                className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
-                                title="Delete Event"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            ) : (
-              <div className="text-center py-12 bg-slate-900/10 border border-slate-900 rounded-xl">
-                <p className="text-sm font-mono text-slate-500">No events found in the database.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* C. Announcements Feed */}
-        {activeTab === 'announcements' && (
-          <div className="space-y-4">
-            {announcements.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4">
-                {announcements.map((announce) => {
-                  const isScheduled = announce.publish_date && new Date(announce.publish_date) > new Date();
-                  return (
-                    <Card key={announce.id} hoverEffect={false} className="border-slate-900 bg-slate-950/20 p-5 flex justify-between items-start">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1 rounded bg-emerald-500/10 border border-emerald-500/25">
-                            <Megaphone className="h-4 w-4 text-emerald-400" />
-                          </span>
-                          <h3 className="font-bold text-white text-base">{announce.title}</h3>
-                          <span className={`inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-[9px] font-mono font-medium border capitalize ${
-                            announce.is_active 
-                              ? isScheduled
-                                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                              : 'bg-slate-800 border-slate-700 text-slate-400'
-                          }`}>
-                            {announce.is_active ? (isScheduled ? 'scheduled' : 'active') : 'inactive'}
-                          </span>
-                        </div>
-                        <p className="text-slate-300 text-sm leading-relaxed max-w-3xl">{announce.message}</p>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 pt-1 font-mono">
-                          <span>Publish Date: {new Date(announce.publish_date || announce.created_at).toLocaleString()}</span>
-                          {announce.events && (
-                            <span className="text-emerald-500/80">• Event: {announce.events.title}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleToggleAnnouncementActive(announce.id, announce.is_active)}
-                          className={`p-1.5 rounded border transition-all cursor-pointer flex items-center gap-1 text-[11px] font-mono ${
-                            announce.is_active 
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                              : 'bg-slate-900 border-slate-800 text-slate-500'
-                          }`}
-                          title={announce.is_active ? 'Deactivate' : 'Activate'}
-                        >
-                          <Power className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleEditAnnouncementClick(announce)}
-                          className="text-slate-500 hover:text-emerald-400 p-1.5 hover:bg-slate-900/60 rounded transition-colors cursor-pointer"
-                          title="Edit Announcement"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAnnouncement(announce.id)}
-                          className="text-slate-500 hover:text-red-400 p-2 hover:bg-slate-900/40 rounded transition-colors cursor-pointer"
-                          title="Delete Announcement"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-slate-900/10 border border-slate-900 rounded-xl">
-                <p className="text-sm font-mono text-slate-500">No active announcements posted yet.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* D. Community Links Settings */}
-        {activeTab === 'links' && (
-          <div className="space-y-4">
-            {communityLinks.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {communityLinks.map((link) => (
-                  <Card key={link.id} hoverEffect={true} className="border-slate-900 bg-slate-950/20 p-5 flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Link2 className="h-4 w-4 text-emerald-400" />
-                        <h4 className="font-bold text-white font-mono">{link.platform}</h4>
-                      </div>
-                      <p className="text-xs text-slate-400 font-mono truncate max-w-xs">{link.url}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleLinkActive(link.id, link.is_active)}
-                        className={`p-1.5 rounded border transition-all cursor-pointer flex items-center gap-1 text-[11px] font-mono ${
-                          link.is_active 
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                            : 'bg-slate-900 border-slate-800 text-slate-500'
-                        }`}
-                        title={link.is_active ? 'Active (Click to disable)' : 'Inactive (Click to enable)'}
-                      >
-                        <Power className="h-3.5 w-3.5" /> {link.is_active ? 'Active' : 'Offline'}
-                      </button>
-                      <button
-                        onClick={() => handleEditLinkClick(link)}
-                        className="text-slate-500 hover:text-emerald-400 p-1.5 hover:bg-slate-900/60 rounded transition-colors cursor-pointer"
-                        title="Edit Link"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteLink(link.id)}
-                        className="text-slate-500 hover:text-red-400 p-1.5 hover:bg-slate-900/60 rounded transition-colors cursor-pointer"
-                        title="Delete Link"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+            
+            <div className="space-y-3">
+              {announcements.filter(a => a.is_active).slice(0, 3).length > 0 ? (
+                announcements.filter(a => a.is_active).slice(0, 3).map((ann) => (
+                  <Card key={ann.id} hoverEffect={false} className="border-slate-900 bg-slate-950/40 p-4 space-y-2">
+                    <h3 className="text-xs font-bold text-white">{ann.title}</h3>
+                    <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">{ann.message}</p>
+                    <div className="text-[9px] text-slate-600 font-mono">
+                      {new Date(ann.publish_date).toLocaleDateString()}
                     </div>
                   </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-slate-900/10 border border-slate-900 rounded-xl">
-                <p className="text-sm font-mono text-slate-500">No community link records found.</p>
-              </div>
-            )}
+                ))
+              ) : (
+                <div className="text-center py-6 border border-dashed border-slate-800 rounded-lg">
+                  <p className="text-[10px] text-slate-500 font-mono italic">No active announcements.</p>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+
+          {/* Community Links Widget */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-emerald-400" /> Community Channels
+              </h2>
+              <Link href="/admin/community-links">
+                <Button variant="outline" size="sm" className="text-[10px] font-mono py-1 px-3 h-auto">
+                  Manage
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-2">
+              {communityLinks.length > 0 ? (
+                communityLinks.map((link) => (
+                  <div key={link.id} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 group hover:border-emerald-500/20 transition-all">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tight">{link.platform}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${link.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`}></span>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-emerald-400">
+                        <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[10px] text-slate-500 font-mono italic">No links configured.</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ------------------------------------------------------------- */}

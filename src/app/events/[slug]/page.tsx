@@ -404,16 +404,20 @@ export default function EventDetailsPage() {
                 Connect with our active channels to get updates, slides, code repositories, and notifications.
               </p>
               <div className="space-y-2">
-                {communityLinks.map((link, idx) => (
+                {communityLinks.length > 0 ? communityLinks.map((link) => (
                   <a
-                    key={idx}
+                    key={link.id}
                     href={link.url}
-                    className="flex items-center justify-between text-xs text-slate-300 hover:text-emerald-400 p-2.5 rounded bg-slate-950/60 border border-slate-900 transition-colors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between text-xs text-slate-300 hover:text-emerald-400 p-2.5 rounded bg-slate-950/60 border border-slate-900 transition-colors group"
                   >
-                    <span>{link.platform}</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
+                    <span className="capitalize">{link.platform}</span>
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
                   </a>
-                ))}
+                )) : (
+                  <p className="text-[10px] text-slate-500 font-mono italic">No channels linked yet.</p>
+                )}
               </div>
             </Card>
           </div>
