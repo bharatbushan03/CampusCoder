@@ -1,21 +1,70 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Calendar, Clock, MapPin, ArrowLeft, Users, User, ArrowRight, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, ArrowLeft, User, ArrowRight, CheckCircle, Loader2 } from 'lucide-react';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { createClient } from '@/utils/supabase/client';
 
 export default function EventDetailsPage() {
   const params = useParams();
   const id = params?.id as string;
-  
-  // Find event
-  const event = placeholderEvents.find((ev) => ev.id === id);
 
-  if (!event) {
+  const [event, setEvent] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchEventDetails() {
+      if (!id) return;
+      try {
+        const supabase = createClient() as any;
+        const { data, error } = await supabase
+          .from('events')
+          .select(`
+            *,
+            event_owners (*)
+          `)
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        setEvent(data);
+      } catch (err: any) {
+        console.warn('Supabase fetch failed, looking up in local placeholders:', err);
+        // Fallback to placeholderEvents search
+        const localMatch = placeholderEvents.find((ev) => ev.id === id);
+        if (localMatch) {
+          setEvent(localMatch);
+        } else {
+          setError('Event not found.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchEventDetails();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="tech-grid min-h-screen flex items-center justify-center py-20">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-mono text-slate-400">Fetching sprint database details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !event) {
     return (
       <div className="tech-grid min-h-screen flex items-center justify-center py-20 px-4">
         <Card className="text-center max-w-md p-8 border-red-500/20">
@@ -29,8 +78,18 @@ export default function EventDetailsPage() {
     );
   }
 
-  // Calculate percentage of seats registered
-  const fillPercentage = Math.round((event.seatsRegistered / event.seatsTotal) * 100);
+  // Fallback structures for speaker details
+  const speaker = event.event_owners?.[0] || event.speaker || {
+    name: 'CampusCoder Tech Panel',
+    role: 'Industry Mentors & Organizers',
+    bio: 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.'
+  };
+
+  const totalSeats = event.seatsTotal || event.seats_total || 100;
+  const registered = event.seatsRegistered || event.seats_registered || 0;
+  const fillPercentage = Math.round((registered / totalSeats) * 100);
+  const remainingSeats = totalSeats - registered;
+  const eventType = event.event_type || event.type || 'workshop';
 
   return (
     <div className="tech-grid min-h-screen py-16">
@@ -48,7 +107,7 @@ export default function EventDetailsPage() {
           <div className="lg:col-span-2 space-y-6">
             <Card hoverEffect={false} className="p-8">
               <span className="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 capitalize mb-4 inline-block">
-                {event.type.replace('_', ' ')}
+                {eventType.replace('_', ' ')}
               </span>
               
               <h1 className="text-3xl md:text-4xl font-extrabold text-white mt-2 mb-4 leading-tight">
@@ -69,7 +128,7 @@ export default function EventDetailsPage() {
                   <Clock className="h-4 w-4 text-emerald-400" />
                   <div>
                     <p className="text-[10px] text-slate-500 uppercase tracking-widest">Time</p>
-                    <p className="font-medium">{event.time}</p>
+                    <p className="font-medium">{event.start_time ? `${event.start_time.slice(0,5)} - ${event.end_time.slice(0,5)}` : event.time}</p>
                   </div>
                 </div>
 
@@ -86,13 +145,13 @@ export default function EventDetailsPage() {
               <div className="prose prose-invert max-w-none space-y-4">
                 <h3 className="text-lg font-bold text-white mb-2">About this Session</h3>
                 <p className="text-slate-300 leading-relaxed">
-                  {event.longDescription || event.description}
+                  {event.full_description || event.longDescription || event.short_description || event.description}
                 </p>
               </div>
 
               {/* Tags */}
               <div className="mt-8 flex flex-wrap gap-2">
-                {event.tags.map((tag) => (
+                {(event.tags || ['Coding', 'Tech']).map((tag: string) => (
                   <span key={tag} className="text-xs font-mono bg-slate-950/80 text-emerald-400/80 border border-slate-800 px-3 py-1 rounded-full">
                     #{tag}
                   </span>
@@ -108,10 +167,10 @@ export default function EventDetailsPage() {
                   <User className="h-6 w-6 text-emerald-400" />
                 </div>
                 <div>
-                  <h4 className="text-base font-bold text-white">{event.speaker.name}</h4>
-                  <p className="text-sm text-emerald-400/80 font-medium mb-2">{event.speaker.role}</p>
+                  <h4 className="text-base font-bold text-white">{speaker.name}</h4>
+                  <p className="text-sm text-emerald-400/80 font-medium mb-2">{speaker.role}</p>
                   <p className="text-sm text-slate-400 leading-relaxed">
-                    Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.
+                    {speaker.bio || 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.'}
                   </p>
                 </div>
               </div>
@@ -128,7 +187,7 @@ export default function EventDetailsPage() {
                 <div className="flex items-center justify-between text-xs font-mono text-slate-400 mb-2">
                   <span>Available Seats</span>
                   <span className="font-semibold text-emerald-400">
-                    {event.seatsTotal - event.seatsRegistered} of {event.seatsTotal} left
+                    {remainingSeats} of {totalSeats} left
                   </span>
                 </div>
                 <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-850">
