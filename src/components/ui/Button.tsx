@@ -1,8 +1,9 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
+  isLoading?: boolean;
   children: React.ReactNode;
 }
 
@@ -10,29 +11,35 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
   className = '',
+  isLoading = false,
   children,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:opacity-50 disabled:pointer-events-none cursor-pointer';
+  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-50 disabled:pointer-events-none cursor-pointer select-none active:scale-[0.98]';
   
   const variants = {
-    primary: 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 hover:shadow-[0_0_15px_rgba(16,185,129,0.4)] active:scale-95 font-semibold',
-    secondary: 'bg-slate-800 text-emerald-400 hover:bg-slate-700 border border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_0_15px_rgba(16,185,129,0.1)] active:scale-95',
-    outline: 'border border-slate-700 text-slate-300 hover:border-slate-500 hover:bg-slate-900 active:scale-95',
-    ghost: 'text-slate-400 hover:text-emerald-400 hover:bg-slate-900 active:scale-95',
+    primary: 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400 hover:shadow-lg hover:shadow-emerald-500/20 font-bold',
+    secondary: 'bg-slate-900 text-emerald-400 hover:bg-slate-800 border border-emerald-500/20 hover:border-emerald-500/40 font-semibold',
+    outline: 'bg-transparent border border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900/50 hover:text-white',
+    ghost: 'bg-transparent text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/5',
+    danger: 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white',
   };
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2.5 text-sm',
-    lg: 'px-6 py-3 text-base',
+    sm: 'px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider',
+    md: 'px-5 py-2.5 text-sm',
+    lg: 'px-8 py-3.5 text-base',
   };
 
   return (
     <button
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      disabled={isLoading || props.disabled}
       {...props}
     >
+      {isLoading ? (
+        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      ) : null}
       {children}
     </button>
   );

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Terminal, Globe, Code, MessageSquare, Users, Trophy, Phone } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { Button } from './ui/Button';
 
 export const Footer: React.FC = () => {
   const [links, setLinks] = useState<any[]>([]);
@@ -43,39 +44,38 @@ export const Footer: React.FC = () => {
   const getPlatformIcon = (platform: string) => {
     const p = platform.toLowerCase();
     if (p.includes('discord')) return <MessageSquare className="h-5 w-5" />;
-    if (p.includes('whatsapp')) return <Phone className="h-5 w-5 text-emerald-400" />;
+    if (p.includes('whatsapp')) return <Phone className="h-5 w-5" />;
     if (p.includes('linkedin')) return <Users className="h-5 w-5" />;
     if (p.includes('github')) return <Terminal className="h-5 w-5" />;
-    if (p.includes('hackerrank')) return <Trophy className="h-5 w-5 text-amber-400" />;
+    if (p.includes('hackerrank')) return <Trophy className="h-5 w-5" />;
     return <Globe className="h-5 w-5" />;
   };
 
   return (
-    <footer className="w-full border-t border-emerald-500/10 bg-slate-950 py-12 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          {/* Brand Info */}
-          <div className="md:col-span-2">
-            <Link href="/" className="flex items-center gap-2 mb-4 group">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                <Terminal className="h-4 w-4 text-emerald-400" />
+    <footer className="relative z-10 bg-slate-950 border-t border-slate-900 pt-20 pb-12 overflow-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 mb-16">
+          {/* Brand Column */}
+          <div className="space-y-6 lg:col-span-1">
+            <Link href="/" className="flex items-center gap-2 group">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20 group-hover:border-emerald-500/50 transition-all">
+                <Terminal className="h-5 w-5 text-emerald-400" />
               </div>
-              <span className="font-mono text-lg font-bold tracking-tight text-white">
+              <span className="font-mono text-xl font-bold tracking-tight text-white">
                 Campus<span className="text-emerald-500 font-sans">Coder</span>
               </span>
             </Link>
-            <p className="text-sm text-slate-400 max-w-sm mb-4 leading-relaxed">
-              A student-led virtual coding community designed to bridge the gap between academics, modern software craftsmanship, and competitive career opportunities.
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Empowering the next generation of student developers through hands-on technical workshops and collaborative learning ecosystems.
             </p>
-            <div className="flex gap-4">
+            <div className="flex items-center gap-3">
               {links.map((link) => (
-                <a
-                  key={link.id || link.platform}
-                  href={link.url}
-                  target="_blank"
+                <a 
+                  key={link.platform} 
+                  href={link.url} 
+                  target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-slate-400 hover:text-emerald-400 transition-colors"
-                  aria-label={link.platform}
+                  className="h-9 w-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all"
                   title={link.platform}
                 >
                   {getPlatformIcon(link.platform)}
@@ -85,67 +85,78 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Quick Links */}
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200 mb-4">Community</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/events" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
-                  Upcoming Events
-                </Link>
-              </li>
-              <li>
-                <Link href="/register" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
-                  Registration Portal
-                </Link>
-              </li>
-              {links.map((link) => (
-                <li key={`menu-${link.id || link.platform}`}>
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-slate-400 hover:text-emerald-400 transition-colors inline-flex items-center gap-1 capitalize"
+          <div className="space-y-6">
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Navigation</h4>
+            <ul className="space-y-4">
+              {['Home', 'Events', 'Workshops', 'Resources', 'Archive'].map((item) => (
+                <li key={item}>
+                  <Link 
+                    href={item === 'Home' ? '/' : (item === 'Archive' ? '/events/archive' : `/${item.toLowerCase()}`)} 
+                    className="text-sm text-slate-400 hover:text-white transition-colors"
                   >
-                    {link.platform} channel
-                  </a>
+                    {item}
+                  </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Developer / Admin */}
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200 mb-4">Resources</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/login" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
-                  Member Portal
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
-                  Admin Dashboard
-                </Link>
-              </li>
-              <li>
-                <a href="#" className="text-sm text-slate-400 hover:text-emerald-400 transition-colors">
-                  System Design Guide
-                </a>
-              </li>
+          {/* Sprints & Support */}
+          <div className="space-y-6">
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Support</h4>
+            <ul className="space-y-4">
+              {['Admin Console', 'Student Dashboard', 'Discord Server', 'Code of Conduct', 'Contact Us'].map((item) => (
+                <li key={item}>
+                  <Link 
+                    href={item === 'Discord Server' ? 'https://discord.gg/campuscoder' : (item === 'Admin Console' ? '/admin' : (item === 'Student Dashboard' ? '/dashboard' : '/'))} 
+                    className="text-sm text-slate-400 hover:text-white transition-colors"
+                  >
+                    {item}
+                  </Link>
+                </li>
+              ))}
             </ul>
+          </div>
+
+          {/* Newsletter/Status */}
+          <div className="space-y-6 lg:col-span-1">
+            <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Live Status</h4>
+            <div className="p-6 rounded-2xl bg-slate-900/50 border border-slate-800/60 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-xs font-medium text-slate-300">Hub is Operational</span>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] text-slate-500 leading-tight">
+                  Join 500+ active coders. All services currently running smoothly.
+                </p>
+                <div className="pt-2">
+                  <Link href="/register">
+                    <Button variant="primary" size="sm" className="w-full text-[10px] h-9">Join Community</Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Footer Bottom */}
-        <div className="pt-8 border-t border-slate-900 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-slate-500">
-            &copy; {new Date().getFullYear()} CampusCoder Community. All rights reserved.
+        {/* Bottom Bar */}
+        <div className="pt-8 border-t border-slate-900 flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-xs text-slate-500 font-mono">
+            &copy; {new Date().getFullYear()} CampusCoder Hub. All rights reserved.
           </p>
-          <p className="text-xs text-slate-500 flex items-center gap-1">
-            Made with <Code className="h-3.5 w-3.5 text-emerald-500" /> for student builders.
-          </p>
+          <div className="flex items-center gap-6 text-xs text-slate-600">
+            <a href="#" className="hover:text-emerald-500 transition-colors">Privacy</a>
+            <a href="#" className="hover:text-emerald-500 transition-colors">Terms</a>
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-emerald-500/80">
+              <Code className="h-3 w-3" /> built for builders
+            </span>
+          </div>
         </div>
       </div>
+      
+      {/* Background Glow */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
     </footer>
   );
 };
