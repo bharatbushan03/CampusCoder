@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { eventSchema, resourceSchema, announcementSchema, communityLinkSchema } from '@/lib/validation';
-import { z } from 'zod';
+import type { z } from 'zod';
 
 /**
  * Simple sanitization to prevent basic XSS/injection
@@ -36,7 +36,16 @@ async function verifyAdminRole() {
   return user.id;
 }
 
-export async function createEvent(payload: any, speakers: any[]) {
+type EventPayload = z.infer<typeof eventSchema>;
+type SpeakerPayload = {
+  name: string;
+  role?: string;
+  email?: string;
+  bio?: string;
+  profile_image_url?: string;
+};
+
+export async function createEvent(payload: EventPayload, speakers: SpeakerPayload[]) {
   const adminId = await verifyAdminRole();
   const supabase = await createClient();
 
@@ -54,6 +63,7 @@ export async function createEvent(payload: any, speakers: any[]) {
     title: sanitizeText(data.title),
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
+    banner_url: data.banner_url || null,
     created_by: adminId,
   };
 
@@ -64,7 +74,12 @@ export async function createEvent(payload: any, speakers: any[]) {
     .select()
     .single();
 
-  if (eventError) throw eventError;
+  if (eventError) {
+    if (eventError.code === '23505') {
+      throw new Error('An event with this slug already exists. Please choose a unique slug.');
+    }
+    throw eventError;
+  }
   if (!insertedEvent) throw new Error('Event insertion failed.');
 
   // 4. Insert speakers
@@ -91,8 +106,8 @@ export async function createEvent(payload: any, speakers: any[]) {
   return { success: true, eventId: insertedEvent.id };
 }
 
-export async function updateEvent(id: string, payload: any, speakers: any[]) {
-  const awaitAdmin = await verifyAdminRole();
+export async function updateEvent(id: string, payload: EventPayload, speakers: SpeakerPayload[]) {
+  await verifyAdminRole();
   const supabase = await createClient();
 
   const validation = eventSchema.safeParse(payload);
@@ -107,6 +122,7 @@ export async function updateEvent(id: string, payload: any, speakers: any[]) {
     title: sanitizeText(data.title),
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
+    banner_url: data.banner_url || null,
   };
 
   const { error: updateError } = await supabase
@@ -114,7 +130,12 @@ export async function updateEvent(id: string, payload: any, speakers: any[]) {
     .update(sanitizedEvent)
     .eq('id', id);
 
-  if (updateError) throw updateError;
+  if (updateError) {
+    if (updateError.code === '23505') {
+      throw new Error('An event with this slug already exists. Please choose a unique slug.');
+    }
+    throw updateError;
+  }
 
   // Update speakers: Simplest way is to delete and re-insert
   await supabase.from('event_owners').delete().eq('event_id', id);

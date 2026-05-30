@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   ArrowLeft, Terminal, Calendar, Clock, 
   ExternalLink, Video, FileText, Loader2, 
@@ -29,7 +30,7 @@ export default function WorkshopsPage() {
         if (error) throw error;
         setWorkshops(data || []);
       } catch (err) {
-        console.error('Failed to load workshops:', err);
+        console.warn('Failed to load workshops:', err);
       } finally {
         setLoading(false);
       }
@@ -66,9 +67,12 @@ export default function WorkshopsPage() {
             <Card key={ws.id} className="group overflow-hidden flex flex-col md:flex-row border-slate-800 bg-slate-950/40 hover:border-emerald-500/30 transition-all p-0">
               <div className="md:w-48 h-48 md:h-auto relative overflow-hidden flex-shrink-0">
                 {ws.banner_url ? (
-                  <img 
+                  <Image
                     src={ws.banner_url} 
                     alt={ws.title} 
+                    fill
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, 192px"
                     className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" 
                   />
                 ) : (

@@ -548,7 +548,7 @@ export default function AdminRegistrationsPage() {
                   <MessageSquare className="h-3 w-3" /> Motivation Statement
                 </p>
                 <p className="text-xs text-slate-300 leading-relaxed italic">
-                  "{selectedReg.reason_to_join || 'No statement provided.'}"
+                  &ldquo;{selectedReg.reason_to_join || 'No statement provided.'}&rdquo;
                 </p>
               </div>
 

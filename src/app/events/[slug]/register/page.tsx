@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2, AlertTriangle, MessageSquare, PhoneCall, LayoutDashboard } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2, AlertTriangle, MessageSquare, LayoutDashboard } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
-import { sendRegistrationEmails } from '@/app/actions/emailActions';
 import { registerForEvent } from '@/app/actions/registrationActions';
 import { registrationSchema } from '@/lib/validation';
 import { toast } from 'sonner';
@@ -16,7 +15,6 @@ import { toast } from 'sonner';
 export default function EventRegistrationPage() {
   const params = useParams();
   const slug = params?.slug as string;
-  const router = useRouter();
 
   const [event, setEvent] = useState<any>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
@@ -32,7 +30,7 @@ export default function EventRegistrationPage() {
     phone: '',
     college: 'Campus Engineering College',
     branch: '',
-    year: '2027',
+    year: '2nd Year (Sem 3-4)',
     codingLevel: 'Intermediate',
     preferredLanguage: 'JavaScript',
     reasonToJoin: '',
@@ -59,6 +57,7 @@ export default function EventRegistrationPage() {
           .from('events')
           .select('*')
           .eq('slug', slug)
+          .eq('status', 'published')
           .single();
 
         if (error) throw error;
@@ -75,6 +74,11 @@ export default function EventRegistrationPage() {
         
         if (linksData) setCommunityLinks(linksData);
       } catch (err: any) {
+        if (err?.code === 'PGRST116') {
+          setErrorMsg('This event is not open for registration.');
+          return;
+        }
+
         console.warn('Database offline, looking up registration target in local static events');
         setIsDbOffline(true);
         const match = placeholderEvents.find((ev) => getSlug(ev.title) === slug);
@@ -96,20 +100,25 @@ export default function EventRegistrationPage() {
     loadEvent();
   }, [slug]);
 
-  const validateEmail = (emailStr: string) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(emailStr);
-  };
-
-  const validatePhone = (phoneStr: string) => {
-    // Basic phone validate (digits only, at least 10 chars)
-    const digits = phoneStr.replace(/\D/g, '');
-    return digits.length >= 10;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+
+    if (!event) {
+      setErrorMsg('This event is not available for registration.');
+      return;
+    }
+
+    const now = new Date();
+    const eventDate = new Date(`${event.date}T23:59:59`);
+    if (event.registration_deadline && new Date(event.registration_deadline) < now) {
+      setErrorMsg('The registration deadline has passed for this event.');
+      return;
+    }
+    if (eventDate < now || event.status !== 'published') {
+      setErrorMsg('Registration is closed for this event.');
+      return;
+    }
 
     // 1. Rate Limiting Check (Simple throttle)
     const lastSub = localStorage.getItem('last_rsvp_timestamp');
@@ -142,7 +151,7 @@ export default function EventRegistrationPage() {
       toast.success('Registration Confirmed!');
       setIsSuccess(true);
     } catch (err: any) {
-      console.error(err);
+      console.warn('Registration failed:', err);
       toast.error(err.message || 'Registration failed. Please try again.');
       setErrorMsg(err.message || 'System error. Registration failed.');
     } finally {
@@ -157,6 +166,21 @@ export default function EventRegistrationPage() {
           <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
           <p className="text-sm font-mono text-slate-400">Loading registration portals...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="tech-grid min-h-screen flex items-center justify-center py-20 px-4">
+        <Card hoverEffect={false} className="max-w-md w-full p-8 text-center border-amber-500/20 bg-slate-900">
+          <AlertTriangle className="h-8 w-8 text-amber-400 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-white mb-2">Registration unavailable</h1>
+          <p className="text-sm text-slate-400 mb-6">{errorMsg || 'This event is not open for public registration.'}</p>
+          <Link href="/events">
+            <Button variant="primary" size="sm">Back to Events</Button>
+          </Link>
+        </Card>
       </div>
     );
   }

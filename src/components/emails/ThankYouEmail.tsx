@@ -19,7 +19,7 @@ export const ThankYouEmail: React.FC<Readonly<ThankYouEmailProps>> = ({
     </p>
 
     <div style={{ backgroundColor: '#f7fafc', padding: '15px', borderRadius: '6px', margin: '20px 0', textAlign: 'center' }}>
-      <p style={{ margin: '0', fontStyle: 'italic' }}>"Stay hungry, stay foolish, and keep coding!"</p>
+      <p style={{ margin: '0', fontStyle: 'italic' }}>&ldquo;Stay hungry, stay foolish, and keep coding!&rdquo;</p>
     </div>
 
     <p style={{ fontSize: '14px', lineHeight: '1.5' }}>
