@@ -3,7 +3,7 @@
 CampusCoder takes security and data integrity seriously. This document tracks the security measures implemented across the platform.
 
 ## 1. Authentication & Authorization
-- [x] **Middleware Protection:** All `/admin` routes are protected by server-side role checks.
+- [x] **Proxy Protection:** All `/admin` routes are protected by server-side role checks in the Next.js 16 `proxy.ts` convention.
 - [x] **Role-Based Access Control (RBAC):** Users are restricted to 'student', 'admin', or 'organizer' roles.
 - [x] **Secure Session Refresh:** Supabase SSR handles automated session refreshing in middleware.
 - [x] **Sign-out Protection:** Clear auth state clearing on logout.
@@ -28,7 +28,7 @@ CampusCoder takes security and data integrity seriously. This document tracks th
 - [x] **Error Masking:** End-user error messages are generic to prevent leaking technical stack details.
 
 ## 5. Rate Limiting & Spam Prevention
-- [x] **RSVP Throttling:** 60-second client-side throttle for registrations to prevent form spam.
+- [x] **RSVP Throttling:** 60-second server-side throttle for registrations when `SUPABASE_SERVICE_ROLE_KEY` is configured, plus a client UX throttle.
 - [x] **Server-side Deduplication:** Database constraint acts as a final wall against spam.
 
 ## 6. Future Recommendations

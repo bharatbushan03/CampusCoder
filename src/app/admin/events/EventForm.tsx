@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
@@ -90,9 +91,9 @@ export default function EventForm({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate type
-    if (!file.type.startsWith('image/')) {
-      setUploadError('Please select a valid image file (PNG, JPG, WEBP).');
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Please select a valid PNG, JPG, WEBP, or GIF image.');
       return;
     }
 
@@ -138,9 +139,9 @@ export default function EventForm({
 
       return publicUrl;
     } catch (err: any) {
-      console.error('Error uploading banner to Supabase:', err);
+      console.warn('Error uploading banner to Supabase:', err);
       // Fail gracefully - fall back to text url or local object url
-      setUploadError('Could not upload to Supabase storage. Saving local preview instead.');
+      setUploadError('Could not upload to Supabase storage. Check the banners bucket and try again.');
       return null;
     }
   };
@@ -208,8 +209,10 @@ export default function EventForm({
       const uploadedUrl = await uploadBanner(bannerFile);
       if (uploadedUrl) {
         finalBannerUrl = uploadedUrl;
+      } else if (bannerUrl.startsWith('http')) {
+        finalBannerUrl = bannerUrl;
       } else {
-        finalBannerUrl = bannerPreview;
+        finalBannerUrl = '';
       }
     }
 
@@ -465,11 +468,16 @@ export default function EventForm({
           <div>
             {bannerPreview ? (
               <div className="relative border border-slate-800 bg-slate-950/50 rounded-xl p-2 max-w-sm mx-auto group">
-                <img 
-                  src={bannerPreview} 
-                  alt="Banner preview" 
-                  className="w-full aspect-video object-cover rounded-lg"
-                />
+                <div className="relative aspect-video w-full overflow-hidden rounded-lg">
+                  <Image
+                    src={bannerPreview}
+                    alt="Banner preview"
+                    fill
+                    unoptimized
+                    sizes="384px"
+                    className="object-cover"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -520,9 +528,12 @@ export default function EventForm({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 border-b border-slate-900/60">
             {speakers.map((speaker, idx) => (
               <div key={idx} className="flex gap-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 relative group">
-                <img 
-                  src={speaker.profile_image_url} 
+                <Image
+                  src={speaker.profile_image_url}
                   alt={speaker.name}
+                  width={48}
+                  height={48}
+                  unoptimized
                   className="h-12 w-12 rounded-full object-cover border border-slate-800"
                 />
                 <div className="min-w-0 flex-1">

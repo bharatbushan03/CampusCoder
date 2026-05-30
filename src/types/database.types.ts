@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
       profiles: {
@@ -40,6 +40,7 @@ export interface Database {
           year?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       events: {
         Row: {
@@ -108,6 +109,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       resources: {
         Row: {
@@ -140,6 +142,7 @@ export interface Database {
           is_active?: boolean;
           created_at?: string;
         };
+        Relationships: [];
       };
       event_owners: {
         Row: {
@@ -169,6 +172,7 @@ export interface Database {
           bio?: string | null;
           profile_image_url?: string | null;
         };
+        Relationships: [];
       };
       registrations: {
         Row: {
@@ -216,6 +220,7 @@ export interface Database {
           registered_at?: string;
           attendance_status?: 'registered' | 'attended' | 'absent';
         };
+        Relationships: [];
       };
       community_links: {
         Row: {
@@ -236,6 +241,7 @@ export interface Database {
           url?: string;
           is_active?: boolean;
         };
+        Relationships: [];
       };
       announcements: {
         Row: {
@@ -268,7 +274,27 @@ export interface Database {
           created_by?: string | null;
           created_at?: string;
         };
+        Relationships: [];
+      };
+      rate_limits: {
+        Row: {
+          key: string;
+          last_attempt: string;
+        };
+        Insert: {
+          key: string;
+          last_attempt?: string;
+        };
+        Update: {
+          key?: string;
+          last_attempt?: string;
+        };
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }

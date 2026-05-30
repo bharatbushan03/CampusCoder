@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   ArrowLeft, Calendar, Users, ExternalLink, 
   Video, FileText, Loader2, Search, Filter,
@@ -33,7 +34,7 @@ export default function EventArchivePage() {
         if (error) throw error;
         setEvents(data || []);
       } catch (err) {
-        console.error('Failed to load archive:', err);
+        console.warn('Failed to load archive:', err);
       } finally {
         setLoading(false);
       }
@@ -95,9 +96,12 @@ export default function EventArchivePage() {
             <Card key={ev.id} className="group overflow-hidden flex flex-col h-full border-slate-800 bg-slate-950/40">
               <div className="relative aspect-video overflow-hidden border-b border-slate-900">
                 {ev.banner_url ? (
-                  <img 
+                  <Image
                     src={ev.banner_url} 
                     alt={ev.title} 
+                    fill
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-60 group-hover:opacity-100" 
                   />
                 ) : (

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import {
   Calendar,
@@ -15,7 +16,6 @@ import {
   AlertOctagon,
   AlertTriangle,
   Link2,
-  Globe,
   MessageSquare,
   Sparkles
 } from 'lucide-react';
@@ -56,16 +56,10 @@ export default function EventDetailsPage() {
             event_owners (*)
           `)
           .eq('slug', slug)
+          .in('status', ['published', 'completed', 'cancelled'])
           .single();
 
         if (eventError) throw eventError;
-
-        // Draft check (do not show publicly)
-        if (eventData && eventData.status === 'draft') {
-          setError('unauthorized');
-          setLoading(false);
-          return;
-        }
 
         setEvent(eventData);
 
@@ -91,6 +85,12 @@ export default function EventDetailsPage() {
           setCommunityLinks(linksData);
         }
       } catch (err: any) {
+        if (err?.code === 'PGRST116') {
+          setError('not_found');
+          setLoading(false);
+          return;
+        }
+
         console.warn('Supabase fetch failed, looking up in local placeholders:', err);
         
         // Local fallback lookup
@@ -220,6 +220,16 @@ export default function EventDetailsPage() {
           </div>
         )}
 
+        {isCompleted && !isCancelled && (
+          <div className="flex items-center gap-3 p-4 bg-slate-900/80 border border-slate-700 rounded-xl mb-8 text-sm text-slate-300">
+            <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+            <div>
+              <p className="font-bold">This session has been completed</p>
+              <p className="text-xs text-slate-400">Registration is closed, but the details remain available for reference.</p>
+            </div>
+          </div>
+        )}
+
         {/* Layout split: Main content vs Registration sidebar */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           
@@ -228,6 +238,19 @@ export default function EventDetailsPage() {
             
             {/* Event Content card */}
             <Card hoverEffect={false} className="p-8">
+              {event.banner_url && (
+                <div className="relative mb-8 aspect-video overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
+                  <Image
+                    src={event.banner_url}
+                    alt={`${event.title} banner`}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                    sizes="(max-width: 1024px) 100vw, 768px"
+                  />
+                </div>
+              )}
+
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 capitalize mb-4 inline-block">
                 {eventType.replace('_', ' ')}
               </span>
@@ -258,14 +281,14 @@ export default function EventDetailsPage() {
                   <MapPin className="h-4.5 w-4.5 text-emerald-400" />
                   <div>
                     <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Location / Mode</p>
-                    <p className="font-medium truncate max-w-[180px]">{event.location}</p>
+                    <p className="font-medium truncate max-w-[180px] capitalize">{event.location || event.mode}</p>
                   </div>
                 </div>
               </div>
 
               {/* Description */}
               <div className="prose prose-invert max-w-none space-y-4">
-                <h3 className="text-lg font-bold text-white mb-2 font-mono">// About session</h3>
+                <h3 className="text-lg font-bold text-white mb-2 font-mono">About session</h3>
                 <p className="text-slate-300 leading-relaxed text-sm">
                   {event.full_description || event.longDescription || event.short_description || event.description}
                 </p>
@@ -283,7 +306,7 @@ export default function EventDetailsPage() {
 
             {/* Speaker Information */}
             <Card hoverEffect={false} className="p-8">
-              <h3 className="text-lg font-bold text-white mb-6 font-mono">// Speaker Panel</h3>
+              <h3 className="text-lg font-bold text-white mb-6 font-mono">Speaker Panel</h3>
               <div className="flex items-start gap-4">
                 <div className="h-12 w-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
                   <User className="h-6 w-6 text-emerald-400" />
@@ -298,23 +321,15 @@ export default function EventDetailsPage() {
               </div>
             </Card>
 
-            {/* Dynamic Meeting link (Only if online/hybrid and NOT draft) */}
+            {/* Meeting link notice */}
             {event.meeting_link && (event.mode === 'online' || event.mode === 'hybrid') && (
               <Card hoverEffect={false} className="p-8 border-emerald-500/20 bg-slate-900/40">
                 <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
                   <Link2 className="h-5 w-5 text-emerald-400" /> Meeting Details
                 </h3>
-                <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                  This is a virtual event. Registered students can join the platform stream link below.
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  This is a virtual event. The private meeting link is shared directly with registered students by email and community channels.
                 </p>
-                <a
-                  href={event.meeting_link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-xs font-mono text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 px-4 py-2.5 rounded-lg hover:bg-emerald-500/10 transition-colors"
-                >
-                  <Globe className="h-4 w-4" /> Open Stream Target &rarr;
-                </a>
               </Card>
             )}
           </div>
@@ -324,7 +339,7 @@ export default function EventDetailsPage() {
             
             {/* RSVP drawer card */}
             <Card hoverEffect={false} className={`border-emerald-500/20 bg-slate-900 p-6 ${isRegistrationDisabled ? 'opacity-90' : ''}`}>
-              <h3 className="text-lg font-bold text-white mb-4 font-mono">// Registration</h3>
+              <h3 className="text-lg font-bold text-white mb-4 font-mono">Registration</h3>
               
               {/* Registration seats progress */}
               {!isCancelled && !isCompleted && (

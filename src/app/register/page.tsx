@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
 import Link from 'next/link';
+import { registerForEvent } from '@/app/actions/registrationActions';
+import { registrationSchema } from '@/lib/validation';
 
 function RegisterForm() {
   const searchParams = useSearchParams();
@@ -25,6 +27,7 @@ function RegisterForm() {
     codingLevel: 'Intermediate',
     preferredLanguage: 'JavaScript/TypeScript',
     reasonToJoin: '',
+    consent: false,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +45,7 @@ function RegisterForm() {
         const supabase = createClient() as any;
         const { data, error } = await supabase
           .from('events')
-          .select('id, title, date, time')
+          .select('id, title, date, start_time, end_time')
           .eq('status', 'published');
 
         if (error) throw error;
@@ -78,8 +81,9 @@ function RegisterForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName || !formData.email || !formData.eventId) {
-      setErrorMsg('Please fill out all required fields.');
+    const validation = registrationSchema.safeParse(formData);
+    if (!validation.success) {
+      setErrorMsg(validation.error.issues[0].message);
       return;
     }
 
@@ -87,36 +91,10 @@ function RegisterForm() {
     setErrorMsg('');
 
     try {
-      const supabase = createClient() as any;
-      
-      const { data, error } = await supabase
-        .from('registrations')
-        .insert({
-          event_id: formData.eventId,
-          full_name: formData.fullName,
-          email: formData.email,
-          phone: formData.phone || null,
-          college: formData.college,
-          branch: formData.branch,
-          year: formData.year,
-          coding_level: formData.codingLevel,
-          preferred_language: formData.preferredLanguage,
-          reason_to_join: formData.reasonToJoin || null,
-          attendance_status: 'registered'
-        })
-        .select();
-
-      if (error) {
-        throw error;
-      }
-
+      await registerForEvent(formData, formData.eventId);
       setIsSuccess(true);
     } catch (err: any) {
-      console.warn('Supabase insert failed, running local fallback logic:', err);
-      // Fallback for local demo if credentials are not configured yet
-      setTimeout(() => {
-        setIsSuccess(true);
-      }, 1200);
+      setErrorMsg(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +117,7 @@ function RegisterForm() {
             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">RSVP Event</p>
             <p className="text-sm font-bold text-white mt-1">{selectedEvent.title}</p>
             <p className="text-xs text-emerald-400 font-mono mt-1">
-              {selectedEvent.date} @ {selectedEvent.time || 'Schedule listed on Details'}
+              {selectedEvent.date} @ {selectedEvent.start_time ? `${selectedEvent.start_time.slice(0, 5)} - ${selectedEvent.end_time.slice(0, 5)}` : 'Schedule listed on Details'}
             </p>
           </div>
         )}
@@ -174,7 +152,7 @@ function RegisterForm() {
       {isDbOffline && (
         <div className="flex items-center gap-3 p-4 bg-slate-900 border border-emerald-500/10 rounded-xl mb-6 text-xs text-slate-400">
           <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
-          <span>Local Demo Mode: Data submissions will simulate local successes.</span>
+          <span>Local Demo Mode: connect Supabase to save real registrations.</span>
         </div>
       )}
 
@@ -221,11 +199,12 @@ function RegisterForm() {
           {/* Phone Number */}
           <div>
             <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-              Contact Phone
+              Contact Phone <span className="text-emerald-500">*</span>
             </label>
             <input
               type="tel"
-              placeholder="e.g. +91 9876543210"
+              required
+              placeholder="e.g. 9876543210"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -254,10 +233,11 @@ function RegisterForm() {
           {/* College Name */}
           <div>
             <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-              College/Institute Name
+              College/Institute Name <span className="text-emerald-500">*</span>
             </label>
             <input
               type="text"
+              required
               value={formData.college}
               onChange={(e) => setFormData({ ...formData, college: e.target.value })}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -267,10 +247,11 @@ function RegisterForm() {
           {/* Branch/Stream */}
           <div>
             <label className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-              Department/Branch
+              Department/Branch <span className="text-emerald-500">*</span>
             </label>
             <input
               type="text"
+              required
               value={formData.branch}
               onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -343,6 +324,20 @@ function RegisterForm() {
             rows={3}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
           ></textarea>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            required
+            id="general-consent"
+            checked={formData.consent}
+            onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
+            className="mt-1 h-4 w-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 cursor-pointer"
+          />
+          <label htmlFor="general-consent" className="text-xs text-slate-400 leading-relaxed cursor-pointer select-none">
+            I agree to receive event updates from CampusCoder. <span className="text-emerald-500">*</span>
+          </label>
         </div>
 
         {/* Action Button */}

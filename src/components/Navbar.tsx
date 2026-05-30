@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Terminal, Menu, X, LogOut, LayoutDashboard, ShieldAlert, ChevronDown, User, Settings } from 'lucide-react';
+import { Terminal, Menu, X, LogOut, LayoutDashboard, ShieldAlert, ChevronDown } from 'lucide-react';
 import { Button } from './ui/Button';
 import { createClient } from '@/utils/supabase/client';
 
@@ -17,8 +17,6 @@ export const Navbar: React.FC = () => {
   
   const pathname = usePathname();
   const router = useRouter();
-
-  const isAdminPath = pathname?.startsWith('/admin');
 
   const navLinks = [
     { label: 'Sprints', href: '/events' },
@@ -51,7 +49,7 @@ export const Navbar: React.FC = () => {
           setProfile(userProfile);
         }
       } catch (err) {
-        console.error('Error fetching auth session:', err);
+        console.warn('Auth session unavailable:', err);
       } finally {
         setLoading(false);
       }
@@ -70,7 +68,7 @@ export const Navbar: React.FC = () => {
             .single();
           setProfile(userProfile);
         } catch (err) {
-          console.error('Error fetching user profile:', err);
+          console.warn('User profile unavailable:', err);
         }
       } else {
         setUser(null);
@@ -92,7 +90,7 @@ export const Navbar: React.FC = () => {
       router.push('/login');
       router.refresh();
     } catch (err) {
-      console.error('Signout error:', err);
+      console.warn('Signout error:', err);
     }
   };
 
@@ -218,6 +216,7 @@ export const Navbar: React.FC = () => {
 
             {/* Mobile menu button */}
             <button
+              aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
               onClick={() => setIsOpen(!isOpen)}
               className="flex md:hidden h-10 w-10 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all cursor-pointer"
             >
