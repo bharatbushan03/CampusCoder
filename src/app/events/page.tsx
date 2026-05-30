@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   Calendar, Clock, MapPin, Search, 
   Filter, Layers, ArrowRight, Sparkles,
@@ -31,13 +32,13 @@ export default function EventsPage() {
         const { data, error } = await supabase
           .from('events')
           .select('*')
-          .eq('status', 'published')
+          .in('status', ['published', 'completed', 'cancelled'])
           .order('date', { ascending: true });
 
         if (error) throw error;
         setEvents(data || []);
       } catch (err) {
-        console.error('Failed to load events:', err);
+        console.warn('Failed to load events:', err);
       } finally {
         setLoading(false);
       }
@@ -128,9 +129,12 @@ export default function EventsPage() {
             <Card key={ev.id} className="group flex flex-col h-full border-slate-800/60 bg-slate-950 overflow-hidden hover:border-emerald-500/30 transition-all duration-500">
               <div className="aspect-video relative overflow-hidden border-b border-slate-900">
                 {ev.banner_url ? (
-                  <img 
+                  <Image
                     src={ev.banner_url} 
                     alt={ev.title} 
+                    fill
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" 
                   />
                 ) : (
@@ -143,6 +147,17 @@ export default function EventsPage() {
                     {ev.event_type.replace('_', ' ')}
                   </span>
                 </div>
+                {ev.status !== 'published' && (
+                  <div className="absolute top-4 right-4">
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold border uppercase tracking-widest backdrop-blur-md ${
+                      ev.status === 'cancelled'
+                        ? 'bg-red-950/90 text-red-300 border-red-500/30'
+                        : 'bg-slate-950/90 text-slate-300 border-slate-700'
+                    }`}>
+                      {ev.status}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="p-8 flex-1 flex flex-col space-y-6">
@@ -165,7 +180,7 @@ export default function EventsPage() {
                   </div>
                   <Link href={`/events/${ev.slug}`}>
                     <Button variant="primary" size="sm" className="font-bold shadow-lg shadow-emerald-500/10">
-                      Reserve RSVP
+                      {ev.status === 'published' ? 'Reserve RSVP' : 'View Details'}
                     </Button>
                   </Link>
                 </div>
@@ -187,7 +202,7 @@ export default function EventsPage() {
       <section className="py-20 bg-emerald-500/5 rounded-[2rem] border border-emerald-500/10 relative overflow-hidden">
         <div className="max-w-4xl mx-auto px-6 text-center space-y-8 relative z-10">
           <h2 className="text-3xl md:text-5xl font-extrabold text-white font-mono uppercase tracking-tighter">
-            Don't miss the <span className="text-emerald-500">next drop.</span>
+            Don&apos;t miss the <span className="text-emerald-500">next drop.</span>
           </h2>
           <p className="text-slate-400 max-w-xl mx-auto font-medium">
             New sprints are announced weekly. Join our Discord to get notifications before registration reaches capacity.

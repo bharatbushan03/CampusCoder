@@ -37,7 +37,7 @@ export default function ResourcesPage() {
         if (error) throw error;
         setResources(data || []);
       } catch (err) {
-        console.error('Failed to load resources:', err);
+        console.warn('Failed to load resources:', err);
       } finally {
         setLoading(false);
       }

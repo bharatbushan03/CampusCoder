@@ -18,16 +18,20 @@ export const registrationSchema = z.object({
 export const eventSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(200),
   slug: z.string().regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric and hyphens only'),
-  short_description: z.string().max(250).optional(),
-  full_description: z.string().optional(),
+  short_description: z.string().max(250).nullable().optional(),
+  full_description: z.string().nullable().optional(),
   event_type: z.enum(['workshop', 'coding_session', 'orientation', 'challenge', 'webinar']),
   mode: z.enum(['online', 'offline', 'hybrid']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   start_time: z.string(),
   end_time: z.string(),
-  meeting_link: z.string().url().or(z.literal('')).optional(),
-  registration_deadline: z.string().optional(),
+  meeting_link: z.string().url().or(z.literal('')).nullable().optional(),
+  registration_deadline: z.string().nullable().optional(),
+  banner_url: z.string().url().or(z.literal('')).nullable().optional(),
   status: z.enum(['draft', 'published', 'completed', 'cancelled']),
+}).refine((data) => data.end_time > data.start_time, {
+  message: 'End time must be after start time',
+  path: ['end_time'],
 });
 
 export const announcementSchema = z.object({
