@@ -43,3 +43,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AGENTS
+.claude
+.antigravitycli
+.commandcode
+.agents
+.react-doctor
+.trae
+.next
+AGENTS.md
+CLAUDE.md

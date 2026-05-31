@@ -28,10 +28,10 @@ export default function NewAnnouncementPage() {
     <div className="space-y-8 max-w-4xl">
       <div className="space-y-1">
         <Link href="/admin/announcements" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-          <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Announcements
+          <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Announcements
         </Link>
         <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono flex items-center gap-3">
-          <Bell className="h-8 w-8 text-emerald-500" /> New Announcement
+          <Bell className="size-8 text-emerald-500" /> New Announcement
         </h1>
         <p className="text-sm text-slate-400">Broadcast a new update to the community.</p>
       </div>

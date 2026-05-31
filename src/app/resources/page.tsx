@@ -2,17 +2,26 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Loader2, Search, Filter, BookOpen, 
-  ExternalLink, Code, Briefcase, GraduationCap,
-  ArrowRight, Sparkles, Map, Database, PlayCircle
+  Loader2,
+  Search,
+  BookOpen,
+  ExternalLink,
+  Code,
+  Briefcase,
+  Sparkles,
+  Map,
+  Database
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
+import type { Database } from '@/types/database.types';
+
+type ResourceRow = Database['public']['Tables']['resources']['Row'];
 
 export default function ResourcesPage() {
   const [loading, setLoading] = useState(true);
-  const [resources, setResources] = useState<any[]>([]);
+  const [resources, setResources] = useState<ResourceRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
 
@@ -27,12 +36,13 @@ export default function ResourcesPage() {
   useEffect(() => {
     const loadResources = async () => {
       try {
-        const supabase = createClient() as any;
+        const supabase = createClient();
         const { data, error } = await supabase
           .from('resources')
           .select('*')
           .eq('is_active', true)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .returns<ResourceRow[]>();
 
         if (error) throw error;
         setResources(data || []);
@@ -42,7 +52,8 @@ export default function ResourcesPage() {
         setLoading(false);
       }
     };
-    loadResources();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadResources();
   }, []);
 
   const filteredResources = resources.filter(res => {

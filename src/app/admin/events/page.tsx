@@ -4,18 +4,20 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
-  Calendar, Layers, Trophy, AlertTriangle, PlusCircle, Trash2, 
-  Loader2, Mail, Edit, Search, Filter, ArrowLeft, ArrowUpRight, Users, Eye
+  AlertTriangle, PlusCircle, Trash2, 
+  Loader2, Search, Filter, ArrowLeft, ArrowUpRight, Eye
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
-import { sendMeetingLinkToAll } from '@/app/actions/emailActions';
+import type { Database } from '@/types/database.types';
+
+type EventRow = Database['public']['Tables']['events']['Row'];
+type EventStatus = EventRow['status'];
 
 export default function AdminEventsListingPage() {
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [isDbOffline, setIsDbOffline] = useState(false);
-  const [isSendingLinks, setIsSendingLinks] = useState<string | null>(null);
   
   // Filtering & search
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,16 +25,17 @@ export default function AdminEventsListingPage() {
 
   const loadEvents = async () => {
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .returns<EventRow[]>();
 
       if (error) throw error;
       setEvents(data || []);
       setIsDbOffline(false);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Database offline, using mock data for events table:', err);
       setIsDbOffline(true);
       setEvents([
@@ -46,30 +49,13 @@ export default function AdminEventsListingPage() {
   };
 
   useEffect(() => {
-    loadEvents();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadEvents();
   }, []);
 
-  const handleSendMeetingLink = async (eventId: string, title: string) => {
-    if (!confirm(`Are you sure you want to send the meeting link email to ALL registered students for "${title}"?`)) return;
-    
-    setIsSendingLinks(eventId);
+  const handleUpdateStatus = async (eventId: string, status: EventStatus) => {
     try {
-      const res = await sendMeetingLinkToAll(eventId);
-      if (res.success) {
-        alert(`Successfully sent meeting link to ${res.count || 0} students.`);
-      } else {
-        alert(`Error: ${res.error}`);
-      }
-    } catch (err: any) {
-      alert('Failed to trigger email blast: ' + err.message);
-    } finally {
-      setIsSendingLinks(null);
-    }
-  };
-
-  const handleUpdateStatus = async (eventId: string, status: 'published' | 'completed' | 'cancelled' | 'draft') => {
-    try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const { error } = await supabase
         .from('events')
         .update({ status })
@@ -77,7 +63,7 @@ export default function AdminEventsListingPage() {
 
       if (error) throw error;
       await loadEvents();
-    } catch (err: any) {
+    } catch (err) {
       alert('Failed to update event: ' + err.message);
     }
   };
@@ -85,7 +71,7 @@ export default function AdminEventsListingPage() {
   const handleDeleteEvent = async (eventId: string) => {
     if (!confirm('Are you sure you want to delete this event? This will also remove associated speaker records and registrations.')) return;
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const { error } = await supabase
         .from('events')
         .delete()
@@ -93,7 +79,7 @@ export default function AdminEventsListingPage() {
 
       if (error) throw error;
       await loadEvents();
-    } catch (err: any) {
+    } catch (err) {
       alert('Failed to delete event: ' + err.message);
     }
   };
@@ -110,8 +96,8 @@ export default function AdminEventsListingPage() {
     return (
       <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading events directory...</p>
+          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-mono text-slate-400">Loading events directory&hellip;</p>
         </div>
       </div>
     );
@@ -123,7 +109,7 @@ export default function AdminEventsListingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <Link href="/admin" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-            <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
+            <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
           </Link>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">Manage Sprints</h1>
           <p className="text-sm text-slate-400">Add, edit, publish or change status of active coding sprints.</p>
@@ -131,7 +117,7 @@ export default function AdminEventsListingPage() {
         <div>
           <Link href="/admin/events/new">
             <Button variant="primary" className="flex items-center gap-1.5 w-full sm:w-auto">
-              <PlusCircle className="h-4 w-4" /> Add New Sprint
+              <PlusCircle className="size-4" /> Add New Sprint
             </Button>
           </Link>
         </div>
@@ -140,7 +126,7 @@ export default function AdminEventsListingPage() {
       {/* Database Warning Banner */}
       {isDbOffline && (
         <div className="flex items-center gap-3 p-4 bg-slate-900 border border-emerald-500/10 rounded-xl text-xs text-slate-400 font-mono">
-          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          <AlertTriangle className="size-4 text-amber-500 flex-shrink-0" />
           <span>Local Demo Mode: Run schema setup migration to enable storage commits.</span>
         </div>
       )}
@@ -148,17 +134,17 @@ export default function AdminEventsListingPage() {
       {/* Search and Filter Panel */}
       <div className="flex flex-col sm:flex-row gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+          <input aria-label="Search events by title or slug"
             type="text"
-            placeholder="Search events by title or slug..."
+            placeholder="Search events by title or slug&hellip;"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
           />
         </div>
         <div className="relative w-full sm:w-64">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -193,7 +179,7 @@ export default function AdminEventsListingPage() {
                       <div className="font-semibold text-white flex items-center gap-1.5">
                         {ev.title}
                         <Link href={`/events/${ev.slug}`} target="_blank" className="text-slate-500 hover:text-emerald-400" title="View Live Event Details">
-                          <ArrowUpRight className="h-3.5 w-3.5" />
+                          <ArrowUpRight className="size-3.5" />
                         </Link>
                       </div>
                       <div className="text-xs text-slate-500 font-mono mt-0.5">slug: {ev.slug}</div>
@@ -215,12 +201,12 @@ export default function AdminEventsListingPage() {
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Link href={`/admin/events/${ev.id}`}>
-                          <button className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 rounded flex items-center gap-1 cursor-pointer">
-                            <Eye className="h-3 w-3" /> Manage
+                          <button type="button" className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 rounded flex items-center gap-1 cursor-pointer">
+                            <Eye className="size-3" /> Manage
                           </button>
                         </Link>
                         {ev.status !== 'published' && (
-                          <button
+                          <button type="button"
                             onClick={() => handleUpdateStatus(ev.id, 'published')}
                             className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 rounded transition-colors cursor-pointer"
                           >
@@ -228,7 +214,7 @@ export default function AdminEventsListingPage() {
                           </button>
                         )}
                         {ev.status === 'published' && (
-                          <button
+                          <button type="button"
                             onClick={() => handleUpdateStatus(ev.id, 'draft')}
                             className="text-[10px] font-mono px-2 py-1 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white rounded transition-colors cursor-pointer"
                           >
@@ -236,7 +222,7 @@ export default function AdminEventsListingPage() {
                           </button>
                         )}
                         {ev.status === 'published' && (
-                          <button
+                          <button type="button"
                             onClick={() => handleUpdateStatus(ev.id, 'completed')}
                             className="text-[10px] font-mono px-2 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-colors cursor-pointer"
                           >
@@ -244,19 +230,19 @@ export default function AdminEventsListingPage() {
                           </button>
                         )}
                         {ev.status !== 'cancelled' && ev.status !== 'completed' && (
-                          <button
+                          <button type="button"
                             onClick={() => handleUpdateStatus(ev.id, 'cancelled')}
                             className="text-[10px] font-mono px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors cursor-pointer"
                           >
                             Cancel
                           </button>
                         )}
-                        <button
+                        <button type="button"
                           onClick={() => handleDeleteEvent(ev.id)}
                           className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
                           title="Delete Event"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="size-4" />
                         </button>
                       </div>
                     </td>
