@@ -3,7 +3,7 @@ import { Database } from '@/types/database.types';
 
 type BrowserSupabaseClient = ReturnType<typeof createBrowserClient<Database>>;
 
-function isSupabaseConfigured() {
+export function isSupabaseConfigured() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
