@@ -21,7 +21,7 @@ function sanitizeText(text: string) {
 }
 
 type RegistrationPayload = z.infer<typeof registrationSchema>;
-const eventIdSchema = z.string().uuid('Invalid event identifier.');
+const eventIdSchema = z.uuid('Invalid event identifier.');
 
 export async function registerForEvent(payload: RegistrationPayload, eventId: string) {
   const supabase = await createClient();

@@ -17,7 +17,7 @@ function sanitizeText(text: string) {
     .replace(/'/g, '&#x27;');
 }
 
-async function verifyAdminRole() {
+async function requireAuth() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -46,7 +46,7 @@ type SpeakerPayload = {
 };
 
 export async function createEvent(payload: EventPayload, speakers: SpeakerPayload[]) {
-  const adminId = await verifyAdminRole();
+  const adminId = await requireAuth();
   const supabase = await createClient();
 
   // 1. Server-side Validation
@@ -107,7 +107,7 @@ export async function createEvent(payload: EventPayload, speakers: SpeakerPayloa
 }
 
 export async function updateEvent(id: string, payload: EventPayload, speakers: SpeakerPayload[]) {
-  await verifyAdminRole();
+  await requireAuth();
   const supabase = await createClient();
 
   const validation = eventSchema.safeParse(payload);
@@ -157,7 +157,7 @@ export async function updateEvent(id: string, payload: EventPayload, speakers: S
 }
 
 export async function createAnnouncement(payload: any) {
-  const adminId = await verifyAdminRole();
+  const adminId = await requireAuth();
   const supabase = await createClient();
 
   const validation = announcementSchema.safeParse(payload);
@@ -179,7 +179,7 @@ export async function createAnnouncement(payload: any) {
 }
 
 export async function createCommunityLink(payload: any) {
-  await verifyAdminRole();
+  await requireAuth();
   const supabase = await createClient();
 
   const validation = communityLinkSchema.safeParse(payload);
@@ -200,7 +200,7 @@ export async function createCommunityLink(payload: any) {
 }
 
 export async function createResource(payload: any) {
-  await verifyAdminRole();
+  await requireAuth();
   const supabase = await createClient();
 
   const validation = resourceSchema.safeParse(payload);

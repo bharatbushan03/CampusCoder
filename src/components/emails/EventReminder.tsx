@@ -8,6 +8,8 @@ interface EventReminderEmailProps {
   meetingLink?: string;
 }
 
+const copyrightYear = new Date().getFullYear();
+
 export const EventReminderEmail: React.FC<Readonly<EventReminderEmailProps>> = ({
   studentName,
   eventTitle,
@@ -38,7 +40,7 @@ export const EventReminderEmail: React.FC<Readonly<EventReminderEmailProps>> = (
     </p>
 
     <p style={{ marginTop: '30px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
-      &copy; {new Date().getFullYear()} CampusCoder Community. All rights reserved.
+      &copy; {copyrightYear} CampusCoder Community. All rights reserved.
     </p>
   </div>
 );

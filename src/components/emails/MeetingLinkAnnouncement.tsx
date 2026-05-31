@@ -8,6 +8,8 @@ interface MeetingLinkEmailProps {
   meetingLink: string;
 }
 
+const copyrightYear = new Date().getFullYear();
+
 export const MeetingLinkEmail: React.FC<Readonly<MeetingLinkEmailProps>> = ({
   studentName,
   eventTitle,
@@ -43,7 +45,7 @@ export const MeetingLinkEmail: React.FC<Readonly<MeetingLinkEmailProps>> = ({
     <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#10b981', margin: '0' }}>CampusCoder Team</p>
 
     <p style={{ marginTop: '40px', fontSize: '11px', color: '#a0aec0', textAlign: 'center', borderTop: '1px solid #edf2f7', paddingTop: '20px' }}>
-      &copy; {new Date().getFullYear()} CampusCoder Community. All rights reserved.
+      &copy; {copyrightYear} CampusCoder Community. All rights reserved.
     </p>
   </div>
 );
