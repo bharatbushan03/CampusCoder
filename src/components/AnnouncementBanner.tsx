@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, X, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
@@ -16,6 +16,10 @@ export const AnnouncementBanner: React.FC = () => {
 
   useEffect(() => {
     const fetchLatestAnnouncement = async () => {
+      if (!isSupabaseConfigured()) {
+        return;
+      }
+
       try {
         const supabase = createClient();
         const nowStr = new Date().toISOString();

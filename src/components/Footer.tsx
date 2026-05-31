@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Terminal, Globe, Code, MessageSquare, Users, Trophy, Phone } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 import { Button } from './ui/Button';
 import type { Database } from '@/types/database.types';
 
@@ -28,10 +28,14 @@ function getPlatformIcon(platform: string) {
 }
 
 export const Footer: React.FC = () => {
-  const [links, setLinks] = useState<CommunityLink[]>([]);
+  const [links, setLinks] = useState<CommunityLink[]>(fallbackLinks);
 
   useEffect(() => {
     const fetchLinks = async () => {
+      if (!isSupabaseConfigured()) {
+        return;
+      }
+
       try {
         const supabase = createClient();
         const { data, error } = await supabase
