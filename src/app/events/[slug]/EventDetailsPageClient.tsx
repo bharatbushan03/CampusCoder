@@ -12,7 +12,6 @@ import {
   User,
   ArrowRight,
   CheckCircle,
-  Loader2,
   AlertOctagon,
   AlertTriangle,
   Link2,
@@ -22,6 +21,7 @@ import {
 import { placeholderEvents } from '@/lib/placeholderData';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
@@ -142,14 +142,7 @@ export default function EventDetailsPage() {
   }, [slug]);
 
   if (loading) {
-    return (
-      <div className="tech-grid min-h-screen flex items-center justify-center py-20">
-        <div className="text-center">
-          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading sprint parameters&hellip;</p>
-        </div>
-      </div>
-    );
+    return <CampusCoderLoader variant="page" label="Loading sprint parameters" />;
   }
 
   // Draft / Unauthorized view

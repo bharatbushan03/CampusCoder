@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
-  PlusCircle, Trash2, Loader2, Edit, Search, ArrowLeft, Bell, Calendar
+  PlusCircle, Trash2, Edit, Search, ArrowLeft, Bell, Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 export default function AdminAnnouncementsPage() {
   const [loading, setLoading] = useState(true);
@@ -75,14 +76,7 @@ export default function AdminAnnouncementsPage() {
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
-        <div className="text-center">
-          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading announcements&hellip;</p>
-        </div>
-      </div>
-    );
+    return <CampusCoderLoader variant="inline" label="Loading announcements" />;
   }
 
   return (

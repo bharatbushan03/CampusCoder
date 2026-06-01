@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Users,
   Video,
-  Loader2,
   Search,
   Layers,
   ArrowRight
@@ -16,6 +15,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
@@ -62,11 +62,7 @@ export default function EventArchivePage() {
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 min-h-screen">
-        <Loader2 className="size-8 text-emerald-400 animate-spin" />
-      </div>
-    );
+    return <CampusCoderLoader variant="page" label="Loading event archive" />;
   }
 
   return (

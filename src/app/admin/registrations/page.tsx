@@ -4,13 +4,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
-  Users, Calendar, CheckCircle2, AlertTriangle, Loader2, Search, 
+  Users, Calendar, CheckCircle2, AlertTriangle, Search, 
   Filter, Download, Eye, Trash2, X, ArrowLeft, Mail, Phone, 
   School, GraduationCap, Code2, MessageSquare, Clock
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
@@ -247,14 +248,7 @@ export default function AdminRegistrationsPage() {
   const registeredOnlyCount = filteredRegistrations.filter(r => r.attendance_status === 'registered').length;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
-        <div className="text-center">
-          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading registrations ledger&hellip;</p>
-        </div>
-      </div>
-    );
+    return <CampusCoderLoader variant="inline" label="Loading registrations ledger" />;
   }
 
   return (
