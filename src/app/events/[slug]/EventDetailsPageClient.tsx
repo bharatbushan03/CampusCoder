@@ -16,7 +16,8 @@ import {
   AlertOctagon,
   AlertTriangle,
   Link2,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { Card } from '@/components/ui/Card';
@@ -24,6 +25,7 @@ import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
+import { AnimatedEventCard } from '@/components/AnimatedEventCard';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type EventOwnerRow = Database['public']['Tables']['event_owners']['Row'];
@@ -31,6 +33,7 @@ type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
 type SupabaseEvent = EventRow & Partial<CodingEvent> & { event_owners: EventOwnerRow[] | null };
 type PlaceholderEvent = CodingEvent & Partial<EventRow> & { event_owners?: EventOwnerRow[] | null };
 type EventData = SupabaseEvent | PlaceholderEvent;
+type RelatedEvent = (EventRow & Partial<CodingEvent>) | PlaceholderEvent;
 type CommunityLinkItem = Pick<CommunityLinkRow, 'platform' | 'url' | 'is_active'> & { id?: string };
 
 function getSlug(title: string) {
@@ -45,6 +48,7 @@ export default function EventDetailsPage() {
   const slug = params?.slug;
 
   const [event, setEvent] = useState<EventData | null>(null);
+  const [relatedEvents, setRelatedEvents] = useState<RelatedEvent[]>([]);
   const [communityLinks, setCommunityLinks] = useState<CommunityLinkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<'not_found' | 'unauthorized' | null>(null);
@@ -70,6 +74,19 @@ export default function EventDetailsPage() {
         if (eventError) throw eventError;
 
         setEvent(eventData);
+
+        // 2. Fetch Related Events
+        const { data: relatedData } = await supabase
+          .from('events')
+          .select('*')
+          .eq('status', 'published')
+          .neq('slug', slug)
+          .limit(2)
+          .returns<EventRow[]>();
+
+        if (relatedData) {
+          setRelatedEvents(relatedData);
+        }
 
         // 3. Fetch Active Community Links
         const { data: linksData } = await supabase
@@ -99,6 +116,11 @@ export default function EventDetailsPage() {
         
         if (localMatch) {
           setEvent(localMatch);
+          // Load local related events
+          const localRelated = placeholderEvents
+            .filter((ev) => getSlug(ev.title) !== slug)
+            .slice(0, 2);
+          setRelatedEvents(localRelated);
         } else {
           setError('not_found');
         }
@@ -436,7 +458,42 @@ export default function EventDetailsPage() {
 
         </div>
 
-
+        {/* 13. Related Upcoming Events Section */}
+        {relatedEvents.length > 0 && (
+          <div className="mt-16 pt-12 border-t border-slate-900/80">
+            <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2 font-mono">
+              <Sparkles className="size-5 text-emerald-400" /> Other Upcoming Sprints
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {relatedEvents.map((rel, index) => {
+                const relType = rel.event_type || rel.type || 'workshop';
+                const relSlug = rel.slug || getSlug(rel.title);
+                return (
+                  <AnimatedEventCard key={rel.id} delay={index * 0.15} className="group flex flex-col justify-between h-full bg-slate-950">
+                    <div className="p-6">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 capitalize inline-block mb-3">
+                        {relType.replace('_', ' ')}
+                      </span>
+                      <h4 className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors mb-2">
+                        {rel.title}
+                      </h4>
+                      <p className="text-xs text-slate-400 mb-6 line-clamp-2">
+                        {rel.short_description || rel.description}
+                      </p>
+                    </div>
+                    <div className="p-6 pt-0">
+                      <Link href={`/events/${relSlug}`} className="block">
+                        <Button variant="secondary" size="sm" className="w-full justify-between">
+                          View Details <ArrowRight className="size-3.5" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </AnimatedEventCard>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

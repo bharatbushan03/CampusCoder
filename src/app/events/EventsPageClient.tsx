@@ -12,7 +12,7 @@ import {
   Sparkles,
   ChevronRight
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { AnimatedEventCard } from '@/components/AnimatedEventCard';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
@@ -134,8 +134,8 @@ export default function EventsPage() {
       {/* Grid */}
       {filteredEvents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
-          {filteredEvents.map((ev) => (
-            <Card key={ev.id} className="group flex flex-col h-full border-slate-800/60 bg-slate-950 overflow-hidden hover:border-emerald-500/30 transition-all duration-500">
+          {filteredEvents.map((ev, index) => (
+            <AnimatedEventCard key={ev.id} delay={index * 0.1} className="group flex flex-col h-full bg-slate-950 overflow-hidden">
               <div className="aspect-video relative overflow-hidden border-b border-slate-900">
                 {ev.banner_url ? (
                   <Image
@@ -148,11 +148,17 @@ export default function EventsPage() {
                   />
                 ) : (
                   <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-                    <Layers className="size-10 text-slate-800" />
+                    <Layers className="size-10 text-slate-800 transition-transform duration-500 group-hover:-translate-y-1.5 group-hover:text-emerald-400" />
                   </div>
                 )}
-                <div className="absolute top-4 left-4">
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-slate-950/90 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest backdrop-blur-md">
+                <div className="absolute top-4 left-4 flex gap-2">
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-slate-950/90 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest backdrop-blur-md flex items-center gap-1.5">
+                    {ev.status === 'published' && (
+                      <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      </span>
+                    )}
                     {ev.event_type.replace('_', ' ')}
                   </span>
                 </div>
@@ -169,7 +175,7 @@ export default function EventsPage() {
                 )}
               </div>
 
-              <div className="p-8 flex-1 flex flex-col gap-y-6">
+              <div className="p-8 flex-1 flex flex-col justify-between gap-y-6">
                 <div className="space-y-3">
                   <div className="flex items-center gap-4 text-emerald-500 text-[10px] font-mono font-bold uppercase tracking-widest opacity-80">
                     <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> {new Date(ev.date).toLocaleDateString()}</span>
@@ -194,7 +200,7 @@ export default function EventsPage() {
                   </Link>
                 </div>
               </div>
-            </Card>
+            </AnimatedEventCard>
           ))}
         </div>
       ) : (
