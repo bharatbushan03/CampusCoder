@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Terminal,
-  Calendar,
   Code2,
   Trophy,
   Users,
@@ -13,30 +12,16 @@ import {
   Briefcase,
   CheckCircle2,
   ArrowRight,
-  Clock,
-  MapPin,
-  ArrowUpRight,
   Megaphone,
-  ExternalLink,
-  Layers
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { placeholderEvents } from '@/lib/placeholderData';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
-
-function getSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
-const featuredEvents = placeholderEvents.slice(0, 3);
 
 const offerings = [
   {
@@ -251,52 +236,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. Upcoming Events Snippet */}
-      <section className="py-24 md:py-32 bg-slate-900/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-            <div className="space-y-4">
-              <h2 className="text-3xl md:text-5xl font-extrabold text-white font-mono">Upcoming <span className="text-emerald-500">Sprints</span></h2>
-              <p className="text-slate-400 text-lg max-w-xl">Reserve your spot in our upcoming hands-on learning sessions.</p>
-            </div>
-            <Link href="/events">
-              <Button variant="outline" size="md" className="group">
-                View All Events <ArrowUpRight className="ml-2 size-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </Button>
-            </Link>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {featuredEvents.map((ev) => (
-              <Card key={ev.id} className="group overflow-hidden border-slate-800 bg-slate-950 flex flex-col h-full">
-                <div className="h-48 bg-slate-900 overflow-hidden relative border-b border-slate-900">
-                  <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-                    <Layers className="size-10 text-slate-800 group-hover:scale-110 transition-transform duration-500" />
-                  </div>
-                  <div className="absolute top-4 left-4">
-                    <span className="px-2 py-1 rounded bg-slate-950/80 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest">
-                      {ev.type.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex items-center gap-3 text-emerald-500 text-[10px] font-mono font-bold uppercase tracking-tighter mb-3">
-                    <span className="flex items-center gap-1"><Calendar className="size-3" /> {ev.date}</span>
-                    <span className="flex items-center gap-1"><Clock className="size-3" /> {ev.time.split(' ')[0]}</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-3 group-hover:text-emerald-400 transition-colors">{ev.title}</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 mb-6">{ev.description}</p>
-                  <Link href={`/events/${getSlug(ev.title)}`} className="mt-auto">
-                    <Button variant="secondary" size="md" className="w-full font-bold">
-                      View Details
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* 4. Why Join? */}
       <section className="py-24 md:py-32 border-t border-slate-800/40 relative overflow-hidden">
