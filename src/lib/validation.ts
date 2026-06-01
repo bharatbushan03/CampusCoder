@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const registrationSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email: z.string().email('Invalid email address'),
+  email: z.email('Invalid email address'),
   phone: z.string().regex(/^\d{10,15}$/, 'Phone must be between 10 and 15 digits'),
   college: z.string().min(2, 'College name is required').max(150),
   branch: z.string().min(2, 'Branch is required').max(100),
@@ -25,9 +25,9 @@ export const eventSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   start_time: z.string(),
   end_time: z.string(),
-  meeting_link: z.string().url().or(z.literal('')).nullable().optional(),
+  meeting_link: z.url().or(z.literal('')).nullable().optional(),
   registration_deadline: z.string().nullable().optional(),
-  banner_url: z.string().url().or(z.literal('')).nullable().optional(),
+  banner_url: z.url().or(z.literal('')).nullable().optional(),
   status: z.enum(['draft', 'published', 'completed', 'cancelled']),
 }).refine((data) => data.end_time > data.start_time, {
   message: 'End time must be after start time',
@@ -37,22 +37,22 @@ export const eventSchema = z.object({
 export const announcementSchema = z.object({
   title: z.string().min(3, 'Title is too short').max(150),
   message: z.string().min(10, 'Message must be at least 10 characters'),
-  event_id: z.string().uuid().nullable().optional(),
+  event_id: z.uuid().nullable().optional(),
   is_active: z.boolean().default(true),
   publish_date: z.string(),
 });
 
 export const communityLinkSchema = z.object({
   platform: z.string().min(2, 'Platform name is required').max(50),
-  url: z.string().url('Invalid URL format'),
+  url: z.url('Invalid URL format'),
   is_active: z.boolean().default(true),
 });
 
 export const resourceSchema = z.object({
   title: z.string().min(3, 'Title is too short').max(150),
   description: z.string().max(500).optional(),
-  link: z.string().url('Invalid URL format'),
+  link: z.url('Invalid URL format'),
   category: z.enum(['roadmaps', 'practice', 'dsa', 'placement', 'general']),
-  event_id: z.string().uuid().nullable().optional(),
+  event_id: z.uuid().nullable().optional(),
   is_active: z.boolean().default(true),
 });

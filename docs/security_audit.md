@@ -28,7 +28,7 @@ CampusCoder takes security and data integrity seriously. This document tracks th
 - [x] **Error Masking:** End-user error messages are generic to prevent leaking technical stack details.
 
 ## 5. Rate Limiting & Spam Prevention
-- [x] **RSVP Throttling:** 60-second server-side throttle for registrations when `SUPABASE_SERVICE_ROLE_KEY` is configured, plus a client UX throttle.
+- [x] **RSVP Throttling:** 60-second server-side throttle for registrations when `SUPABASE_SECRET_KEY` or legacy `SUPABASE_SERVICE_ROLE_KEY` is configured, plus a client UX throttle.
 - [x] **Server-side Deduplication:** Database constraint acts as a final wall against spam.
 
 ## 6. Future Recommendations

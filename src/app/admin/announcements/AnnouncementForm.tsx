@@ -82,10 +82,10 @@ export default function AnnouncementForm({
       <Card className="border-slate-900 bg-slate-950/40 p-6 sm:p-8">
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <Type className="h-3 w-3 text-emerald-400" /> Announcement Title
+            <label htmlFor="announcementform-announcement-title" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <Type className="size-3 text-emerald-400" /> Announcement Title
             </label>
-            <input
+            <input id="announcementform-announcement-title"
               type="text"
               placeholder="e.g. New Workshop Series Starting Soon!"
               value={title}
@@ -96,11 +96,11 @@ export default function AnnouncementForm({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <AlignLeft className="h-3 w-3 text-emerald-400" /> Message
+            <label htmlFor="announcementform-message" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <AlignLeft className="size-3 text-emerald-400" /> Message
             </label>
-            <textarea
-              placeholder="Detailed announcement text..."
+            <textarea id="announcementform-message"
+              placeholder="Detailed announcement text&hellip;"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={4}
@@ -111,10 +111,10 @@ export default function AnnouncementForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Calendar className="h-3 w-3 text-emerald-400" /> Publish Date
+              <label htmlFor="announcementform-publish-date" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Calendar className="size-3 text-emerald-400" /> Publish Date
               </label>
-              <input
+              <input id="announcementform-publish-date"
                 type="datetime-local"
                 value={publishDate}
                 onChange={(e) => setPublishDate(e.target.value)}
@@ -124,10 +124,10 @@ export default function AnnouncementForm({
             </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Info className="h-3 w-3 text-emerald-400" /> Related Event (Optional)
+              <label htmlFor="announcementform-related-event-optional" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Info className="size-3 text-emerald-400" /> Related Event (Optional)
               </label>
-              <select
+              <select id="announcementform-related-event-optional"
                 value={eventId}
                 onChange={(e) => setEventId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
@@ -138,7 +138,7 @@ export default function AnnouncementForm({
                   <option key={ev.id} value={ev.id}>{ev.title}</option>
                 ))}
               </select>
-              {loadingEvents && <p className="text-[10px] text-slate-500 font-mono">Loading events...</p>}
+              {loadingEvents && <p className="text-[10px] text-slate-500 font-mono">Loading events&hellip;</p>}
             </div>
           </div>
 
@@ -148,7 +148,7 @@ export default function AnnouncementForm({
               id="is_active"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
+              className="size-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
             />
             <label htmlFor="is_active" className="text-sm text-slate-300 cursor-pointer select-none">
               Visible to public (Active)
@@ -166,11 +166,11 @@ export default function AnnouncementForm({
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Processing...
+              <Loader2 className="size-4 animate-spin" /> Processing&hellip;
             </>
           ) : (
             <>
-              <Save className="h-4 w-4" /> {submitButtonText}
+              <Save className="size-4" /> {submitButtonText}
             </>
           )}
         </Button>

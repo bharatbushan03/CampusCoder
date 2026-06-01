@@ -1,20 +1,10 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '@/types/database.types';
+import { getSupabasePublicKey, getSupabaseUrl, isSupabaseConfigured } from './config';
 
 type BrowserSupabaseClient = ReturnType<typeof createBrowserClient<Database>>;
 
-function isSupabaseConfigured() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-
-  return (
-    url.startsWith('https://') &&
-    url.includes('.supabase.co') &&
-    !/placeholder|your-|example|dummy/i.test(url) &&
-    anonKey.length > 40 &&
-    !/placeholder|your-|example|dummy/i.test(anonKey)
-  );
-}
+export { isSupabaseConfigured };
 
 function createUnavailableQuery() {
   const result = {
@@ -86,7 +76,7 @@ export function createClient(): BrowserSupabaseClient {
   }
 
   return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    getSupabaseUrl(),
+    getSupabasePublicKey()
   );
 }

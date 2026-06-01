@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Toaster } from "sonner";
+import { PageTransition } from "@/components/animations/PageTransition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,8 +35,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-300">
         <AnnouncementBanner />
         <Navbar />
-        <main className="flex-1 flex flex-col">
-          {children}
+        <main className="flex-1 flex flex-col overflow-x-hidden">
+          <PageTransition>
+            {children}
+          </PageTransition>
         </main>
         <Footer />
         <Toaster theme="dark" position="bottom-right" richColors />

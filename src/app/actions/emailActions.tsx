@@ -72,14 +72,14 @@ export async function sendRegistrationEmails(registrationData: any, eventData: a
 }
 
 export async function sendMeetingLinkToAll(eventId: string, force: boolean = false) {
-  if (!resend) return { success: false, error: 'Email service not configured' };
+  if (!resend) throw new Error('Email service not configured');
 
   try {
     const supabase = (await createClient()) as any;
 
     // 1. Role Check
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, error: 'Unauthorized' };
+    if (!user) throw new Error('Unauthorized');
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -88,7 +88,7 @@ export async function sendMeetingLinkToAll(eventId: string, force: boolean = fal
       .single();
 
     if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
-      return { success: false, error: 'Forbidden' };
+      throw new Error('Forbidden');
     }
 
     // 2. Fetch Event Details
@@ -103,7 +103,7 @@ export async function sendMeetingLinkToAll(eventId: string, force: boolean = fal
     
     // Check if already sent
     if (event.meeting_link_sent_at && !force) {
-      return { success: false, error: 'Meeting link already sent. Use force to resend.' };
+      throw new Error('Meeting link already sent. Use force to resend.');
     }
 
     // Fetch all registrations for this event
@@ -113,7 +113,7 @@ export async function sendMeetingLinkToAll(eventId: string, force: boolean = fal
       .eq('event_id', eventId);
 
     if (regError) throw regError;
-    if (!registrations || registrations.length === 0) return { success: true, message: 'No registrations found', count: 0 };
+    if (!registrations || registrations.length === 0) throw new Error('No registrations found');
 
     // Send emails
     const emailPromises = registrations.map((reg: any) => 
@@ -141,11 +141,14 @@ export async function sendMeetingLinkToAll(eventId: string, force: boolean = fal
       .update({ meeting_link_sent_at: new Date().toISOString() })
       .eq('id', eventId);
     
-    if (updateError) console.error('Failed to update sent timestamp:', updateError);
+    if (updateError) {
+      console.error('Failed to update sent timestamp:', updateError);
+      // Don't throw here since emails were sent successfully
+    }
 
     return { success: true, count: registrations.length };
   } catch (error: any) {
     console.error('Failed to send meeting link emails:', error);
-    return { success: false, error: error.message };
+    throw error;
   }
 }
