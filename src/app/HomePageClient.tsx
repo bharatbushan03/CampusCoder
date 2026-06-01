@@ -28,6 +28,7 @@ import { AnimatedEventCard } from '@/components/AnimatedEventCard';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { TechBackground } from '@/components/animations/TechBackground';
 import DynamicCommunityGlobe from '@/components/3d/DynamicCommunityGlobe';
+import { AnimatedSection, AnimatedCard, MotionButton } from '@/components/animations/ScrollAnimations';
 
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -127,7 +128,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
             {/* Left Column: Hero Text */}
-            <div className="lg:col-span-7 text-left space-y-8">
+            <AnimatedSection className="lg:col-span-7 text-left space-y-8" direction="left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
                 <span className="relative flex size-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -149,22 +150,26 @@ export default function HomePage() {
 
               <div className="flex flex-col sm:flex-row items-center justify-start gap-4 pt-4">
                 <Link href="/events" className="w-full sm:w-auto">
-                  <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                    Explore Sprints <ArrowRight className="ml-2 size-4" />
-                  </Button>
+                  <MotionButton className="w-full sm:w-auto">
+                    <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
+                      Explore Sprints <ArrowRight className="ml-2 size-4" />
+                    </Button>
+                  </MotionButton>
                 </Link>
                 <Link href="/register" className="w-full sm:w-auto">
-                  <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8">
-                    Join Community
-                  </Button>
+                  <MotionButton className="w-full sm:w-auto">
+                    <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8">
+                      Join Community
+                    </Button>
+                  </MotionButton>
                 </Link>
               </div>
-            </div>
+            </AnimatedSection>
 
             {/* Right Column: 3D Coding Scene */}
-            <div className="lg:col-span-5 w-full h-[350px] md:h-[400px] lg:h-[500px]">
+            <AnimatedSection className="lg:col-span-5 w-full h-[350px] md:h-[400px] lg:h-[500px]" direction="right">
               <DynamicHeroCodeScene />
-            </div>
+            </AnimatedSection>
 
           </div>
         </div>
@@ -246,20 +251,22 @@ export default function HomePage() {
       {/* 2. What we offer */}
       <section className="py-24 md:py-32 relative overflow-hidden border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+          <AnimatedSection className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <h2 className="text-3xl md:text-5xl font-extrabold text-white font-mono">Specialized <span className="text-emerald-500">Ecosystem</span></h2>
             <p className="text-slate-400 text-lg leading-relaxed">Everything you need to transform from a student to a high-impact developer.</p>
-          </div>
+          </AnimatedSection>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {offerings.map((item) => (
-              <Card key={item.title} className="p-8 border-slate-800 bg-slate-900/40 hover:bg-slate-900/60 transition-all group">
-                <div className="size-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-300">
-                  <item.icon className="size-6 text-emerald-400" />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-3 font-mono">{item.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{item.description}</p>
-              </Card>
+            {offerings.map((item, index) => (
+              <AnimatedCard key={item.title} className="flex flex-col h-full" delay={index * 0.1}>
+                <Card className="p-8 border-slate-800 bg-slate-900/40 hover:bg-slate-900/60 transition-all group h-full">
+                  <div className="size-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-300">
+                    <item.icon className="size-6 text-emerald-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-3 font-mono">{item.title}</h3>
+                  <p className="text-sm text-slate-400 leading-relaxed">{item.description}</p>
+                </Card>
+              </AnimatedCard>
             ))}
           </div>
         </div>
@@ -270,7 +277,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Left Column: Content */}
-            <div className="lg:col-span-6 space-y-6 text-left">
+            <AnimatedSection className="lg:col-span-6 space-y-6 text-left" direction="left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
                 <span className="relative flex size-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -285,29 +292,31 @@ export default function HomePage() {
               <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
                 CampusCoder brings students together through virtual events, workshops, coding challenges, and peer learning activities. Build relationships, prepare for placements, and collaborate on real-world projects.
               </p>
-            </div>
+            </AnimatedSection>
             
             {/* Right Column: 3D Globe */}
-            <div className="lg:col-span-6 w-full h-[350px] md:h-[400px] lg:h-[500px]">
+            <AnimatedSection className="lg:col-span-6 w-full h-[350px] md:h-[400px] lg:h-[500px]" direction="right">
               <DynamicCommunityGlobe />
-            </div>
+            </AnimatedSection>
           </div>
         </div>
       </section>
       {/* 3. Upcoming Events Snippet */}
       <section className="py-24 md:py-32 bg-slate-900/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
+          <AnimatedSection className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
             <div className="space-y-4">
               <h2 className="text-3xl md:text-5xl font-extrabold text-white font-mono">Upcoming <span className="text-emerald-500">Sprints</span></h2>
               <p className="text-slate-400 text-lg max-w-xl">Reserve your spot in our upcoming hands-on learning sessions.</p>
             </div>
             <Link href="/events">
-              <Button variant="outline" size="md" className="group">
-                View All Events <ArrowUpRight className="ml-2 size-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </Button>
+              <MotionButton>
+                <Button variant="outline" size="md" className="group">
+                  View All Events <ArrowUpRight className="ml-2 size-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </Button>
+              </MotionButton>
             </Link>
-          </div>
+          </AnimatedSection>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {featuredEvents.map((ev, index) => (
@@ -351,7 +360,7 @@ export default function HomePage() {
       <section className="py-24 md:py-32 border-t border-slate-800/40 relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
+            <AnimatedSection className="space-y-8" direction="left">
               <div className="space-y-4">
                 <h2 className="text-3xl md:text-5xl font-extrabold text-white font-mono">Why Join <br /><span className="text-emerald-500">CampusCoder?</span></h2>
                 <p className="text-slate-400 text-lg leading-relaxed">We provide more than just tutorials. We provide a path to professional excellence.</p>
@@ -367,9 +376,9 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </AnimatedSection>
             
-            <div className="relative">
+            <AnimatedSection className="relative" direction="right">
               <Card className="aspect-square bg-slate-900/40 border-slate-800 p-1 flex items-center justify-center overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 z-0"></div>
                 <div className="relative z-10 text-center space-y-4 p-8">
@@ -387,7 +396,7 @@ export default function HomePage() {
               {/* Decorative elements */}
               <div className="absolute -top-4 -right-4 size-24 bg-emerald-500/10 rounded-full blur-2xl animate-pulse-slow"></div>
               <div className="absolute -bottom-8 -left-8 size-32 bg-cyan-500/10 rounded-full blur-2xl animate-pulse-slow delay-1000"></div>
-            </div>
+            </AnimatedSection>
           </div>
         </div>
       </section>
@@ -395,34 +404,40 @@ export default function HomePage() {
       {/* 5. Final CTA */}
       <section className="py-24 md:py-32 relative overflow-hidden bg-emerald-500/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <Card className="p-12 md:p-20 border-emerald-500/20 bg-slate-950/80 max-w-5xl mx-auto space-y-8 overflow-hidden relative group">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-            
-            <h2 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight">
-              Ready to accelerate your <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
-                coding journey?
-              </span>
-            </h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
-              Be part of the first group shaping CampusCoder at our college.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link href="/register">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg">
-                  Join the Community
-                </Button>
-              </Link>
-              <Link href="/events">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg border-slate-700">
-                  Explore Sprints
-                </Button>
-              </Link>
-            </div>
-            
-            {/* Background elements */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
-          </Card>
+          <AnimatedSection className="max-w-5xl mx-auto">
+            <Card className="p-12 md:p-20 border-emerald-500/20 bg-slate-950/80 max-w-5xl mx-auto space-y-8 overflow-hidden relative group">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+              
+              <h2 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight leading-tight">
+                Ready to accelerate your <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">
+                  coding journey?
+                </span>
+              </h2>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
+                Be part of the first group shaping CampusCoder at our college.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                <Link href="/register" className="w-full sm:w-auto">
+                  <MotionButton className="w-full sm:w-auto">
+                    <Button variant="primary" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg">
+                      Join the Community
+                    </Button>
+                  </MotionButton>
+                </Link>
+                <Link href="/events" className="w-full sm:w-auto">
+                  <MotionButton className="w-full sm:w-auto">
+                    <Button variant="outline" size="lg" className="w-full sm:w-auto px-10 h-14 text-lg border-slate-700">
+                      Explore Sprints
+                    </Button>
+                  </MotionButton>
+                </Link>
+              </div>
+              
+              {/* Background elements */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+            </Card>
+          </AnimatedSection>
         </div>
       </section>
     </div>

@@ -26,6 +26,7 @@ import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedEventCard } from '@/components/AnimatedEventCard';
+import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type EventOwnerRow = Database['public']['Tables']['event_owners']['Row'];
@@ -256,7 +257,8 @@ export default function EventDetailsPage() {
           <div className="lg:col-span-2 space-y-6">
             
             {/* Event Content card */}
-            <Card hoverEffect={false} className="p-8">
+            <AnimatedSection direction="left">
+              <Card hoverEffect={false} className="p-8">
               {event.banner_url && (
                 <div className="relative mb-8 aspect-video overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
                   <Image
@@ -322,9 +324,11 @@ export default function EventDetailsPage() {
                 ))}
               </div>
             </Card>
+            </AnimatedSection>
 
             {/* Speaker Information */}
-            <Card hoverEffect={false} className="p-8">
+            <AnimatedSection direction="left" delay={0.1}>
+              <Card hoverEffect={false} className="p-8">
               <h3 className="text-lg font-bold text-white mb-6 font-mono">Speaker Panel</h3>
               <div className="flex items-start gap-4">
                 <div className="size-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
@@ -339,17 +343,20 @@ export default function EventDetailsPage() {
                 </div>
               </div>
             </Card>
+            </AnimatedSection>
 
             {/* Meeting link notice */}
             {event.meeting_link && (event.mode === 'online' || event.mode === 'hybrid') && (
-              <Card hoverEffect={false} className="p-8 border-emerald-500/20 bg-slate-900/40">
-                <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-                  <Link2 className="size-5 text-emerald-400" /> Meeting Details
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  This is a virtual event. The private meeting link is shared directly with registered students by email and community channels.
-                </p>
-              </Card>
+              <AnimatedSection direction="left" delay={0.15}>
+                <Card hoverEffect={false} className="p-8 border-emerald-500/20 bg-slate-900/40">
+                  <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                    <Link2 className="size-5 text-emerald-400" /> Meeting Details
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    This is a virtual event. The private meeting link is shared directly with registered students by email and community channels.
+                  </p>
+                </Card>
+              </AnimatedSection>
             )}
           </div>
 
@@ -357,7 +364,8 @@ export default function EventDetailsPage() {
           <div className="space-y-6">
             
             {/* RSVP drawer card */}
-            <Card hoverEffect={false} className={`border-emerald-500/20 bg-slate-900 p-6 ${isRegistrationDisabled ? 'opacity-90' : ''}`}>
+            <AnimatedSection direction="right">
+              <Card hoverEffect={false} className={`border-emerald-500/20 bg-slate-900 p-6 ${isRegistrationDisabled ? 'opacity-90' : ''}`}>
               <h3 className="text-lg font-bold text-white mb-4 font-mono">Registration</h3>
               
               {/* Registration seats progress */}
@@ -408,59 +416,64 @@ export default function EventDetailsPage() {
 
               {/* Action register button */}
               <Link href={isRegistrationDisabled ? '#' : `/events/${slug}/register`} className="block">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full flex items-center justify-center gap-2"
-                  disabled={isRegistrationDisabled}
-                >
-                  {isCancelled ? (
-                    'Cancelled'
-                  ) : isCompleted ? (
-                    'Sprints Finished'
-                  ) : isDeadlinePassed ? (
-                    'Registrations Closed'
-                  ) : (
-                    <>
-                      Register for Event <ArrowRight className="size-4" />
-                    </>
-                  )}
-                </Button>
+                <MotionButton className="w-full">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="w-full flex items-center justify-center gap-2"
+                    disabled={isRegistrationDisabled}
+                  >
+                    {isCancelled ? (
+                      'Cancelled'
+                    ) : isCompleted ? (
+                      'Sprints Finished'
+                    ) : isDeadlinePassed ? (
+                      'Registrations Closed'
+                    ) : (
+                      <>
+                        Register for Event <ArrowRight className="size-4" />
+                      </>
+                    )}
+                  </Button>
+                </MotionButton>
               </Link>
             </Card>
+            </AnimatedSection>
 
             {/* Community Links card */}
-            <Card hoverEffect={false} className="p-6">
-              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                <MessageSquare className="size-4 text-emerald-400" /> Join Channels
-              </h4>
-              <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                Connect with our active channels to get updates, slides, code repositories, and notifications.
-              </p>
-              <div className="space-y-2">
-                {communityLinks.length > 0 ? communityLinks.map((link) => (
-                  <a
-                    key={link.id ?? link.url}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between text-xs text-slate-300 hover:text-emerald-400 p-2.5 rounded bg-slate-950/60 border border-slate-900 transition-colors group"
-                  >
-                    <span className="capitalize">{link.platform}</span>
-                    <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </a>
-                )) : (
-                  <p className="text-[10px] text-slate-500 font-mono italic">No channels linked yet.</p>
-                )}
-              </div>
-            </Card>
+            <AnimatedSection direction="right" delay={0.1}>
+              <Card hoverEffect={false} className="p-6">
+                <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                  <MessageSquare className="size-4 text-emerald-400" /> Join Channels
+                </h4>
+                <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                  Connect with our active channels to get updates, slides, code repositories, and notifications.
+                </p>
+                <div className="space-y-2">
+                  {communityLinks.length > 0 ? communityLinks.map((link) => (
+                    <a
+                      key={link.id ?? link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between text-xs text-slate-300 hover:text-emerald-400 p-2.5 rounded bg-slate-950/60 border border-slate-900 transition-colors group"
+                    >
+                      <span className="capitalize">{link.platform}</span>
+                      <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </a>
+                  )) : (
+                    <p className="text-[10px] text-slate-500 font-mono italic">No channels linked yet.</p>
+                  )}
+                </div>
+              </Card>
+            </AnimatedSection>
           </div>
 
         </div>
 
         {/* 13. Related Upcoming Events Section */}
         {relatedEvents.length > 0 && (
-          <div className="mt-16 pt-12 border-t border-slate-900/80">
+          <AnimatedSection className="mt-16 pt-12 border-t border-slate-900/80" direction="up">
             <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2 font-mono">
               <Sparkles className="size-5 text-emerald-400" /> Other Upcoming Sprints
             </h3>
@@ -492,7 +505,7 @@ export default function EventDetailsPage() {
                 );
               })}
             </div>
-          </div>
+          </AnimatedSection>
         )}
 
       </div>

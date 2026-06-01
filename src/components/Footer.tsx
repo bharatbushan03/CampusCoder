@@ -92,7 +92,7 @@ export const Footer: React.FC = () => {
           <div className="space-y-6">
             <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500">Navigation</h4>
             <ul className="space-y-4">
-              {['Home', 'Events', 'Workshops', 'Resources', 'Archive'].map((item) => (
+              {['Home', 'Events', 'Workshops', 'Resources', 'About', 'Archive'].map((item) => (
                 <li key={item}>
                   <Link 
                     href={item === 'Home' ? '/' : (item === 'Archive' ? '/events/archive' : `/${item.toLowerCase()}`)} 
