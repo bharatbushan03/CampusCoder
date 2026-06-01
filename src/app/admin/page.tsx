@@ -5,15 +5,37 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
-  Calendar, Users, Eye, PlusCircle, CheckCircle2, UserCheck, Mail, 
-  Loader2, AlertTriangle, Layers, Trophy, Megaphone, 
-  Link2, Trash2, X, Search, Filter, Plus, Power, Edit, ArrowUpRight
+  Calendar,
+  Users,
+  PlusCircle,
+  UserCheck,
+  Loader2,
+  AlertTriangle,
+  Layers,
+  Trophy,
+  Megaphone,
+  Link2,
+  X,
+  Plus,
+  ArrowUpRight
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import type { Database } from '@/types/database.types';
+
+type EventRow = Database['public']['Tables']['events']['Row'];
+type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
+type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
+type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
+type StudentProfile = Pick<Database['public']['Tables']['profiles']['Row'], 'id'>;
+type RegistrationWithEvent = RegistrationRow & {
+  events: Pick<EventRow, 'title'> | null;
+};
+type AnnouncementWithEvent = AnnouncementRow & {
+  events: Pick<EventRow, 'title'> | null;
+};
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // Dashboard Metrics
   const [stats, setStats] = useState({
@@ -25,19 +47,12 @@ export default function AdminDashboardPage() {
   });
 
   // State Lists
-  const [registrations, setRegistrations] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [communityLinks, setCommunityLinks] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationWithEvent[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [announcements, setAnnouncements] = useState<AnnouncementWithEvent[]>([]);
+  const [communityLinks, setCommunityLinks] = useState<CommunityLinkRow[]>([]);
   const [isDbOffline, setIsDbOffline] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-  // Tabs state
-  const [activeTab, setActiveTab] = useState<'registrations' | 'events' | 'announcements' | 'links'>('registrations');
-
-  // Search & Filter state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [eventFilter, setEventFilter] = useState('');
 
   // Modals state
   const [showEventModal, setShowEventModal] = useState(false);
@@ -86,7 +101,7 @@ export default function AdminDashboardPage() {
   // Load all dashboard data
   const loadDashboardData = async () => {
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       
       // Get current user id
       const { data: { user } } = await supabase.auth.getUser();
@@ -98,11 +113,30 @@ export default function AdminDashboardPage() {
 
       // Fetch lists in parallel
       const [eventsRes, regsRes, membersRes, announcementsRes, linksRes] = await Promise.all([
-        supabase.from('events').select('*').order('date', { ascending: false }),
-        supabase.from('registrations').select('*, events(title)').order('registered_at', { ascending: false }),
-        supabase.from('profiles').select('id').eq('role', 'student'),
-        supabase.from('announcements').select('*, events(title)').order('created_at', { ascending: false }),
-        supabase.from('community_links').select('*')
+        supabase
+          .from('events')
+          .select('*')
+          .order('date', { ascending: false })
+          .returns<EventRow[]>(),
+        supabase
+          .from('registrations')
+          .select('*, events(title)')
+          .order('registered_at', { ascending: false })
+          .returns<RegistrationWithEvent[]>(),
+        supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'student')
+          .returns<StudentProfile[]>(),
+        supabase
+          .from('announcements')
+          .select('*, events(title)')
+          .order('created_at', { ascending: false })
+          .returns<AnnouncementWithEvent[]>(),
+        supabase
+          .from('community_links')
+          .select('*')
+          .returns<CommunityLinkRow[]>()
       ]);
 
       if (eventsRes.error) throw eventsRes.error;
@@ -121,10 +155,10 @@ export default function AdminDashboardPage() {
 
       // Compute stats
       const totalEvents = eventsList.length;
-      const upcomingEvents = eventsList.filter((e: any) => e.status === 'published' && e.date >= todayStr).length;
-      const completedEvents = eventsList.filter((e: any) => e.status === 'completed').length;
+      const upcomingEvents = eventsList.filter((event) => event.status === 'published' && event.date >= todayStr).length;
+      const completedEvents = eventsList.filter((event) => event.status === 'completed').length;
       const totalRegistrations = regsList.length;
-      const activeStudents = membersList.length || 150; // Fallback to 150 if no student accounts registered yet
+      const activeStudents = membersList.length;
 
       setStats({
         totalEvents,
@@ -134,7 +168,7 @@ export default function AdminDashboardPage() {
         completedEvents
       });
       setIsDbOffline(false);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Supabase dashboard queries failed, loading mock fallback dashboard data:', err);
       setIsDbOffline(true);
       
@@ -159,8 +193,8 @@ export default function AdminDashboardPage() {
       setAnnouncements(mockAnnouncements);
 
       const mockLinks = [
-        { id: 'link-1', platform: 'Discord', url: 'https://discord.gg/campuscoder', is_active: true },
-        { id: 'link-2', platform: 'WhatsApp', url: 'https://chat.whatsapp.com/campuscoder', is_active: true }
+        { id: 'link-1', platform: 'Discord', url: 'https://discord.gg/VdsX64E5E', is_active: true },
+        { id: 'link-2', platform: 'WhatsApp', url: 'https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2', is_active: true }
       ];
       setCommunityLinks(mockLinks);
 
@@ -168,7 +202,7 @@ export default function AdminDashboardPage() {
         totalEvents: mockEvents.length,
         upcomingEvents: 2,
         totalRegistrations: mockRegs.length,
-        activeStudents: 152,
+        activeStudents: 0,
         completedEvents: 1
       });
     } finally {
@@ -177,22 +211,20 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    loadDashboardData();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadDashboardData();
   }, []);
 
-  // Auto-fill slug from title in event form
-  useEffect(() => {
-    if (eventForm.title) {
-      const generatedSlug = eventForm.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '');
-      setEventForm(prev => ({ ...prev, slug: generatedSlug }));
-    }
-  }, [eventForm.title]);
+  const handleEventTitleChange = (value: string) => {
+    const generatedSlug = value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+    setEventForm((prev) => ({ ...prev, title: value, slug: generatedSlug }));
+  };
 
   // Form Submissions
-  const handleCreateEvent = async (e: React.FormEvent) => {
+  const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!eventForm.title || !eventForm.slug || !eventForm.date || !eventForm.start_time || !eventForm.end_time) {
       alert('Please fill out all required event fields.');
@@ -201,7 +233,7 @@ export default function AdminDashboardPage() {
 
     setIsSubmittingEvent(true);
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('events')
         .insert({
@@ -241,14 +273,14 @@ export default function AdminDashboardPage() {
         status: 'published'
       });
       await loadDashboardData();
-    } catch (err: any) {
+    } catch (err) {
       alert('Failed to save event: ' + err.message);
     } finally {
       setIsSubmittingEvent(false);
     }
   };
 
-  const handleSaveAnnouncement = async (e: React.FormEvent) => {
+  const handleSaveAnnouncement = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!announceForm.title || !announceForm.message) {
       alert('Please enter title and message.');
@@ -257,7 +289,7 @@ export default function AdminDashboardPage() {
 
     setIsSubmittingAnnounce(true);
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const announcementData = {
         title: announceForm.title,
         message: announceForm.message,
@@ -290,53 +322,14 @@ export default function AdminDashboardPage() {
       });
       setEditingAnnounceId(null);
       await loadDashboardData();
-    } catch (err: any) {
+    } catch (err) {
       alert('Failed to save announcement: ' + err.message);
     } finally {
       setIsSubmittingAnnounce(false);
     }
   };
 
-  const handleEditAnnouncementClick = (announce: any) => {
-    setEditingAnnounceId(announce.id);
-    let localDateStr = '';
-    if (announce.publish_date) {
-      const d = new Date(announce.publish_date);
-      const offset = d.getTimezoneOffset();
-      const local = new Date(d.getTime() - (offset * 60 * 1000));
-      localDateStr = local.toISOString().slice(0, 16);
-    } else {
-      const d = new Date(announce.created_at);
-      const offset = d.getTimezoneOffset();
-      const local = new Date(d.getTime() - (offset * 60 * 1000));
-      localDateStr = local.toISOString().slice(0, 16);
-    }
-    setAnnounceForm({
-      title: announce.title,
-      message: announce.message,
-      event_id: announce.event_id || '',
-      publish_date: localDateStr,
-      is_active: announce.is_active !== undefined ? announce.is_active : true
-    });
-    setShowAnnounceModal(true);
-  };
-
-  const handleToggleAnnouncementActive = async (announceId: string, currentStatus: boolean) => {
-    try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('announcements')
-        .update({ is_active: !currentStatus })
-        .eq('id', announceId);
-
-      if (error) throw error;
-      await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to update announcement status: ' + err.message);
-    }
-  };
-
-  const handleSaveLink = async (e: React.FormEvent) => {
+  const handleSaveLink = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const finalPlatform = linkForm.platform === 'Custom' ? customPlatform : linkForm.platform;
     if (!finalPlatform || !linkForm.url) {
@@ -346,7 +339,7 @@ export default function AdminDashboardPage() {
 
     setIsSubmittingLink(true);
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const linkData = {
         platform: finalPlatform,
         url: linkForm.url,
@@ -375,126 +368,34 @@ export default function AdminDashboardPage() {
       setCustomPlatform('');
       setEditingLinkId(null);
       await loadDashboardData();
-    } catch (err: any) {
+    } catch (err) {
       alert('Failed to save community link: ' + err.message);
     } finally {
       setIsSubmittingLink(false);
     }
   };
 
-  const handleEditLinkClick = (link: any) => {
-    setEditingLinkId(link.id);
-    const standardPlatforms = ['Discord', 'WhatsApp', 'LinkedIn', 'GitHub', 'HackerRank'];
-    const isStandard = standardPlatforms.includes(link.platform);
-    setLinkForm({
-      platform: isStandard ? link.platform : 'Custom',
-      url: link.url,
-      is_active: link.is_active
+  const openAnnouncementModal = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    const local = new Date(now.getTime() - (offset * 60 * 1000));
+    setAnnounceForm({
+      title: '',
+      message: '',
+      event_id: '',
+      publish_date: local.toISOString().slice(0, 16),
+      is_active: true
     });
-    if (!isStandard) {
-      setCustomPlatform(link.platform);
-    } else {
-      setCustomPlatform('');
-    }
-    setShowLinkModal(true);
+    setEditingAnnounceId(null);
+    setShowAnnounceModal(true);
   };
-
-  // State manipulation triggers (Publish, cancel, complete)
-  const handleUpdateEventStatus = async (eventId: string, status: 'published' | 'completed' | 'cancelled' | 'draft') => {
-    try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('events')
-        .update({ status })
-        .eq('id', eventId);
-
-      if (error) throw error;
-      await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to update status: ' + err.message);
-    }
-  };
-
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event? This will also remove associated registrations.')) return;
-    try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
-
-      if (error) throw error;
-      await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to delete event: ' + err.message);
-    }
-  };
-
-  const handleDeleteAnnouncement = async (announceId: string) => {
-    if (!confirm('Are you sure you want to delete this announcement?')) return;
-    try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('announcements')
-        .delete()
-        .eq('id', announceId);
-
-      if (error) throw error;
-      await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to delete announcement: ' + err.message);
-    }
-  };
-
-  const handleToggleLinkActive = async (linkId: string, currentStatus: boolean) => {
-    try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('community_links')
-        .update({ is_active: !currentStatus })
-        .eq('id', linkId);
-
-      if (error) throw error;
-      await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to update status: ' + err.message);
-    }
-  };
-
-  const handleDeleteLink = async (linkId: string) => {
-    if (!confirm('Delete this community link?')) return;
-    try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('community_links')
-        .delete()
-        .eq('id', linkId);
-
-      if (error) throw error;
-      await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to delete: ' + err.message);
-    }
-  };
-
-  // Filter and Search logic for registrations list
-  const filteredRegistrations = registrations.filter((reg) => {
-    const matchesSearch = 
-      reg.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      reg.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesEvent = eventFilter === '' || reg.event_id === eventFilter;
-
-    return matchesSearch && matchesEvent;
-  });
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading admin operations panel...</p>
+          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-mono text-slate-400">Loading admin operations panel&hellip;</p>
         </div>
       </div>
     );
@@ -517,28 +418,15 @@ export default function AdminDashboardPage() {
             className="flex items-center gap-1.5"
             onClick={() => setShowEventModal(true)}
           >
-            <PlusCircle className="h-4 w-4" /> Create Event
+            <PlusCircle className="size-4" /> Create Event
           </Button>
           <Button 
             variant="secondary" 
             size="sm" 
             className="flex items-center gap-1.5"
-            onClick={() => {
-              const now = new Date();
-              const offset = now.getTimezoneOffset();
-              const local = new Date(now.getTime() - (offset * 60 * 1000));
-              setAnnounceForm({
-                title: '',
-                message: '',
-                event_id: '',
-                publish_date: local.toISOString().slice(0, 16),
-                is_active: true
-              });
-              setEditingAnnounceId(null);
-              setShowAnnounceModal(true);
-            }}
+            onClick={openAnnouncementModal}
           >
-            <Megaphone className="h-4 w-4 text-emerald-400" /> Post Announcement
+            <Megaphone className="size-4 text-emerald-400" /> Post Announcement
           </Button>
           <Button 
             variant="outline" 
@@ -555,7 +443,7 @@ export default function AdminDashboardPage() {
               setShowLinkModal(true);
             }}
           >
-            <Link2 className="h-4 w-4 text-emerald-500" /> Add Link
+            <Link2 className="size-4 text-emerald-500" /> Add Link
           </Button>
         </div>
       </div>
@@ -563,7 +451,7 @@ export default function AdminDashboardPage() {
       {/* Database warning badge */}
       {isDbOffline && (
         <div className="flex items-center gap-3 p-4 bg-slate-900 border border-emerald-500/10 rounded-xl text-xs text-slate-400 font-mono">
-          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          <AlertTriangle className="size-4 text-amber-500 flex-shrink-0" />
           <span>Local Demo Mode: Running on simulated database metrics. DB modifications will bypass network commits.</span>
         </div>
       )}
@@ -574,7 +462,7 @@ export default function AdminDashboardPage() {
         <Card hoverEffect={true} className="border-slate-900 bg-slate-950/40 p-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Total Events</p>
-            <Layers className="h-4 w-4 text-slate-500" />
+            <Layers className="size-4 text-slate-500" />
           </div>
           <p className="text-2xl font-mono font-bold text-white mt-2">{stats.totalEvents}</p>
         </Card>
@@ -583,7 +471,7 @@ export default function AdminDashboardPage() {
         <Card hoverEffect={true} className="border-slate-900 bg-slate-950/40 p-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Upcoming</p>
-            <Calendar className="h-4 w-4 text-emerald-400" />
+            <Calendar className="size-4 text-emerald-400" />
           </div>
           <p className="text-2xl font-mono font-bold text-emerald-400 mt-2">{stats.upcomingEvents}</p>
         </Card>
@@ -592,7 +480,7 @@ export default function AdminDashboardPage() {
         <Card hoverEffect={true} className="border-slate-900 bg-slate-950/40 p-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Completed</p>
-            <Trophy className="h-4 w-4 text-amber-400" />
+            <Trophy className="size-4 text-amber-400" />
           </div>
           <p className="text-2xl font-mono font-bold text-amber-400 mt-2">{stats.completedEvents}</p>
         </Card>
@@ -601,7 +489,7 @@ export default function AdminDashboardPage() {
         <Card hoverEffect={true} className="border-slate-900 bg-slate-950/40 p-4">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Total RSVPs</p>
-            <Users className="h-4 w-4 text-cyan-400" />
+            <Users className="size-4 text-cyan-400" />
           </div>
           <p className="text-2xl font-mono font-bold text-cyan-400 mt-2">{stats.totalRegistrations}</p>
         </Card>
@@ -610,7 +498,7 @@ export default function AdminDashboardPage() {
         <Card hoverEffect={true} className="border-slate-900 bg-slate-950/40 p-4 col-span-2 md:col-span-1">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Students</p>
-            <UserCheck className="h-4 w-4 text-purple-400" />
+            <UserCheck className="size-4 text-purple-400" />
           </div>
           <p className="text-2xl font-mono font-bold text-purple-400 mt-2">{stats.activeStudents}</p>
         </Card>
@@ -622,7 +510,7 @@ export default function AdminDashboardPage() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white font-mono flex items-center gap-2">
-              <Users className="h-5 w-5 text-emerald-400" /> Recent Registrations
+              <Users className="size-5 text-emerald-400" /> Recent Registrations
             </h2>
             <Link href="/admin/registrations">
               <Button variant="outline" size="sm" className="text-[10px] font-mono py-1 px-3 h-auto">
@@ -676,7 +564,7 @@ export default function AdminDashboardPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                <Megaphone className="h-4 w-4 text-emerald-400" /> Active Announcements
+                <Megaphone className="size-4 text-emerald-400" /> Active Announcements
               </h2>
               <Link href="/admin/announcements">
                 <Button variant="outline" size="sm" className="text-[10px] font-mono py-1 px-3 h-auto">
@@ -708,7 +596,7 @@ export default function AdminDashboardPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-emerald-400" /> Community Channels
+                <Link2 className="size-4 text-emerald-400" /> Community Channels
               </h2>
               <Link href="/admin/community-links">
                 <Button variant="outline" size="sm" className="text-[10px] font-mono py-1 px-3 h-auto">
@@ -725,7 +613,7 @@ export default function AdminDashboardPage() {
                     <div className="flex items-center gap-2">
                       <span className={`h-1.5 w-1.5 rounded-full ${link.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`}></span>
                       <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-emerald-400">
-                        <ArrowUpRight className="h-3 w-3" />
+                        <ArrowUpRight className="size-3" />
                       </a>
                     </div>
                   </div>
@@ -748,36 +636,36 @@ export default function AdminDashboardPage() {
           <div className="w-full max-w-2xl bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-6 md:p-8 space-y-6 my-8">
             <div className="flex items-center justify-between border-b border-slate-900 pb-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2 font-mono">
-                <Plus className="h-5 w-5 text-emerald-400" /> Create Sprint Event
+                <Plus className="size-5 text-emerald-400" /> Create Sprint Event
               </h2>
-              <button 
+              <button type="button" 
                 onClick={() => setShowEventModal(false)}
                 className="p-1 rounded hover:bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             </div>
 
             <form onSubmit={handleCreateEvent} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-event-title" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Event Title *
                   </label>
-                  <input
+                  <input id="page-event-title"
                     type="text"
                     required
                     placeholder="e.g. Next.js Web Dev Camp"
                     value={eventForm.title}
-                    onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                    onChange={(e) => handleEventTitleChange(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-url-slug" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     URL Slug *
                   </label>
-                  <input
+                  <input id="page-url-slug"
                     type="text"
                     required
                     placeholder="nextjs-web-dev-camp"
@@ -790,10 +678,10 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-event-type" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Event Type
                   </label>
-                  <select
+                  <select id="page-event-type"
                     value={eventForm.event_type}
                     onChange={(e) => setEventForm({ ...eventForm, event_type: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -807,10 +695,10 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-mode" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Mode
                   </label>
-                  <select
+                  <select id="page-mode"
                     value={eventForm.mode}
                     onChange={(e) => setEventForm({ ...eventForm, mode: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -822,10 +710,10 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-publish-status" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Publish Status
                   </label>
-                  <select
+                  <select id="page-publish-status"
                     value={eventForm.status}
                     onChange={(e) => setEventForm({ ...eventForm, status: e.target.value })}
                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -838,10 +726,10 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-date" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Date *
                   </label>
-                  <input
+                  <input id="page-date"
                     type="date"
                     required
                     value={eventForm.date}
@@ -850,10 +738,10 @@ export default function AdminDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-start-time" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Start Time *
                   </label>
-                  <input
+                  <input id="page-start-time"
                     type="time"
                     required
                     value={eventForm.start_time}
@@ -862,10 +750,10 @@ export default function AdminDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-end-time" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     End Time *
                   </label>
-                  <input
+                  <input id="page-end-time"
                     type="time"
                     required
                     value={eventForm.end_time}
@@ -877,10 +765,10 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-meeting-stream-link" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Meeting Stream Link
                   </label>
-                  <input
+                  <input id="page-meeting-stream-link"
                     type="url"
                     placeholder="https://meet.google.com/..."
                     value={eventForm.meeting_link}
@@ -889,10 +777,10 @@ export default function AdminDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-registration-deadline" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Registration Deadline
                   </label>
-                  <input
+                  <input id="page-registration-deadline"
                     type="datetime-local"
                     value={eventForm.registration_deadline}
                     onChange={(e) => setEventForm({ ...eventForm, registration_deadline: e.target.value })}
@@ -902,10 +790,10 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-banner-image-url" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Banner Image URL
                 </label>
-                <input
+                <input id="page-banner-image-url"
                   type="url"
                   placeholder="https://images.unsplash.com/..."
                   value={eventForm.banner_url}
@@ -915,10 +803,10 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-short-description" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Short Description
                 </label>
-                <input
+                <input id="page-short-description"
                   type="text"
                   placeholder="Brief one-liner summary of event learning outcomes"
                   value={eventForm.short_description}
@@ -928,12 +816,12 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-full-detailed-description-supports-md-plain" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Full Detailed Description (Supports MD/Plain)
                 </label>
-                <textarea
+                <textarea id="page-full-detailed-description-supports-md-plain"
                   rows={4}
-                  placeholder="Provide details about curriculum, prerequisites, speaker bio, and schedule..."
+                  placeholder="Provide details about curriculum, prerequisites, speaker bio, and schedule&hellip;"
                   value={eventForm.full_description}
                   onChange={(e) => setEventForm({ ...eventForm, full_description: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -953,7 +841,7 @@ export default function AdminDashboardPage() {
                   variant="primary" 
                   disabled={isSubmittingEvent}
                 >
-                  {isSubmittingEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Sprint Event'}
+                  {isSubmittingEvent ? <Loader2 className="size-4 animate-spin" /> : 'Save Sprint Event'}
                 </Button>
               </div>
             </form>
@@ -967,9 +855,9 @@ export default function AdminDashboardPage() {
           <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-6 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-900 pb-4">
               <h2 className="text-lg font-bold text-white flex items-center gap-2 font-mono">
-                <Megaphone className="h-5 w-5 text-emerald-400" /> {editingAnnounceId ? 'Edit Announcement' : 'Post Announcement'}
+                <Megaphone className="size-5 text-emerald-400" /> {editingAnnounceId ? 'Edit Announcement' : 'Post Announcement'}
               </h2>
-              <button 
+              <button type="button" 
                 onClick={() => {
                   setShowAnnounceModal(false);
                   setEditingAnnounceId(null);
@@ -977,16 +865,16 @@ export default function AdminDashboardPage() {
                 }}
                 className="p-1 rounded hover:bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveAnnouncement} className="space-y-4">
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-announcement-title" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Announcement Title *
                 </label>
-                <input
+                <input id="page-announcement-title"
                   type="text"
                   required
                   placeholder="e.g. Discord Server Launch"
@@ -997,10 +885,10 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-target-event-optional" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Target Event (Optional)
                 </label>
-                <select
+                <select id="page-target-event-optional"
                   value={announceForm.event_id}
                   onChange={(e) => setAnnounceForm({ ...announceForm, event_id: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -1014,10 +902,10 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-publish-date" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Publish Date *
                   </label>
-                  <input
+                  <input id="page-publish-date"
                     type="datetime-local"
                     required
                     value={announceForm.publish_date}
@@ -1028,13 +916,13 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-message-content" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Message Content *
                 </label>
-                <textarea
+                <textarea id="page-message-content"
                   rows={4}
                   required
-                  placeholder="Enter announcement details..."
+                  placeholder="Enter announcement details&hellip;"
                   value={announceForm.message}
                   onChange={(e) => setAnnounceForm({ ...announceForm, message: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -1071,7 +959,7 @@ export default function AdminDashboardPage() {
                   variant="primary" 
                   disabled={isSubmittingAnnounce}
                 >
-                  {isSubmittingAnnounce ? <Loader2 className="h-4 w-4 animate-spin" /> : (editingAnnounceId ? 'Update Announcement' : 'Post to Feed')}
+                  {isSubmittingAnnounce ? <Loader2 className="size-4 animate-spin" /> : (editingAnnounceId ? 'Update Announcement' : 'Post to Feed')}
                 </Button>
               </div>
             </form>
@@ -1085,9 +973,9 @@ export default function AdminDashboardPage() {
           <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-6 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-900 pb-4">
               <h2 className="text-lg font-bold text-white flex items-center gap-2 font-mono">
-                <Link2 className="h-5 w-5 text-emerald-400" /> {editingLinkId ? 'Edit Community Link' : 'Add Community Link'}
+                <Link2 className="size-5 text-emerald-400" /> {editingLinkId ? 'Edit Community Link' : 'Add Community Link'}
               </h2>
-              <button 
+              <button type="button" 
                 onClick={() => {
                   setShowLinkModal(false);
                   setEditingLinkId(null);
@@ -1096,16 +984,16 @@ export default function AdminDashboardPage() {
                 }}
                 className="p-1 rounded hover:bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveLink} className="space-y-4">
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-platform-name" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Platform Name *
                 </label>
-                <select
+                <select id="page-platform-name"
                   value={linkForm.platform}
                   onChange={(e) => setLinkForm({ ...linkForm, platform: e.target.value })}
                   className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -1121,10 +1009,10 @@ export default function AdminDashboardPage() {
 
               {linkForm.platform === 'Custom' && (
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                  <label htmlFor="page-platform-custom-name" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                     Platform Custom Name *
                   </label>
-                  <input
+                  <input id="page-platform-custom-name"
                     type="text"
                     required
                     placeholder="e.g. Telegram, Slack"
@@ -1136,10 +1024,10 @@ export default function AdminDashboardPage() {
               )}
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
+                <label htmlFor="page-platform-url" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-1.5">
                   Platform URL *
                 </label>
-                <input
+                <input id="page-platform-url"
                   type="url"
                   required
                   placeholder="https://..."
@@ -1180,7 +1068,7 @@ export default function AdminDashboardPage() {
                   variant="primary" 
                   disabled={isSubmittingLink}
                 >
-                  {isSubmittingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : (editingLinkId ? 'Update Link' : 'Save Link')}
+                  {isSubmittingLink ? <Loader2 className="size-4 animate-spin" /> : (editingLinkId ? 'Update Link' : 'Save Link')}
                 </Button>
               </div>
             </form>

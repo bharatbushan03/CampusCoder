@@ -9,17 +9,22 @@
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "test": "npm run lint && npm run type-check",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "^6.12.4",
     "sonner": "^2.0.7",
+    "three": "^0.184.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -28,8 +33,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.184.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "react-doctor": "^0.2.14",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

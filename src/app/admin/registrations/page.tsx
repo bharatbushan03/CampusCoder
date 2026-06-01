@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
@@ -10,31 +10,41 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import type { Database } from '@/types/database.types';
+
+type EventRow = Database['public']['Tables']['events']['Row'];
+type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
+type AttendanceStatus = RegistrationRow['attendance_status'];
+type RegistrationType = RegistrationRow & {
+  events: Pick<EventRow, 'title'> | null;
+};
+type EventFilterOption = Pick<EventRow, 'id' | 'title'>;
 
 export default function AdminRegistrationsPage() {
   const [loading, setLoading] = useState(true);
-  const [registrations, setRegistrations] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<RegistrationType[]>([]);
+  const [events, setEvents] = useState<EventFilterOption[]>([]);
   const [isDbOffline, setIsDbOffline] = useState(false);
 
   // Search & Filter state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [eventFilter, setEventFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [eventFilter, setEventFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | ''>('');
 
   // Selected registration for details modal
-  const [selectedReg, setSelectedReg] = useState<any | null>(null);
+  const [selectedReg, setSelectedReg] = useState<RegistrationType | null>(null);
 
   // Fetch registrations & events from Supabase
   const loadRegistrationsData = async () => {
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
 
       // Fetch events for filter dropdown
       const { data: eventsData } = await supabase
         .from('events')
         .select('id, title')
-        .order('date', { ascending: false });
+        .order('date', { ascending: false })
+        .returns<EventFilterOption[]>();
 
       if (eventsData) setEvents(eventsData);
 
@@ -42,12 +52,13 @@ export default function AdminRegistrationsPage() {
       const { data: regsData, error } = await supabase
         .from('registrations')
         .select('*, events(title)')
-        .order('registered_at', { ascending: false });
+        .order('registered_at', { ascending: false })
+        .returns<RegistrationType[]>();
 
       if (error) throw error;
       setRegistrations(regsData || []);
       setIsDbOffline(false);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Database offline, using mock registrations data:', err);
       setIsDbOffline(true);
       
@@ -113,13 +124,14 @@ export default function AdminRegistrationsPage() {
   };
 
   useEffect(() => {
-    loadRegistrationsData();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadRegistrationsData();
   }, []);
 
   // Update attendance status
-  const handleUpdateAttendance = async (regId: string, newStatus: 'registered' | 'attended' | 'absent') => {
+  const handleUpdateAttendance = async (regId: string, newStatus: AttendanceStatus) => {
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const { error } = await supabase
         .from('registrations')
         .update({ attendance_status: newStatus })
@@ -136,7 +148,7 @@ export default function AdminRegistrationsPage() {
       if (selectedReg && selectedReg.id === regId) {
         setSelectedReg({ ...selectedReg, attendance_status: newStatus });
       }
-    } catch (err: any) {
+    } catch (err) {
       alert('Failed to update attendance status: ' + err.message);
     }
   };
@@ -146,7 +158,7 @@ export default function AdminRegistrationsPage() {
     if (!confirm('Are you sure you want to delete this registration? This action is irreversible.')) return;
 
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const { error } = await supabase
         .from('registrations')
         .delete()
@@ -157,13 +169,27 @@ export default function AdminRegistrationsPage() {
       // Update local state list
       setRegistrations(prev => prev.filter(reg => reg.id !== regId));
       setSelectedReg(null);
-    } catch (err: any) {
+    } catch (err) {
       alert('Failed to delete registration: ' + err.message);
     }
   };
 
+  // Filters logic
+  const filteredRegistrations = registrations.filter((reg) => {
+    const matchesSearch = 
+      reg.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      reg.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      reg.college?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      reg.branch?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesEvent = eventFilter === '' || reg.event_id === eventFilter;
+    const matchesStatus = statusFilter === '' || reg.attendance_status === statusFilter;
+
+    return matchesSearch && matchesEvent && matchesStatus;
+  });
+
   // Export registrations as CSV
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     if (filteredRegistrations.length === 0) {
       alert('No registrations available to export.');
       return;
@@ -206,25 +232,13 @@ export default function AdminRegistrationsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `campuscoder_registrations_${Date.now()}.csv`);
+    // Use a timestamp for the filename but move it to the event handler to avoid impurity
+    const timestamp = new Date().getTime();
+    link.setAttribute('download', `campuscoder_registrations_${timestamp}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  // Filters logic
-  const filteredRegistrations = registrations.filter((reg) => {
-    const matchesSearch = 
-      reg.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      reg.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      reg.college?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      reg.branch?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesEvent = eventFilter === '' || reg.event_id === eventFilter;
-    const matchesStatus = statusFilter === '' || reg.attendance_status === statusFilter;
-
-    return matchesSearch && matchesEvent && matchesStatus;
-  });
+  }, [filteredRegistrations]);
 
   // Calculate live statistics for metrics panel
   const totalCount = filteredRegistrations.length;
@@ -236,8 +250,8 @@ export default function AdminRegistrationsPage() {
     return (
       <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading registrations ledger...</p>
+          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-mono text-slate-400">Loading registrations ledger&hellip;</p>
         </div>
       </div>
     );
@@ -249,7 +263,7 @@ export default function AdminRegistrationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <Link href="/admin" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-            <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
+            <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
           </Link>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">Registrations Ledger</h1>
           <p className="text-sm text-slate-400">Track RSVPs, audit attendance log, and export database files.</p>
@@ -260,7 +274,7 @@ export default function AdminRegistrationsPage() {
             onClick={handleExportCSV}
             className="flex items-center gap-1.5 w-full sm:w-auto"
           >
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="size-4" /> Export CSV
           </Button>
         </div>
       </div>
@@ -268,7 +282,7 @@ export default function AdminRegistrationsPage() {
       {/* Database Warning */}
       {isDbOffline && (
         <div className="flex items-center gap-3 p-4 bg-slate-900 border border-emerald-500/10 rounded-xl text-xs text-slate-400 font-mono">
-          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          <AlertTriangle className="size-4 text-amber-500 flex-shrink-0" />
           <span>Local Demo Mode: Run migration scripts to enable full storage exports.</span>
         </div>
       )}
@@ -304,22 +318,22 @@ export default function AdminRegistrationsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+          <input aria-label="Search name, email, college, branch"
             type="text"
-            placeholder="Search name, email, college, branch..."
+            placeholder="Search name, email, college, branch&hellip;"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
           />
         </div>
 
         {/* Filter Event */}
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
           <select
             value={eventFilter}
-            onChange={(e) => setEventFilter(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEventFilter(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
           >
             <option value="">All Events</option>
@@ -331,10 +345,10 @@ export default function AdminRegistrationsPage() {
 
         {/* Filter Status */}
         <div className="relative">
-          <CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
           >
             <option value="">All Attendance Statuses</option>
@@ -365,11 +379,11 @@ export default function AdminRegistrationsPage() {
                     <td className="py-4 px-6">
                       <div className="font-semibold text-white">{reg.full_name}</div>
                       <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
-                        <Mail className="h-3 w-3" /> {reg.email}
+                        <Mail className="size-3" /> {reg.email}
                       </div>
                       {reg.phone && (
                         <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
-                          <Phone className="h-3 w-3" /> {reg.phone}
+                          <Phone className="size-3" /> {reg.phone}
                         </div>
                       )}
                     </td>
@@ -384,7 +398,7 @@ export default function AdminRegistrationsPage() {
                     <td className="py-4 px-6">
                       <select
                         value={reg.attendance_status}
-                        onChange={(e) => handleUpdateAttendance(reg.id, e.target.value as any)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleUpdateAttendance(reg.id, e.target.value as AttendanceStatus)}
                         className={`bg-slate-950 border text-xs font-mono font-medium rounded px-2.5 py-1 focus:outline-none cursor-pointer capitalize ${
                           reg.attendance_status === 'attended' ? 'border-emerald-500/20 text-emerald-400 bg-emerald-500/5' :
                           reg.attendance_status === 'absent' ? 'border-red-500/20 text-red-400 bg-red-500/5' :
@@ -398,19 +412,19 @@ export default function AdminRegistrationsPage() {
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
+                        <button type="button"
                           onClick={() => setSelectedReg(reg)}
                           className="text-slate-500 hover:text-emerald-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
                           title="View Registration Details"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="size-4" />
                         </button>
-                        <button
+                        <button type="button"
                           onClick={() => handleDeleteRegistration(reg.id)}
                           className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
                           title="Delete Registration"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="size-4" />
                         </button>
                       </div>
                     </td>
@@ -439,11 +453,11 @@ export default function AdminRegistrationsPage() {
                 <h2 className="text-xl font-bold text-white font-mono">{selectedReg.full_name}</h2>
                 <p className="text-xs text-slate-400 mt-0.5">Registration Audit Details</p>
               </div>
-              <button 
+              <button type="button" 
                 onClick={() => setSelectedReg(null)}
                 className="p-1 rounded hover:bg-slate-900 text-slate-400 hover:text-white cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                <X className="size-5" />
               </button>
             </div>
 
@@ -454,13 +468,13 @@ export default function AdminRegistrationsPage() {
               <div className="grid grid-cols-2 gap-4 bg-slate-950/50 p-3 rounded-lg border border-slate-900">
                 <div className="space-y-1">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <Mail className="h-3 w-3" /> Email
+                    <Mail className="size-3" /> Email
                   </p>
                   <p className="text-xs text-white break-all font-mono">{selectedReg.email}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <Phone className="h-3 w-3" /> Contact Phone
+                    <Phone className="size-3" /> Contact Phone
                   </p>
                   <p className="text-xs text-white font-mono">{selectedReg.phone || 'N/A'}</p>
                 </div>
@@ -470,13 +484,13 @@ export default function AdminRegistrationsPage() {
               <div className="grid grid-cols-3 gap-4 bg-slate-950/50 p-3 rounded-lg border border-slate-900">
                 <div className="space-y-1 col-span-2">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <School className="h-3 w-3" /> College
+                    <School className="size-3" /> College
                   </p>
                   <p className="text-xs text-white font-semibold truncate">{selectedReg.college}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <GraduationCap className="h-3 w-3" /> Batch/Year
+                    <GraduationCap className="size-3" /> Batch/Year
                   </p>
                   <p className="text-xs text-white font-mono">{selectedReg.year}</p>
                 </div>
@@ -490,7 +504,7 @@ export default function AdminRegistrationsPage() {
               <div className="grid grid-cols-2 gap-4 bg-slate-950/50 p-3 rounded-lg border border-slate-900">
                 <div className="space-y-1">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <Code2 className="h-3 w-3" /> Coding Level
+                    <Code2 className="size-3" /> Coding Level
                   </p>
                   <span className="inline-block text-xs text-white bg-slate-900 border border-slate-800 px-2 py-0.5 rounded font-medium">
                     {selectedReg.coding_level || 'Not Specified'}
@@ -498,7 +512,7 @@ export default function AdminRegistrationsPage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <Code2 className="h-3 w-3" /> Language
+                    <Code2 className="size-3" /> Language
                   </p>
                   <span className="inline-block text-xs text-white bg-slate-900 border border-slate-800 px-2 py-0.5 rounded font-mono">
                     {selectedReg.preferred_language || 'Not Specified'}
@@ -510,14 +524,14 @@ export default function AdminRegistrationsPage() {
               <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-900 space-y-2">
                 <div>
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> RSVP Event Title
+                    <Calendar className="size-3" /> RSVP Event Title
                   </p>
                   <p className="text-xs text-white font-bold mt-0.5">{selectedReg.events?.title || 'General RSVP'}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-900/60">
                   <div>
                     <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> Registration Date
+                      <Clock className="size-3" /> Registration Date
                     </p>
                     <p className="text-xs text-slate-400 font-mono mt-0.5">
                       {new Date(selectedReg.registered_at).toLocaleString()}
@@ -527,7 +541,7 @@ export default function AdminRegistrationsPage() {
                     <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Attendance Status</p>
                     <select
                       value={selectedReg.attendance_status}
-                      onChange={(e) => handleUpdateAttendance(selectedReg.id, e.target.value as any)}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleUpdateAttendance(selectedReg.id, e.target.value as AttendanceStatus)}
                       className={`bg-slate-950 border border-slate-800 text-xs font-mono font-medium rounded px-2.5 py-0.5 mt-0.5 cursor-pointer capitalize ${
                         selectedReg.attendance_status === 'attended' ? 'text-emerald-400' :
                         selectedReg.attendance_status === 'absent' ? 'text-red-400' :
@@ -545,7 +559,7 @@ export default function AdminRegistrationsPage() {
               {/* Statement of reason */}
               <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-900 space-y-1">
                 <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                  <MessageSquare className="h-3 w-3" /> Motivation Statement
+                  <MessageSquare className="size-3" /> Motivation Statement
                 </p>
                 <p className="text-xs text-slate-300 leading-relaxed italic">
                   &ldquo;{selectedReg.reason_to_join || 'No statement provided.'}&rdquo;
@@ -561,7 +575,7 @@ export default function AdminRegistrationsPage() {
                 className="border-red-950/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 flex items-center gap-1.5"
                 onClick={() => handleDeleteRegistration(selectedReg.id)}
               >
-                <Trash2 className="h-4 w-4" /> Delete Registration
+                <Trash2 className="size-4" /> Delete Registration
               </Button>
               <Button
                 variant="secondary"

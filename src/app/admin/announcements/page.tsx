@@ -78,8 +78,8 @@ export default function AdminAnnouncementsPage() {
     return (
       <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading announcements...</p>
+          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-mono text-slate-400">Loading announcements&hellip;</p>
         </div>
       </div>
     );
@@ -90,7 +90,7 @@ export default function AdminAnnouncementsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <Link href="/admin" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-            <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
+            <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
           </Link>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">Announcements</h1>
           <p className="text-sm text-slate-400">Broadcast updates and news to the community.</p>
@@ -98,7 +98,7 @@ export default function AdminAnnouncementsPage() {
         <div>
           <Link href="/admin/announcements/new">
             <Button variant="primary" className="flex items-center gap-1.5 w-full sm:w-auto">
-              <PlusCircle className="h-4 w-4" /> New Announcement
+              <PlusCircle className="size-4" /> New Announcement
             </Button>
           </Link>
         </div>
@@ -106,10 +106,10 @@ export default function AdminAnnouncementsPage() {
 
       <div className="flex flex-col sm:flex-row gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+          <input aria-label="Search by title or message"
             type="text"
-            placeholder="Search by title or message..."
+            placeholder="Search by title or message&hellip;"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
@@ -136,7 +136,7 @@ export default function AdminAnnouncementsPage() {
                       <div className="font-semibold text-white">{ann.title}</div>
                       {ann.events?.title && (
                         <div className="text-[10px] text-emerald-400 font-mono mt-0.5 flex items-center gap-1">
-                          <Calendar className="h-2.5 w-2.5" /> {ann.events.title}
+                          <Calendar className="size-2.5" /> {ann.events.title}
                         </div>
                       )}
                     </td>
@@ -144,7 +144,7 @@ export default function AdminAnnouncementsPage() {
                       {new Date(ann.publish_date).toLocaleString()}
                     </td>
                     <td className="py-4 px-6">
-                      <button 
+                      <button type="button" 
                         onClick={() => handleToggleActive(ann.id, ann.is_active)}
                         className={`inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-[10px] font-mono font-medium border capitalize cursor-pointer ${
                           ann.is_active ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-400'
@@ -156,15 +156,15 @@ export default function AdminAnnouncementsPage() {
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Link href={`/admin/announcements/${ann.id}/edit`}>
-                          <button className="text-[10px] font-mono px-2 py-1 bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/30 rounded flex items-center gap-1 cursor-pointer">
-                            <Edit className="h-3 w-3" /> Edit
+                          <button type="button" className="text-[10px] font-mono px-2 py-1 bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/30 rounded flex items-center gap-1 cursor-pointer">
+                            <Edit className="size-3" /> Edit
                           </button>
                         </Link>
-                        <button
+                        <button type="button"
                           onClick={() => handleDeleteAnnouncement(ann.id)}
                           className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="size-4" />
                         </button>
                       </div>
                     </td>
