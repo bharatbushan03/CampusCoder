@@ -33,17 +33,17 @@ export default function CreateEventPage() {
       {/* Header */}
       <div className="space-y-1">
         <Link href="/admin/events" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-          <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Sprints
+          <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Sprints
         </Link>
         <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono flex items-center gap-2">
-          <Terminal className="h-6 w-6 text-emerald-400" /> Create New Sprint
+          <Terminal className="size-6 text-emerald-400" /> Create New Sprint
         </h1>
         <p className="text-sm text-slate-400">Configure sprint details, upload banner, and assign speakers.</p>
       </div>
 
       {errorMsg && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
-          <AlertTriangle className="h-4 w-4" /> {errorMsg}
+          <AlertTriangle className="size-4" /> {errorMsg}
         </div>
       )}
 

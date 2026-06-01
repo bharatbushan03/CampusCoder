@@ -78,8 +78,8 @@ export default function EditEventPage({ params }: PageProps) {
     return (
       <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading sprint configuration...</p>
+          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-mono text-slate-400">Loading sprint configuration&hellip;</p>
         </div>
       </div>
     );
@@ -90,17 +90,17 @@ export default function EditEventPage({ params }: PageProps) {
       {/* Header */}
       <div className="space-y-1">
         <Link href="/admin/events" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-          <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Sprints
+          <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Sprints
         </Link>
         <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono flex items-center gap-2">
-          <Terminal className="h-6 w-6 text-emerald-400" /> Edit Sprint Event
+          <Terminal className="size-6 text-emerald-400" /> Edit Sprint Event
         </h1>
         <p className="text-sm text-slate-400">Modify sprint configuration, re-upload banner, or update speakers panel.</p>
       </div>
 
       {errorMsg && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
-          <AlertTriangle className="h-4 w-4" /> {errorMsg}
+          <AlertTriangle className="size-4" /> {errorMsg}
         </div>
       )}
 

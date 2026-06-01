@@ -116,8 +116,8 @@ export default function EventManagementPage({ params }: PageProps) {
     return (
       <div className="flex items-center justify-center py-20 min-h-[calc(100vh-10rem)]">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading management console...</p>
+          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-mono text-slate-400">Loading management console&hellip;</p>
         </div>
       </div>
     );
@@ -131,7 +131,7 @@ export default function EventManagementPage({ params }: PageProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <Link href="/admin/events" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-            <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Sprints
+            <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Sprints
           </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">{event.title}</h1>
@@ -142,9 +142,9 @@ export default function EventManagementPage({ params }: PageProps) {
             </span>
           </div>
           <p className="text-sm text-slate-400 flex items-center gap-4">
-            <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> {new Date(event.date).toLocaleDateString()}</span>
-            <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {event.start_time} - {event.end_time}</span>
-            <span className="flex items-center gap-1 capitalize"><MapPin className="h-3.5 w-3.5" /> {event.mode}</span>
+            <span className="flex items-center gap-1"><Calendar className="size-3.5" /> {new Date(event.date).toLocaleDateString()}</span>
+            <span className="flex items-center gap-1"><Clock className="size-3.5" /> {event.start_time} - {event.end_time}</span>
+            <span className="flex items-center gap-1 capitalize"><MapPin className="size-3.5" /> {event.mode}</span>
           </p>
         </div>
         <div className="flex gap-3">
@@ -155,7 +155,7 @@ export default function EventManagementPage({ params }: PageProps) {
           </Link>
           <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-              <ExternalLink className="h-4 w-4" /> View Public
+              <ExternalLink className="size-4" /> View Public
             </Button>
           </a>
         </div>
@@ -163,13 +163,13 @@ export default function EventManagementPage({ params }: PageProps) {
 
       {successMsg && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
-          <CheckCircle2 className="h-4 w-4" /> {successMsg}
+          <CheckCircle2 className="size-4" /> {successMsg}
         </div>
       )}
 
       {errorMsg && (
         <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
-          <AlertTriangle className="h-4 w-4" /> {errorMsg}
+          <AlertTriangle className="size-4" /> {errorMsg}
         </div>
       )}
 
@@ -179,7 +179,7 @@ export default function EventManagementPage({ params }: PageProps) {
           <Card className="border-slate-800 bg-slate-950/40 p-6 md:p-8 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white font-mono flex items-center gap-2">
-                <Mail className="h-5 w-5 text-emerald-400" /> Meeting Link Delivery
+                <Mail className="size-5 text-emerald-400" /> Meeting Link Delivery
               </h2>
               {event.meeting_link_sent_at && (
                 <span className="text-[10px] font-mono text-emerald-500 bg-emerald-500/5 px-2 py-1 rounded border border-emerald-500/10">
@@ -190,11 +190,11 @@ export default function EventManagementPage({ params }: PageProps) {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                <label htmlFor="page-session-url-google-meet-zoom-etc" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
                   Session URL (Google Meet / Zoom / etc.)
                 </label>
                 <div className="flex gap-2">
-                  <input
+                  <input id="page-session-url-google-meet-zoom-etc"
                     type="url"
                     placeholder="https://meet.google.com/..."
                     value={meetingLink}
@@ -208,7 +208,7 @@ export default function EventManagementPage({ params }: PageProps) {
                     disabled={isSavingLink || meetingLink === (event.meeting_link || '')}
                     className="flex items-center gap-1.5"
                   >
-                    {isSavingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {isSavingLink ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                     Save
                   </Button>
                 </div>
@@ -217,7 +217,7 @@ export default function EventManagementPage({ params }: PageProps) {
               <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-xl space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mt-1">
-                    <Info className="h-4 w-4 text-emerald-400" />
+                    <Info className="size-4 text-emerald-400" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-semibold text-white">Broadcast Announcement</p>
@@ -235,7 +235,7 @@ export default function EventManagementPage({ params }: PageProps) {
                     onClick={() => setShowPreview(true)}
                     className="flex items-center gap-1.5 border-slate-700 text-slate-300 hover:text-white"
                   >
-                    <Eye className="h-4 w-4" /> Preview Email
+                    <Eye className="size-4" /> Preview Email
                   </Button>
                   <Button 
                     variant="primary" 
@@ -245,9 +245,9 @@ export default function EventManagementPage({ params }: PageProps) {
                     className="flex items-center gap-1.5"
                   >
                     {isSendingEmails ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin" />
                     ) : (
-                      <Send className="h-4 w-4" />
+                      <Send className="size-4" />
                     )}
                     {event.meeting_link_sent_at ? 'Resend to All' : 'Send to Registered'}
                   </Button>
@@ -257,12 +257,12 @@ export default function EventManagementPage({ params }: PageProps) {
               {/* Archive Details Section */}
               <div className="pt-6 border-t border-slate-900 space-y-4">
                 <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-emerald-400" /> Archive Details
+                  <Layers className="size-4 text-emerald-400" /> Archive Details
                 </h3>
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-slate-500 uppercase">Recording URL (YouTube/Loom)</label>
-                    <input 
+                    <label htmlFor="page-recording-url-youtube-loom" className="text-[10px] font-mono text-slate-500 uppercase">Recording URL (YouTube/Loom)</label>
+                    <input id="page-recording-url-youtube-loom" 
                       type="url"
                       value={event.recording_url || ''}
                       onChange={async (e) => {
@@ -276,8 +276,8 @@ export default function EventManagementPage({ params }: PageProps) {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono text-slate-500 uppercase">Archive Summary (Post-event recap)</label>
-                    <textarea 
+                    <label htmlFor="page-archive-summary-post-event-recap" className="text-[10px] font-mono text-slate-500 uppercase">Archive Summary (Post-event recap)</label>
+                    <textarea id="page-archive-summary-post-event-recap" 
                       value={event.summary || ''}
                       onChange={async (e) => {
                         const val = e.target.value;
@@ -285,7 +285,7 @@ export default function EventManagementPage({ params }: PageProps) {
                         await supabase.from('events').update({ summary: val }).eq('id', id);
                         setEvent({...event, summary: val});
                       }}
-                      placeholder="Relive the session highlights..."
+                      placeholder="Relive the session highlights&hellip;"
                       rows={3}
                       className="w-full bg-slate-950 border border-slate-900 rounded px-3 py-2 text-xs text-slate-300 focus:border-emerald-500/30 resize-none"
                     />
@@ -299,7 +299,7 @@ export default function EventManagementPage({ params }: PageProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-white font-mono flex items-center gap-2">
-                <Users className="h-5 w-5 text-emerald-400" /> Attendees ({registrations.length})
+                <Users className="size-5 text-emerald-400" /> Attendees ({registrations.length})
               </h2>
               <Link href={`/admin/events/${id}/registrations`}>
                 <Button variant="outline" size="sm" className="text-[10px] font-mono h-auto py-1.5">
@@ -331,7 +331,7 @@ export default function EventManagementPage({ params }: PageProps) {
                     {registrations.length > 5 && (
                       <tr>
                         <td colSpan={3} className="py-3 px-6 text-center text-[10px] text-slate-500 font-mono bg-slate-900/10">
-                          + {registrations.length - 5} more registrations...
+                          + {registrations.length - 5} more registrations&hellip;
                         </td>
                       </tr>
                     )}
@@ -376,14 +376,14 @@ export default function EventManagementPage({ params }: PageProps) {
           <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col my-8">
             <div className="bg-slate-100 p-4 flex items-center justify-between border-b border-slate-200">
               <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-slate-600" />
+                <Mail className="size-4 text-slate-600" />
                 <span className="text-sm font-bold text-slate-800">Email Preview: Meeting Link Announcement</span>
               </div>
-              <button 
+              <button type="button" 
                 onClick={() => setShowPreview(false)}
                 className="text-slate-500 hover:text-slate-800 transition-colors"
               >
-                <Terminal className="h-5 w-5" />
+                <Terminal className="size-5" />
               </button>
             </div>
             
@@ -429,7 +429,7 @@ export default function EventManagementPage({ params }: PageProps) {
           <Card className="max-w-md w-full border-slate-800 bg-slate-950 p-6 space-y-6 shadow-2xl">
             <div className="flex items-center gap-3 text-emerald-400">
               <div className="p-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <Send className="h-6 w-6" />
+                <Send className="size-6" />
               </div>
               <h2 className="text-xl font-bold text-white font-mono">Blast Meeting Link?</h2>
             </div>
@@ -444,7 +444,7 @@ export default function EventManagementPage({ params }: PageProps) {
               </div>
               {event.meeting_link_sent_at && (
                 <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-lg flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="size-4 text-amber-500 flex-shrink-0 mt-0.5" />
                   <p className="text-[10px] text-amber-400 leading-relaxed font-mono">
                     Warning: Links were already sent on {new Date(event.meeting_link_sent_at).toLocaleString()}. 
                     Are you sure you want to resend?

@@ -52,10 +52,10 @@ export default function CommunityLinkForm({
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Globe className="h-3 w-3 text-emerald-400" /> Platform Name
+              <label htmlFor="communitylinkform-platform-name" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Globe className="size-3 text-emerald-400" /> Platform Name
               </label>
-              <input
+              <input id="communitylinkform-platform-name"
                 type="text"
                 placeholder="e.g. Discord, WhatsApp, GitHub"
                 value={platform}
@@ -65,10 +65,10 @@ export default function CommunityLinkForm({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Link2 className="h-3 w-3 text-emerald-400" /> URL
+              <label htmlFor="communitylinkform-url" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Link2 className="size-3 text-emerald-400" /> URL
               </label>
-              <input
+              <input id="communitylinkform-url"
                 type="url"
                 placeholder="https://..."
                 value={url}
@@ -85,7 +85,7 @@ export default function CommunityLinkForm({
               id="is_active"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
+              className="size-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500/20 cursor-pointer"
             />
             <label htmlFor="is_active" className="text-sm text-slate-300 cursor-pointer select-none">
               Visible to public (Active)
@@ -103,11 +103,11 @@ export default function CommunityLinkForm({
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Processing...
+              <Loader2 className="size-4 animate-spin" /> Processing&hellip;
             </>
           ) : (
             <>
-              <Save className="h-4 w-4" /> {submitButtonText}
+              <Save className="size-4" /> {submitButtonText}
             </>
           )}
         </Button>

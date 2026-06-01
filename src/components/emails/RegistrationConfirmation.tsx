@@ -9,6 +9,8 @@ interface RegistrationConfirmationEmailProps {
   communityLinks: { platform: string; url: string }[];
 }
 
+const copyrightYear = new Date().getFullYear();
+
 export const RegistrationConfirmationEmail: React.FC<Readonly<RegistrationConfirmationEmailProps>> = ({
   studentName,
   eventTitle,
@@ -46,7 +48,7 @@ export const RegistrationConfirmationEmail: React.FC<Readonly<RegistrationConfir
     </div>
 
     <p style={{ marginTop: '30px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
-      &copy; {new Date().getFullYear()} CampusCoder Community. All rights reserved.
+      &copy; {copyrightYear} CampusCoder Community. All rights reserved.
     </p>
   </div>
 );

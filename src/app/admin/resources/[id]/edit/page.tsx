@@ -9,23 +9,36 @@ import { resourceSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import type { Database } from '@/types/database.types';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
+
+type EventRow = Database['public']['Tables']['events']['Row'];
+type ResourceRow = Database['public']['Tables']['resources']['Row'];
+type EventOption = Pick<EventRow, 'id' | 'title'>;
+type ResourceFormState = {
+  title: string;
+  description: string;
+  link: string;
+  category: ResourceRow['category'];
+  event_id: string;
+  is_active: boolean;
+};
 
 export default function EditResourcePage({ params }: PageProps) {
   const router = useRouter();
   const { id } = use(params);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<EventOption[]>([]);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<ResourceFormState>({
     title: '',
     description: '',
     link: '',
-    category: 'roadmaps' as any,
+    category: 'roadmaps',
     event_id: '',
     is_active: true
   });
@@ -33,14 +46,24 @@ export default function EditResourcePage({ params }: PageProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createClient() as any;
-        
+        const supabase = createClient();
+
         const [resRes, eventsRes] = await Promise.all([
-          supabase.from('resources').select('*').eq('id', id).single(),
-          supabase.from('events').select('id, title').order('date', { ascending: false })
+          supabase
+            .from('resources')
+            .select('*')
+            .eq('id', id)
+            .single()
+            .returns<ResourceRow>(),
+          supabase
+            .from('events')
+            .select('id, title')
+            .order('date', { ascending: false })
+            .returns<EventOption[]>()
         ]);
 
         if (resRes.error) throw resRes.error;
+        if (!resRes.data) throw new Error('Resource not found');
         const res = resRes.data;
         setForm({
           title: res.title,
@@ -51,14 +74,15 @@ export default function EditResourcePage({ params }: PageProps) {
           is_active: res.is_active
         });
         setEvents(eventsRes.data || []);
-      } catch (err: any) {
+      } catch (err) {
         toast.error('Error loading resource');
         router.push('/admin/resources');
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchData();
   }, [id, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,13 +104,14 @@ export default function EditResourcePage({ params }: PageProps) {
 
     setIsSubmitting(true);
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       const { error } = await supabase.from('resources').update(payload).eq('id', id);
       if (error) throw error;
       toast.success('Changes saved');
       router.push('/admin/resources');
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -95,7 +120,7 @@ export default function EditResourcePage({ params }: PageProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 min-h-screen">
-        <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
+        <Loader2 className="size-8 text-emerald-400 animate-spin" />
       </div>
     );
   }
@@ -104,7 +129,7 @@ export default function EditResourcePage({ params }: PageProps) {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="space-y-1">
         <Link href="/admin/resources" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono mb-2 group">
-          <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Library
+          <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Library
         </Link>
         <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">Edit <span className="text-emerald-500">Resource</span></h1>
       </div>
@@ -112,10 +137,11 @@ export default function EditResourcePage({ params }: PageProps) {
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="border-slate-900 bg-slate-950/40 p-6 sm:p-8 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <FileText className="h-3 w-3 text-emerald-400" /> Resource Title
+            <label htmlFor="resource-title" className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <FileText className="size-3 text-emerald-400" /> Resource Title
             </label>
             <input
+              id="resource-title"
               type="text"
               required
               value={form.title}
@@ -125,10 +151,10 @@ export default function EditResourcePage({ params }: PageProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <Globe className="h-3 w-3 text-emerald-400" /> External Link
+            <label htmlFor="page-external-link" className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Globe className="size-3 text-emerald-400" /> External Link
             </label>
-            <input
+            <input id="page-external-link"
               type="url"
               required
               value={form.link}
@@ -139,10 +165,10 @@ export default function EditResourcePage({ params }: PageProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Info className="h-3 w-3 text-emerald-400" /> Category
+              <label htmlFor="page-category" className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Info className="size-3 text-emerald-400" /> Category
               </label>
-              <select
+              <select id="page-category"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50"
@@ -156,10 +182,10 @@ export default function EditResourcePage({ params }: PageProps) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Link2 className="h-3 w-3 text-emerald-400" /> Related Event (Optional)
+              <label htmlFor="page-related-event-optional" className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Link2 className="size-3 text-emerald-400" /> Related Event (Optional)
               </label>
-              <select
+              <select id="page-related-event-optional"
                 value={form.event_id}
                 onChange={(e) => setForm({ ...form, event_id: e.target.value })}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50"
@@ -173,10 +199,10 @@ export default function EditResourcePage({ params }: PageProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+            <label htmlFor="page-description" className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               Description
             </label>
-            <textarea
+            <textarea id="page-description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={3}
@@ -190,7 +216,7 @@ export default function EditResourcePage({ params }: PageProps) {
               id="is_active"
               checked={form.is_active}
               onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
-              className="h-4 w-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500/20"
+              className="size-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500/20"
             />
             <label htmlFor="is_active" className="text-sm text-slate-400 cursor-pointer">
               Visible to public
@@ -205,7 +231,7 @@ export default function EditResourcePage({ params }: PageProps) {
             disabled={isSubmitting}
             className="flex items-center gap-2 font-bold px-8"
           >
-            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
             Save Changes
           </Button>
         </div>

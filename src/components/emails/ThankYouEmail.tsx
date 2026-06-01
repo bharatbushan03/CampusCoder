@@ -5,6 +5,8 @@ interface ThankYouEmailProps {
   eventTitle: string;
 }
 
+const copyrightYear = new Date().getFullYear();
+
 export const ThankYouEmail: React.FC<Readonly<ThankYouEmailProps>> = ({
   studentName,
   eventTitle,
@@ -27,7 +29,7 @@ export const ThankYouEmail: React.FC<Readonly<ThankYouEmailProps>> = ({
     </p>
 
     <p style={{ marginTop: '30px', fontSize: '12px', color: '#718096', textAlign: 'center' }}>
-      &copy; {new Date().getFullYear()} CampusCoder Community. All rights reserved.
+      &copy; {copyrightYear} CampusCoder Community. All rights reserved.
     </p>
   </div>
 );
