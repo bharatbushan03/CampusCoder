@@ -3,12 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Terminal, KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { Terminal, KeyRound, Mail, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { TechBackground } from '@/components/animations/TechBackground';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type ProfileRole = Pick<Database['public']['Tables']['profiles']['Row'], 'role'>;
 
@@ -151,7 +152,7 @@ export default function LoginPage() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" /> Authorizing&hellip;
+                    <CampusCoderLoader size="sm" /> Authorizing&hellip;
                   </>
                 ) : (
                   <>

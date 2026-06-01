@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
@@ -13,6 +13,7 @@ import { registrationSchema } from '@/lib/validation';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type EventOption = Pick<EventRow, 'id' | 'title' | 'date' | 'start_time' | 'end_time'>;
@@ -381,7 +382,7 @@ function RegisterForm() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="size-5 animate-spin" /> Processing RSVP&hellip;
+                    <CampusCoderLoader size="sm" /> Processing RSVP&hellip;
                   </>
                 ) : (
                   <>
@@ -410,7 +411,7 @@ export default function RegistrationPage() {
         {/* Wrap in Suspense to resolve searchParams */}
         <Suspense fallback={
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="size-8 text-emerald-400 animate-spin" />
+            <CampusCoderLoader size="lg" text="Preparing Registration Form" />
           </div>
         }>
           <RegisterForm />

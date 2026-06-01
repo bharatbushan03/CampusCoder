@@ -28,6 +28,10 @@ const eventTypes = [
   { id: 'challenge', label: 'Challenges' },
 ];
 
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+
+// ... (keep existing types)
+
 export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -65,15 +69,8 @@ export default function EventsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 space-y-12 min-h-screen">
-        <div className="space-y-4 max-w-xl">
-          <div className="h-8 w-48 skeleton"></div>
-          <div className="h-12 w-96 skeleton"></div>
-          <div className="h-4 w-full skeleton"></div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[1, 2, 3].map(i => <div key={i} className="h-96 skeleton rounded-2xl"></div>)}
-        </div>
+      <div className="flex items-center justify-center py-40 min-h-screen">
+        <CampusCoderLoader size="lg" text="Syncing Sprint Database" />
       </div>
     );
   }

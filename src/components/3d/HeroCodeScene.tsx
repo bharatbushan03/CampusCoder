@@ -63,7 +63,7 @@ function CodeCore() {
           metalness={0.8}
         />
       </mesh>
-      
+
       {/* Outer Wireframe Box */}
       <mesh>
         <boxGeometry args={[1.1, 1.1, 1.1]} />
@@ -105,7 +105,7 @@ function TechSphere() {
           opacity={0.15}
         />
       </mesh>
-      
+
       {/* Inner sphere - Dodecahedron */}
       <mesh ref={innerSphereRef}>
         <dodecahedronGeometry args={[1.4, 1]} />
@@ -155,11 +155,11 @@ export default function HeroCodeScene() {
         <pointLight position={[10, 10, 10]} intensity={1.5} color="#34d399" />
         <pointLight position={[-10, -10, -10]} intensity={0.5} color="#065f46" />
         <directionalLight position={[0, 5, 2]} intensity={1.2} color="#10b981" />
-        
+
         <Sparkles count={35} scale={4} size={2} speed={0.4} color="#10b981" opacity={0.5} />
-        
+
         <SceneContent />
-        
+
         <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.3} />
       </Canvas>
     </div>
