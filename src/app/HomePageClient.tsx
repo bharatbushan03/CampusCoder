@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
+import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -105,38 +106,48 @@ export default function HomePage() {
       {/* 1. Hero Section */}
       <section className="relative overflow-hidden pt-24 pb-20 md:pt-32 md:pb-32 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-4xl mx-auto space-y-8">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-              <span className="relative flex size-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
-              </span>
-              Community for Builders
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
-            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
-              Build the future of <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500">
-                campus innovation.
-              </span>
-            </h1>
+            {/* Left Column: Hero Text */}
+            <div className="lg:col-span-7 text-left space-y-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
+                <span className="relative flex size-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+                </span>
+                Community for Builders
+              </div>
+              
+              <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
+                Build the future of <br className="hidden md:block" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500">
+                  campus innovation.
+                </span>
+              </h1>
 
-            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              A student-led tech community focused on workshops, hands-on coding sprints, and professional placement preparation.
-            </p>
+              <p className="text-lg md:text-xl text-slate-400 max-w-2xl leading-relaxed">
+                A student-led tech community focused on workshops, hands-on coding sprints, and professional placement preparation.
+              </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link href="/events" className="w-full sm:w-auto">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                  Explore Sprints <ArrowRight className="ml-2 size-4" />
-                </Button>
-              </Link>
-              <Link href="/register" className="w-full sm:w-auto">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8">
-                  Join Community
-                </Button>
-              </Link>
+              <div className="flex flex-col sm:flex-row items-center justify-start gap-4 pt-4">
+                <Link href="/events" className="w-full sm:w-auto">
+                  <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
+                    Explore Sprints <ArrowRight className="ml-2 size-4" />
+                  </Button>
+                </Link>
+                <Link href="/register" className="w-full sm:w-auto">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8">
+                    Join Community
+                  </Button>
+                </Link>
+              </div>
             </div>
+
+            {/* Right Column: 3D Coding Scene */}
+            <div className="lg:col-span-5 w-full h-[350px] md:h-[400px] lg:h-[500px]">
+              <DynamicHeroCodeScene />
+            </div>
+
           </div>
         </div>
 
