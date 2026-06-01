@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
+import { RegistrationSuccessVisual } from '@/components/animations/RegistrationSuccessVisual';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -213,13 +214,11 @@ export default function EventRegistrationPage() {
       <div className="tech-grid min-h-screen py-16 flex items-center justify-center px-4">
         <AnimatedSection className="max-w-2xl w-full" direction="up">
           <Card hoverEffect={false} className="max-w-2xl w-full p-10 border-emerald-500/30 bg-slate-900 text-center glow-box">
-          <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 mx-auto mb-6">
-            <CheckCircle2 className="size-8 text-emerald-400" />
-          </div>
+          <RegistrationSuccessVisual />
           
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">Thank you for registering!</h2>
-          <p className="text-slate-400 text-sm max-w-md mx-auto mb-8">
-            Awesome! Your registration is confirmed. We look forward to seeing you at the sprint.
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2 font-mono uppercase tracking-tight">Registration Confirmed</h2>
+          <p className="text-slate-400 text-sm max-w-md mx-auto mb-8 font-medium">
+            You're successfully registered for this CampusCoder event.
           </p>
 
           {/* Event Summary Details */}
