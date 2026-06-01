@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
+import { TechBackground } from '@/components/animations/TechBackground';
 
 type ProfileRole = Pick<Database['public']['Tables']['profiles']['Row'], 'role'>;
 
@@ -72,8 +73,9 @@ export default function LoginPage() {
 
 
   return (
-    <div className="tech-grid min-h-screen flex items-center justify-center py-20 px-4">
-      <div className="w-full max-w-md">
+    <div className="relative tech-grid min-h-screen flex items-center justify-center py-20 px-4">
+      <TechBackground />
+      <div className="w-full max-w-md relative z-10">
         
         {/* Logo/Branding Header */}
         <div className="text-center mb-8">

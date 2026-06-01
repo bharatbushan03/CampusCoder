@@ -26,6 +26,7 @@ import type { Database } from '@/types/database.types';
 import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedEventCard } from '@/components/AnimatedEventCard';
 import { placeholderEvents } from '@/lib/placeholderData';
+import { TechBackground } from '@/components/animations/TechBackground';
 
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -120,6 +121,7 @@ export default function HomePage() {
     <div className="tech-grid min-h-screen selection:bg-emerald-500/30">
       {/* 1. Hero Section */}
       <section className="relative overflow-hidden pt-24 pb-20 md:pt-32 md:pb-32 border-b border-slate-800/40">
+        <TechBackground />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             

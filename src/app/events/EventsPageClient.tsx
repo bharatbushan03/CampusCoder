@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { AnimatedEventCard } from '@/components/AnimatedEventCard';
 import { Button } from '@/components/ui/Button';
+import { TechBackground } from '@/components/animations/TechBackground';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 
@@ -77,12 +78,14 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-16">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-        <div className="space-y-6 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-            <Sparkles className="size-3" /> Live Sprints
+    <div className="relative overflow-hidden w-full min-h-screen">
+      <TechBackground />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-16 relative z-10">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+          <div className="space-y-6 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
+              <Sparkles className="size-3" /> Live Sprints
           </div>
           <div className="space-y-2">
             <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight font-mono">
@@ -232,6 +235,7 @@ export default function EventsPage() {
         </div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
       </section>
+      </div>
     </div>
   );
 }
