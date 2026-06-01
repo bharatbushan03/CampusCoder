@@ -21,7 +21,7 @@ function sanitizeText(text: string) {
 }
 
 type RegistrationPayload = z.infer<typeof registrationSchema>;
-const eventIdSchema = z.string().uuid('Invalid event identifier.');
+const eventIdSchema = z.uuid('Invalid event identifier.');
 
 export async function registerForEvent(payload: RegistrationPayload, eventId: string) {
   const supabase = await createClient();
@@ -64,7 +64,7 @@ export async function registerForEvent(payload: RegistrationPayload, eventId: st
   }
 
   // 2. Server-side Rate Limiting
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const adminSupabase = createAdminClient();
     const rateLimitKey = `registration:${createHash('sha256').update(email).digest('hex')}`;
     const { data: rateLimit } = await adminSupabase

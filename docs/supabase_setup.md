@@ -11,11 +11,11 @@ To apply the database schema, follow these steps in your Supabase project dashbo
 1. Go to your **Supabase Dashboard** -> Select your Project.
 2. Click on the **SQL Editor** tab from the left sidebar.
 3. Click **New Query** -> **Blank Query**.
-4. Copy the entire contents of the migration file:
-   [supabase/migrations/20260529000000_init_schema.sql](file:///../supabase/migrations/20260529000000_init_schema.sql)
-5. Paste the SQL query into the editor.
-6. Click **Run** (or press `Ctrl + Enter` / `Cmd + Enter`).
-7. You should see a success message: `Success. No rows returned.`
+4. Open the files in `supabase/migrations`.
+5. Copy and run each migration file in filename order, starting with `20260529000000_init_schema.sql`.
+6. Paste one migration at a time into the editor.
+7. Click **Run** (or press `Ctrl + Enter` / `Cmd + Enter`).
+8. You should see a success message such as `Success. No rows returned.` before running the next migration.
 
 ---
 
@@ -74,9 +74,40 @@ All tables have Row Level Security enabled by default. Only users meeting the po
 Create a `.env.local` file in your root folder (Next.js automatically loads it for local development, and it is excluded in `.gitignore`):
 
 ```bash
-# Obtain these from Supabase Dashboard -> Project Settings -> API
+# Obtain these from Supabase Dashboard -> Connect or Project Settings -> API Keys
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Recommended current public key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+
+# Server-only key for protected server actions. Never expose this publicly.
+SUPABASE_SECRET_KEY=sb_secret_...
+
+# Optional legacy names if your Supabase project only shows old JWT keys:
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
+# SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
 ```
 
 *Warning: Never commit your `.env.local` file containing real credentials to GitHub. Always use `.env.example` as a template for other developers.*
+
+## 5. Auth Redirect URLs
+
+In Supabase Dashboard -> Authentication -> URL Configuration:
+
+1. Set **Site URL** to `http://localhost:3000` for local development.
+2. Add redirect URLs for local auth flows:
+   - `http://localhost:3000`
+   - `http://localhost:3000/reset-password`
+3. When deployed, add your production domain and production reset password URL too.
+
+## 6. Make Your First Admin
+
+After creating your first account through `/signup`, promote that profile to admin from Supabase SQL Editor:
+
+```sql
+update public.profiles
+set role = 'admin'
+where email = 'your-email@example.com';
+```
+
+Then sign out and sign in again before opening `/admin`.

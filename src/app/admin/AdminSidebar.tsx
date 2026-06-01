@@ -11,19 +11,19 @@ interface AdminSidebarProps {
   role: string;
 }
 
+const sidebarLinks = [
+  { label: 'Overview', href: '/admin', icon: LayoutDashboard },
+  { label: 'Manage Events', href: '/admin/events', icon: Calendar },
+  { label: 'Registrations', href: '/admin/registrations', icon: Users },
+  { label: 'Announcements', href: '/admin/announcements', icon: Bell },
+  { label: 'Community Links', href: '/admin/community-links', icon: Link2 },
+  { label: 'Resource Library', href: '/admin/resources', icon: BookOpen },
+];
+
 export default function AdminSidebar({ email, role }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const sidebarLinks = [
-    { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-    { label: 'Manage Events', href: '/admin/events', icon: Calendar },
-    { label: 'Registrations', href: '/admin/registrations', icon: Users },
-    { label: 'Announcements', href: '/admin/announcements', icon: Bell },
-    { label: 'Community Links', href: '/admin/community-links', icon: Link2 },
-    { label: 'Resource Library', href: '/admin/resources', icon: BookOpen },
-  ];
 
   const isLinkActive = (href: string) => pathname === href;
 
@@ -44,11 +44,11 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
     <>
       {/* Mobile Sidebar Toggle */}
       <div className="lg:hidden absolute top-3.5 right-16 z-50">
-        <button
+        <button type="button"
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
         >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {sidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
       </div>
 
@@ -61,7 +61,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
         <div className="flex flex-col h-full justify-between">
           <div className="space-y-6">
             <div className="flex items-center gap-2 px-2">
-              <Terminal className="h-4 w-4 text-emerald-400" />
+              <Terminal className="size-4 text-emerald-400" />
               <span className="text-xs font-mono font-bold tracking-widest text-slate-500 uppercase">
                 Console Panel
               </span>
@@ -81,7 +81,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
                         : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200 border border-transparent'
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="size-4" />
                     <span>{link.label}</span>
                   </Link>
                 );
@@ -92,7 +92,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
           {/* Sidebar Footer / Log out */}
           <div className="pt-6 border-t border-slate-900">
             <div className="flex items-center gap-3 px-3 py-2 mb-4">
-              <div className="h-9 w-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono text-sm font-semibold text-emerald-400">
+              <div className="size-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono text-sm font-semibold text-emerald-400">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
@@ -102,11 +102,11 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
               </div>
             </div>
             
-            <button
+            <button type="button"
               onClick={handleSignOut}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all text-left cursor-pointer"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="size-4" />
               <span>Sign Out</span>
             </button>
           </div>
