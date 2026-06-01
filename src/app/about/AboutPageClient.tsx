@@ -121,7 +121,7 @@ export default function AboutPageClient() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {teamMembers.map((member, idx) => (
-              <AnimatedCard key={member.name} className="p-8 border-slate-800 bg-slate-950/40 hover:bg-slate-900/60 transition-all flex flex-col h-full items-center text-center space-y-4" delay={idx * 0.15}>
+              <AnimatedCard key={member.name} className="p-8 border-slate-800 bg-slate-950/40 hover:bg-slate-900/60 transition-all flex flex-col h-full items-center text-center gap-y-4" delay={idx * 0.15}>
                 <div className="size-14 rounded-full bg-slate-900 border border-slate-850 flex items-center justify-center shadow-lg">
                   <member.icon className="size-6 text-emerald-400" />
                 </div>
