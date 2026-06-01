@@ -27,6 +27,7 @@ import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedEventCard } from '@/components/AnimatedEventCard';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { TechBackground } from '@/components/animations/TechBackground';
+import DynamicCommunityGlobe from '@/components/3d/DynamicCommunityGlobe';
 
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -260,6 +261,36 @@ export default function HomePage() {
                 <p className="text-sm text-slate-400 leading-relaxed">{item.description}</p>
               </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Connected Coding Community Section */}
+      <section className="py-24 md:py-32 border-b border-slate-800/40 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            {/* Left Column: Content */}
+            <div className="lg:col-span-6 space-y-6 text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
+                <span className="relative flex size-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
+                </span>
+                Global Network
+              </div>
+              <h2 className="text-3xl md:text-5xl font-extrabold text-white font-mono leading-tight">
+                Connected Coding <br />
+                <span className="text-emerald-500">Community</span>
+              </h2>
+              <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
+                CampusCoder brings students together through virtual events, workshops, coding challenges, and peer learning activities. Build relationships, prepare for placements, and collaborate on real-world projects.
+              </p>
+            </div>
+            
+            {/* Right Column: 3D Globe */}
+            <div className="lg:col-span-6 w-full h-[350px] md:h-[400px] lg:h-[500px]">
+              <DynamicCommunityGlobe />
+            </div>
           </div>
         </div>
       </section>
