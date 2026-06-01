@@ -65,7 +65,11 @@ export default function ResourcesPage() {
   });
 
   if (loading) {
-    return <CampusCoderLoader variant="page" label="Loading resources" />;
+    return (
+      <div className="flex items-center justify-center py-40 min-h-screen">
+        <CampusCoderLoader size="lg" text="Curating Learning Resources" />
+      </div>
+    );
   }
 
   return (

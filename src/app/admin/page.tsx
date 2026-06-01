@@ -392,8 +392,13 @@ export default function AdminDashboardPage() {
   };
 
   if (loading) {
-    return <CampusCoderLoader variant="inline" label="Loading admin console" />;
+    return (
+      <div className="flex items-center justify-center py-40">
+        <CampusCoderLoader size="lg" text="Initialising Admin Console" />
+      </div>
+    );
   }
+
 
   return (
     <div className="space-y-8">

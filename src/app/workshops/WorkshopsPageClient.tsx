@@ -49,7 +49,11 @@ export default function WorkshopsPage() {
   }, []);
 
   if (loading) {
-    return <CampusCoderLoader variant="page" label="Loading workshops" />;
+    return (
+      <div className="flex items-center justify-center py-40 min-h-screen">
+        <CampusCoderLoader size="lg" text="Syncing Workshop Materials" />
+      </div>
+    );
   }
 
   return (

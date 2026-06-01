@@ -1,112 +1,121 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
+import { Terminal, Code2, Cpu } from 'lucide-react';
 
 interface CampusCoderLoaderProps {
-  /** 'page' = full-screen centered overlay. 'inline' = compact block loader. */
-  variant?: 'page' | 'inline';
-  /** Optional label shown beneath the animation */
-  label?: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  fullPage?: boolean;
+  text?: string;
 }
 
-const ORBIT_SYMBOLS = ['</>', '{}', '[]', '#', '&&'];
-
-/**
- * Branded CampusCoder loader.
- * Uses pure CSS animations — zero JS animation cost, no Framer Motion overhead.
- * Fully respects prefers-reduced-motion via the `.motion-safe:` Tailwind modifier.
- */
 export const CampusCoderLoader: React.FC<CampusCoderLoaderProps> = ({
-  variant = 'page',
-  label,
+  size = 'md',
+  fullPage = false,
+  text,
 }) => {
-  const isPage = variant === 'page';
+  const sizeClasses = {
+    sm: 'size-12',
+    md: 'size-20',
+    lg: 'size-32',
+    xl: 'size-48',
+  };
 
-  const animation = (
-    <div
-      className="flex flex-col items-center justify-center gap-4"
-      aria-label="Loading…"
-      role="status"
-    >
-      {/* ── Orbital ring + CC monogram ── */}
-      <div className="relative flex items-center justify-center" style={{ width: 80, height: 80 }}>
+  const iconSizeClasses = {
+    sm: 'size-4',
+    md: 'size-6',
+    lg: 'size-10',
+    xl: 'size-14',
+  };
 
-        {/* Outer rotating ring */}
-        <div
-          className="absolute inset-0 rounded-full border-2 border-emerald-500/20 border-t-emerald-400 motion-safe:animate-spin"
-          style={{ animationDuration: '1.2s', animationTimingFunction: 'linear' }}
-        />
+  const container = (
+    <div className="relative flex flex-col items-center justify-center">
+      {/* Outer Rotating Ring */}
+      <motion.div
+        className={`${sizeClasses[size]} rounded-full border-2 border-emerald-500/10 border-t-emerald-500`}
+        animate={{ rotate: 360 }}
+        transition={{
+          repeat: Infinity,
+          duration: 1.5,
+          ease: "linear"
+        }}
+      />
 
-        {/* Inner counter-rotating ring */}
-        <div
-          className="absolute rounded-full border border-emerald-500/10 border-b-emerald-500/40 motion-safe:animate-spin"
-          style={{
-            inset: 8,
-            animationDuration: '2s',
-            animationTimingFunction: 'linear',
-            animationDirection: 'reverse',
+      {/* Inner Monogram */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="font-mono font-bold text-white flex items-baseline gap-px select-none"
+          style={{ 
+            fontSize: size === 'sm' ? '12px' : size === 'md' ? '20px' : size === 'lg' ? '32px' : '48px' 
           }}
-        />
-
-        {/* Orbiting code symbols */}
-        {ORBIT_SYMBOLS.map((sym, i) => {
-          const angle = (i / ORBIT_SYMBOLS.length) * 360;
-          const rad = (angle * Math.PI) / 180;
-          const r = 40; // orbit radius (half of 80px container)
-          const x = Math.cos(rad) * r;
-          const y = Math.sin(rad) * r;
-          return (
-            <span
-              key={sym}
-              className="absolute text-[7px] font-mono text-emerald-500/50 select-none motion-safe:animate-spin"
-              style={{
-                transform: `translate(${x}px, ${y}px)`,
-                animationDuration: '6s',
-                animationTimingFunction: 'linear',
-                animationDelay: `${i * 0.2}s`,
-                // Counter-rotate the glyph itself so it stays upright
-                display: 'inline-block',
-              }}
-              aria-hidden
-            >
-              {sym}
-            </span>
-          );
-        })}
-
-        {/* Pulsing glow disc */}
-        <div className="absolute size-10 rounded-full bg-emerald-500/10 blur-md motion-safe:animate-pulse" />
-
-        {/* CC Monogram */}
-        <div
-          className="relative z-10 flex items-center justify-center size-9 rounded-xl bg-slate-950 border border-emerald-500/30 shadow-[0_0_16px_rgba(16,185,129,0.2)]"
         >
-          <span className="text-xs font-extrabold font-mono text-emerald-400 tracking-tight leading-none select-none">
-            CC
-          </span>
-        </div>
+          <span>C</span>
+          <span className="text-emerald-500">C</span>
+        </motion.div>
       </div>
 
-      {/* Label */}
-      <p className="text-xs font-mono text-slate-500 tracking-widest uppercase motion-safe:animate-pulse">
-        {label ?? 'Loading\u2026'}
-      </p>
+      {/* Orbiting Symbols */}
+      {size !== 'sm' && (
+        <>
+          <motion.div
+            className="absolute text-emerald-400/40"
+            animate={{
+              rotate: 360,
+              x: [0, 40, 0, -40, 0],
+              y: [40, 0, -40, 0, 40],
+            }}
+            transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
+          >
+            <Code2 size={size === 'md' ? 12 : 20} />
+          </motion.div>
+          <motion.div
+            className="absolute text-emerald-400/40"
+            animate={{
+              rotate: -360,
+              x: [0, -45, 0, 45, 0],
+              y: [-45, 0, 45, 0, -45],
+            }}
+            transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
+          >
+            <Terminal size={size === 'md' ? 10 : 16} />
+          </motion.div>
+          <motion.div
+            className="absolute text-emerald-400/40"
+            animate={{
+              rotate: 360,
+              x: [35, 0, -35, 0, 35],
+              y: [0, 35, 0, -35, 0],
+            }}
+            transition={{ repeat: Infinity, duration: 5, ease: "linear" }}
+          >
+            <Cpu size={size === 'md' ? 10 : 16} />
+          </motion.div>
+        </>
+      )}
+
+      {text && (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="mt-6 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-emerald-500/60"
+        >
+          {text}
+        </motion.p>
+      )}
     </div>
   );
 
-  if (isPage) {
+  if (fullPage) {
     return (
-      <div className="tech-grid min-h-screen flex items-center justify-center py-20">
-        {animation}
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md">
+        {container}
       </div>
     );
   }
 
-  return (
-    <div className="flex items-center justify-center py-16 w-full">
-      {animation}
-    </div>
-  );
+  return container;
 };
-
-export default CampusCoderLoader;
