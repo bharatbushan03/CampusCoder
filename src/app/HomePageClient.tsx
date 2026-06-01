@@ -76,7 +76,7 @@ const whyJoinReasons = [
   'Practical, project-centric learning instead of just theory',
   'Direct community support and code reviews from peer mentors',
   'Regular virtual and in-person campus events and speaker panels',
-  'Active, competitive, yet collaborative student coding culture',
+  'A fresh student community you can help shape from day one',
 ];
 
 export default function HomePage() {
@@ -356,7 +356,7 @@ export default function HomePage() {
               </span>
             </h2>
             <p className="text-slate-400 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
-              Join 500+ students already building their future with CampusCoder.
+              Be part of the first group shaping CampusCoder at our college.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Link href="/register">

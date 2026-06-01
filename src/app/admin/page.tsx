@@ -158,7 +158,7 @@ export default function AdminDashboardPage() {
       const upcomingEvents = eventsList.filter((event) => event.status === 'published' && event.date >= todayStr).length;
       const completedEvents = eventsList.filter((event) => event.status === 'completed').length;
       const totalRegistrations = regsList.length;
-      const activeStudents = membersList.length || 150; // Fallback to 150 if no student accounts registered yet
+      const activeStudents = membersList.length;
 
       setStats({
         totalEvents,
@@ -202,7 +202,7 @@ export default function AdminDashboardPage() {
         totalEvents: mockEvents.length,
         upcomingEvents: 2,
         totalRegistrations: mockRegs.length,
-        activeStudents: 152,
+        activeStudents: 0,
         completedEvents: 1
       });
     } finally {
