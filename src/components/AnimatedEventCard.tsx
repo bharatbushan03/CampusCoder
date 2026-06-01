@@ -9,6 +9,8 @@ interface AnimatedEventCardProps {
   delay?: number;
 }
 
+const SPRING_CONFIG = { damping: 25, stiffness: 200, mass: 0.5 };
+
 export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = ({
   children,
   className = '',
@@ -34,9 +36,8 @@ export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = ({
   const rotateY = useTransform(x, [0, 1], [-8, 8]);
 
   // Spring animations for rotation to make them super smooth
-  const springConfig = { damping: 25, stiffness: 200, mass: 0.5 };
-  const rotateXSpring = useSpring(rotateX, springConfig);
-  const rotateYSpring = useSpring(rotateY, springConfig);
+  const rotateXSpring = useSpring(rotateX, SPRING_CONFIG);
+  const rotateYSpring = useSpring(rotateY, SPRING_CONFIG);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isTouch || !cardRef.current) return;
