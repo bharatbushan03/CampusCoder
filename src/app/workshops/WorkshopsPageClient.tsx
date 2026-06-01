@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Terminal,
   Video,
-  Loader2,
   ArrowRight,
   Sparkles,
   Layers
@@ -17,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 
@@ -49,11 +49,7 @@ export default function WorkshopsPage() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 min-h-screen">
-        <Loader2 className="size-8 text-emerald-400 animate-spin" />
-      </div>
-    );
+    return <CampusCoderLoader variant="page" label="Loading workshops" />;
   }
 
   return (

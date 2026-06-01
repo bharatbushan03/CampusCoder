@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Loader2,
   Search,
   BookOpen,
   ExternalLink,
@@ -17,6 +16,7 @@ import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type ResourceRow = Database['public']['Tables']['resources']['Row'];
 
@@ -65,11 +65,7 @@ export default function ResourcesPage() {
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 min-h-screen">
-        <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
-      </div>
-    );
+    return <CampusCoderLoader variant="page" label="Loading resources" />;
   }
 
   return (

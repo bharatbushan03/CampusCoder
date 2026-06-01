@@ -15,6 +15,7 @@ import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
 import { RegistrationSuccessVisual } from '@/components/animations/RegistrationSuccessVisual';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -176,14 +177,7 @@ export default function EventRegistrationPage() {
   };
 
   if (loadingEvent) {
-    return (
-      <div className="tech-grid min-h-screen flex items-center justify-center py-20">
-        <div className="text-center">
-          <Loader2 className="size-8 text-emerald-400 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-mono text-slate-400">Loading registration portals&hellip;</p>
-        </div>
-      </div>
-    );
+    return <CampusCoderLoader variant="page" label="Loading registration portal" />;
   }
 
   if (!event) {
