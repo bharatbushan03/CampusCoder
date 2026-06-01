@@ -13,6 +13,7 @@ import { registrationSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
+import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -210,7 +211,8 @@ export default function EventRegistrationPage() {
 
     return (
       <div className="tech-grid min-h-screen py-16 flex items-center justify-center px-4">
-        <Card hoverEffect={false} className="max-w-2xl w-full p-10 border-emerald-500/30 bg-slate-900 text-center glow-box">
+        <AnimatedSection className="max-w-2xl w-full" direction="up">
+          <Card hoverEffect={false} className="max-w-2xl w-full p-10 border-emerald-500/30 bg-slate-900 text-center glow-box">
           <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 mx-auto mb-6">
             <CheckCircle2 className="size-8 text-emerald-400" />
           </div>
@@ -270,18 +272,25 @@ export default function EventRegistrationPage() {
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 border-t border-slate-900 pt-6">
             <Link href="/dashboard" className="flex-1 sm:flex-initial">
-              <Button variant="primary" size="sm" className="w-full flex items-center justify-center gap-2">
-                <LayoutDashboard className="size-4" /> Go to My Dashboard
-              </Button>
+              <MotionButton className="w-full">
+                <Button variant="primary" size="sm" className="w-full flex items-center justify-center gap-2">
+                  <LayoutDashboard className="size-4" /> Go to My Dashboard
+                </Button>
+              </MotionButton>
             </Link>
             <Link href="/events" className="flex-1 sm:flex-initial">
-              <Button variant="secondary" size="sm" className="w-full">Browse Other Sprints</Button>
+              <MotionButton className="w-full">
+                <Button variant="secondary" size="sm" className="w-full">Browse Other Sprints</Button>
+              </MotionButton>
             </Link>
             <Link href="/" className="flex-1 sm:flex-initial">
-              <Button variant="outline" size="sm" className="w-full text-slate-400 hover:text-slate-200">Return Home</Button>
+              <MotionButton className="w-full">
+                <Button variant="outline" size="sm" className="w-full text-slate-400 hover:text-slate-200">Return Home</Button>
+              </MotionButton>
             </Link>
           </div>
         </Card>
+        </AnimatedSection>
       </div>
     );
   }
@@ -296,7 +305,8 @@ export default function EventRegistrationPage() {
         </Link>
 
         {/* Form Container */}
-        <Card hoverEffect={false} className="p-8 border-emerald-500/10 bg-slate-900/60 backdrop-blur-md">
+        <AnimatedSection className="w-full" direction="up" delay={0.1}>
+          <Card hoverEffect={false} className="p-8 border-emerald-500/10 bg-slate-900/60 backdrop-blur-md">
           <div className="mb-8">
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 capitalize mb-2 inline-block">
               RSVP PORTAL
@@ -485,26 +495,29 @@ export default function EventRegistrationPage() {
 
             {/* Submit button */}
             <div className="pt-4 border-t border-slate-900">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full flex items-center justify-center gap-2 font-bold"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="size-5 animate-spin" /> Processing RSVP&hellip;
-                  </>
-                ) : (
-                  <>
-                    Confirm Registration <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
+              <MotionButton className="w-full">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full flex items-center justify-center gap-2 font-bold"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="size-5 animate-spin" /> Processing RSVP&hellip;
+                    </>
+                  ) : (
+                    <>
+                      Confirm Registration <ArrowRight className="size-4" />
+                    </>
+                  )}
+                </Button>
+              </MotionButton>
             </div>
           </form>
         </Card>
+        </AnimatedSection>
       </div>
     </div>
   );

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { TechBackground } from '@/components/animations/TechBackground';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
+import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 
@@ -82,30 +83,32 @@ export default function EventsPage() {
       <TechBackground />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-16 relative z-10">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+        <AnimatedSection className="flex flex-col lg:flex-row lg:items-end justify-between gap-8" direction="up">
           <div className="space-y-6 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
               <Sparkles className="size-3" /> Live Sprints
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight font-mono">
+                Build your <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8">stack.</span>
+              </h1>
+              <p className="text-slate-400 text-lg leading-relaxed">
+                Hands-on sessions designed to bridge the gap between classroom theory and industry reality.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight font-mono">
-              Build your <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8">stack.</span>
-            </h1>
-            <p className="text-slate-400 text-lg leading-relaxed">
-              Hands-on sessions designed to bridge the gap between classroom theory and industry reality.
-            </p>
-          </div>
-        </div>
-        
-        <Link href="/events/archive">
-          <Button variant="outline" className="group h-12 px-6">
-            View Past Archive <ChevronRight className="ml-2 size-4 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </Link>
-      </div>
+          
+          <Link href="/events/archive">
+            <MotionButton>
+              <Button variant="outline" className="group h-12 px-6">
+                View Past Archive <ChevronRight className="ml-2 size-4 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </MotionButton>
+          </Link>
+        </AnimatedSection>
 
       {/* Control Bar */}
-      <div className="flex flex-col md:flex-row gap-6 items-center justify-between p-2 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm">
+      <AnimatedSection className="flex flex-col md:flex-row gap-6 items-center justify-between p-2 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm" direction="none" delay={0.15}>
         <div className="flex p-1 bg-slate-950 rounded-xl border border-slate-900/50 w-full md:w-auto">
           {eventTypes.map((cat) => (
             <button type="button"
@@ -132,7 +135,7 @@ export default function EventsPage() {
             className="w-full bg-slate-950 border border-slate-900 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/30 transition-all"
           />
         </div>
-      </div>
+      </AnimatedSection>
 
       {/* Grid */}
       {filteredEvents.length > 0 ? (

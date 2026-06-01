@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
+import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
 
 type ResourceRow = Database['public']['Tables']['resources']['Row'];
 
@@ -73,7 +74,7 @@ export default function ResourcesPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
-      <div className="space-y-4 text-center max-w-3xl mx-auto">
+      <AnimatedSection className="space-y-4 text-center max-w-3xl mx-auto" direction="up">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
           <Sparkles className="h-3 w-3" /> Learning Repository
         </div>
@@ -83,10 +84,10 @@ export default function ResourcesPage() {
         <p className="text-slate-400 text-sm md:text-base leading-relaxed">
           A curated collection of roadmaps, practice platforms, and placement prep kits designed to take you from a curious beginner to a professional developer.
         </p>
-      </div>
+      </AnimatedSection>
 
       {/* Category Tabs */}
-      <div className="flex flex-wrap justify-center gap-2">
+      <AnimatedSection className="flex flex-wrap justify-center gap-2" direction="none" delay={0.1}>
         {categories.map((cat) => (
           <button
             key={cat.id}
@@ -101,10 +102,10 @@ export default function ResourcesPage() {
             {cat.label}
           </button>
         ))}
-      </div>
+      </AnimatedSection>
 
       {/* Search */}
-      <div className="relative max-w-xl mx-auto">
+      <AnimatedSection className="relative max-w-xl mx-auto" direction="none" delay={0.15}>
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
         <input
           type="text"
@@ -113,46 +114,48 @@ export default function ResourcesPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors shadow-2xl"
         />
-      </div>
+      </AnimatedSection>
 
       {filteredResources.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredResources.map((res) => (
-            <Card key={res.id} className="group flex flex-col h-full border-slate-800 bg-slate-950/40 hover:border-emerald-500/20 transition-all p-6 space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  {res.category === 'roadmaps' && <Map className="h-5 w-5 text-emerald-400" />}
-                  {res.category === 'practice' && <Code className="h-5 w-5 text-emerald-400" />}
-                  {res.category === 'dsa' && <Database className="h-5 w-5 text-emerald-400" />}
-                  {res.category === 'placement' && <Briefcase className="h-5 w-5 text-emerald-400" />}
-                  {(!['roadmaps', 'practice', 'dsa', 'placement'].includes(res.category)) && <BookOpen className="h-5 w-5 text-emerald-400" />}
+          {filteredResources.map((res, index) => (
+            <AnimatedCard key={res.id} className="flex flex-col h-full" delay={index * 0.08}>
+              <Card className="group flex flex-col h-full border-slate-800 bg-slate-950/40 hover:border-emerald-500/20 transition-all p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    {res.category === 'roadmaps' && <Map className="h-5 w-5 text-emerald-400" />}
+                    {res.category === 'practice' && <Code className="h-5 w-5 text-emerald-400" />}
+                    {res.category === 'dsa' && <Database className="h-5 w-5 text-emerald-400" />}
+                    {res.category === 'placement' && <Briefcase className="h-5 w-5 text-emerald-400" />}
+                    {(!['roadmaps', 'practice', 'dsa', 'placement'].includes(res.category)) && <BookOpen className="h-5 w-5 text-emerald-400" />}
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-500 uppercase tracking-tighter border border-slate-900 px-2 py-0.5 rounded-full">
+                    {res.category}
+                  </span>
                 </div>
-                <span className="text-[9px] font-mono text-slate-500 uppercase tracking-tighter border border-slate-900 px-2 py-0.5 rounded-full">
-                  {res.category}
-                </span>
-              </div>
 
-              <div className="space-y-2 flex-1">
-                <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors leading-tight">
-                  {res.title}
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                  {res.description || "No description provided for this resource."}
-                </p>
-              </div>
+                <div className="space-y-2 flex-1">
+                  <h3 className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors leading-tight">
+                    {res.title}
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
+                    {res.description || "No description provided for this resource."}
+                  </p>
+                </div>
 
-              <div className="pt-4 border-t border-slate-900 flex items-center justify-between">
-                <a 
-                  href={res.link} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-between text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors group/link"
-                >
-                  Access Resource
-                  <ExternalLink className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />
-                </a>
-              </div>
-            </Card>
+                <div className="pt-4 border-t border-slate-900 flex items-center justify-between">
+                  <a 
+                    href={res.link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-between text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors group/link"
+                  >
+                    Access Resource
+                    <ExternalLink className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />
+                  </a>
+                </div>
+              </Card>
+            </AnimatedCard>
           ))}
         </div>
       ) : (
