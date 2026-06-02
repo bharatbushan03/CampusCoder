@@ -115,7 +115,7 @@ export default function AboutPageClient() {
               Meet the <span className="text-emerald-500">Team</span>
             </h2>
             <p className="text-slate-400 text-sm max-w-2xl mx-auto leading-relaxed">
-              The student organizers and builders behind CampusCoder's sessions and technical systems.
+              The student organizers and builders behind CampusCoder&apos;s sessions and technical systems.
             </p>
           </div>
 
