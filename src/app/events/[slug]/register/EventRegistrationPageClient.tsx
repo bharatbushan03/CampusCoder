@@ -3,9 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, Loader2, AlertTriangle, MessageSquare, LayoutDashboard } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Loader2,
+  AlertTriangle,
+  Calendar,
+  Clock,
+  MapPin,
+  MessageSquare,
+  Phone,
+  Mail,
+  Users,
+  LayoutDashboard,
+} from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { registerForEvent } from '@/app/actions/registrationActions';
@@ -13,9 +27,8 @@ import { registrationSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
-import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
+import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { RegistrationSuccessVisual } from '@/components/animations/RegistrationSuccessVisual';
-import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
@@ -30,6 +43,20 @@ function getSlug(title: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(timeStr: string) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${m} ${ampm}`;
 }
 
 export default function EventRegistrationPage() {
@@ -57,6 +84,8 @@ export default function EventRegistrationPage() {
     consent: false,
   });
 
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   useEffect(() => {
     async function loadEvent() {
       if (!slug) return;
@@ -71,18 +100,17 @@ export default function EventRegistrationPage() {
           .returns<EventRow>();
 
         if (error) throw error;
-        
+
         if (data) {
           setEvent(data);
         }
 
-        // Fetch Community Links
         const { data: linksData } = await supabase
           .from('community_links')
           .select('*')
           .eq('is_active', true)
           .returns<CommunityLinkRow[]>();
-        
+
         if (linksData) setCommunityLinks(linksData);
       } catch (err) {
         const errorCode =
@@ -104,21 +132,37 @@ export default function EventRegistrationPage() {
         }
 
         setCommunityLinks([
-          { platform: 'Discord', url: ' https://discord.gg/VdsX64E5E' },
-          { platform: 'WhatsApp', url: 'https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2' }
+          { platform: 'Discord', url: 'https://discord.gg/VdsX64E5E', is_active: true },
+          { platform: 'WhatsApp', url: 'https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2', is_active: true },
         ]);
       } finally {
         setLoadingEvent(false);
       }
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadEvent();
   }, [slug]);
+
+  const validateField = (field: string, value: string | boolean) => {
+    const result = registrationSchema.safeParse({ ...formData, [field]: value });
+    if (!result.success) {
+      const fieldIssue = result.error.issues.find((i) => i.path[0] === field);
+      if (fieldIssue) {
+      setFieldErrors((prev) => ({ ...prev, [field]: fieldIssue.message }));
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      setFieldErrors(({ [field]: _, ...rest }) => rest);
+    }
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    setFieldErrors(({ [field]: _, ...rest }) => rest);
+  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setFieldErrors({});
 
     if (!event) {
       setErrorMsg('This event is not available for registration.');
@@ -136,19 +180,23 @@ export default function EventRegistrationPage() {
       return;
     }
 
-    // 1. Rate Limiting Check (Simple throttle)
     const lastSub = localStorage.getItem('last_rsvp_timestamp');
     if (lastSub) {
       const diff = Date.now() - parseInt(lastSub);
-      if (diff < 60000) { // 1 minute throttle
+      if (diff < 60000) {
         toast.error('Too many requests. Please wait a minute before another RSVP.');
         return;
       }
     }
 
-    // 2. Zod Validation (Client-side for UX)
     const validation = registrationSchema.safeParse(formData);
     if (!validation.success) {
+      const errors: Record<string, string> = {};
+      validation.error.issues.forEach((issue) => {
+        const field = issue.path[0] as string;
+        errors[field] = issue.message;
+      });
+      setFieldErrors(errors);
       const firstError = validation.error.issues[0].message;
       setErrorMsg(firstError);
       toast.error(firstError);
@@ -158,10 +206,8 @@ export default function EventRegistrationPage() {
     setIsSubmitting(true);
 
     try {
-      // 3. Server Action Call
       await registerForEvent(formData, event.id);
 
-      // 4. Track successful RSVP
       localStorage.setItem('last_rsvp_timestamp', Date.now().toString());
 
       toast.success('Registration Confirmed!');
@@ -176,16 +222,32 @@ export default function EventRegistrationPage() {
     }
   };
 
+  const updateField = (field: string, value: string | boolean) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFieldErrors((prev) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
   if (loadingEvent) {
-    return <CampusCoderLoader variant="page" label="Loading registration portal" />;
+    return (
+      <div className="flex items-center justify-center py-40 min-h-screen">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-500 font-mono">Loading registration portal…</p>
+        </div>
+      </div>
+    );
   }
 
   if (!event) {
     return (
-      <div className="tech-grid min-h-screen flex items-center justify-center py-20 px-4">
-        <Card hoverEffect={false} className="max-w-md w-full p-8 text-center border-amber-500/20 bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center py-20 px-4">
+        <Card glass={false} className="max-w-md w-full p-8 text-center">
           <AlertTriangle className="size-8 text-amber-400 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-white mb-2">Registration unavailable</h1>
+          <h1 className="text-xl font-bold text-slate-50 mb-2">Registration unavailable</h1>
           <p className="text-sm text-slate-400 mb-6">{errorMsg || 'This event is not open for public registration.'}</p>
           <Link href="/events">
             <Button variant="primary" size="sm">Back to Events</Button>
@@ -195,322 +257,438 @@ export default function EventRegistrationPage() {
     );
   }
 
-  // Registration Confirmation page view (Success Screen)
+  // ── SUCCESS PAGE ──
   if (isSuccess && event) {
-    const eventDateStr = new Date(event.date).toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    const eventDateStr = formatDate(event.date);
+    const eventTimeStr = event.start_time
+      ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
+      : event.time;
 
     return (
-      <div className="tech-grid min-h-screen py-16 flex items-center justify-center px-4">
-        <AnimatedSection className="max-w-2xl w-full" direction="up">
-          <Card hoverEffect={false} className="max-w-2xl w-full p-10 border-emerald-500/30 bg-slate-900 text-center glow-box">
-          <RegistrationSuccessVisual />
-          
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2 font-mono uppercase tracking-tight">Registration Confirmed</h2>
-          <p className="text-slate-400 text-sm max-w-md mx-auto mb-8 font-medium">
-            You&apos;re successfully registered for this CampusCoder event.
-          </p>
+      <div className="min-h-screen py-16 flex items-center justify-center px-4">
+        <AnimatedSection className="max-w-xl w-full" direction="up">
+          <Card hoverEffect className="p-8 md:p-10 text-center border-emerald-500/30">
+            <RegistrationSuccessVisual />
 
-          {/* Event Summary Details */}
-          <div className="bg-slate-950/80 p-6 rounded-xl border border-slate-850 text-left mb-8 max-w-lg mx-auto space-y-3">
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">RSVP Event Details</p>
-            <h3 className="text-base font-bold text-white leading-tight">{event.title}</h3>
-            
-            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-900 text-xs text-slate-400">
-              <div>
-                <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono">Date</span>
-                <span className="font-medium text-slate-200">{eventDateStr}</span>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-50 mb-2">
+              You&apos;re registered!
+            </h2>
+            <p className="text-sm text-slate-400 mb-8">
+              Your spot for <span className="text-slate-200 font-medium">{event.title}</span> is confirmed.
+            </p>
+
+            {/* Event Summary */}
+            <div className="bg-slate-900/60 rounded-xl border border-slate-800 p-5 text-left mb-8 space-y-3">
+              <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Event details</p>
+              <h3 className="text-sm font-semibold text-slate-50">{event.title}</h3>
+              <div className="grid grid-cols-2 gap-3 text-xs text-slate-400 pt-3 border-t border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Calendar className="size-3.5 text-slate-600 shrink-0" />
+                  <span>{eventDateStr}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="size-3.5 text-slate-600 shrink-0" />
+                  <span>{eventTimeStr}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="size-3.5 text-slate-600 shrink-0" />
+                  <span className="capitalize">{event.mode || event.location || 'Online'}</span>
+                </div>
               </div>
-              <div>
-                <span className="block text-[10px] text-slate-500 uppercase tracking-widest font-mono">Time</span>
-                <span className="font-medium text-slate-200">{event.start_time ? `${event.start_time.slice(0,5)} - ${event.end_time.slice(0,5)}` : event.time}</span>
+            </div>
+
+            {/* Next steps */}
+            <div className="text-left mb-8 space-y-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Next steps</p>
+              <div className="space-y-2.5">
+                <div className="flex items-start gap-3 text-xs text-slate-400">
+                  <Mail className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-200 font-medium">Check your email</p>
+                    <p className="text-slate-500">We&apos;ve sent a confirmation with event details and the meeting link.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 text-xs text-slate-400">
+                  <MessageSquare className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-200 font-medium">Join our community</p>
+                    <p className="text-slate-500">Get updates, slides, and connect with fellow participants.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 text-xs text-slate-400">
+                  <Users className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-200 font-medium">Attend on time</p>
+                    <p className="text-slate-500">{eventDateStr} at {eventTimeStr}. See you there!</p>
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div className="pt-3 text-xs text-emerald-400/80 bg-emerald-500/5 p-3 rounded border border-emerald-500/10 mt-3 font-mono">
-              ⚡ Meeting link details and schedule alerts will be shared directly via email and our Discord server before the session starts.
-            </div>
-          </div>
 
-          {/* Discord and WhatsApp Community Buttons */}
-          <div className="space-y-4 max-w-sm mx-auto mb-10">
-            <p className="text-xs text-slate-400 font-medium">Join our tech channels for slides & discussions:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {communityLinks.map((link) => {
-                const isDiscord = link.platform.toLowerCase().includes('discord');
-                const isWhatsApp = link.platform.toLowerCase().includes('whatsapp');
-                
-                return (
-                  <a
-                    key={link.id || link.platform}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center justify-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg text-white transition-colors ${
-                      isDiscord ? 'bg-[#5865F2] hover:bg-[#4752C4]' : 
-                      isWhatsApp ? 'bg-[#25D366] hover:bg-[#20BA5A]' : 
-                      'bg-slate-800 hover:bg-slate-700'
-                    }`}
-                  >
-                    <MessageSquare className="size-4" /> {link.platform} Link
-                  </a>
-                );
-              })}
-            </div>
-          </div>
+            {/* Community buttons */}
+            {communityLinks.length > 0 && (
+              <div className="flex flex-col sm:flex-row justify-center gap-3 mb-8">
+                {communityLinks.map((link) => {
+                  const isDiscord = link.platform.toLowerCase().includes('discord');
+                  const isWhatsApp = link.platform.toLowerCase().includes('whatsapp');
+                  return (
+                    <a
+                      key={link.id || link.platform}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button
+                        variant={isDiscord ? 'primary' : 'secondary'}
+                        size="md"
+                        className="w-full sm:w-auto"
+                      >
+                        {isDiscord && <MessageSquare className="mr-2 size-4" />}
+                        {isWhatsApp && <Phone className="mr-2 size-4" />}
+                        Join {link.platform}
+                      </Button>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4 border-t border-slate-900 pt-6">
-            <Link href="/dashboard" className="flex-1 sm:flex-initial">
-              <MotionButton className="w-full">
-                <Button variant="primary" size="sm" className="w-full flex items-center justify-center gap-2">
-                  <LayoutDashboard className="size-4" /> Go to My Dashboard
+            <div className="flex flex-col sm:flex-row justify-center gap-3 border-t border-slate-800 pt-6">
+              <Link href="/dashboard">
+                <Button variant="primary" size="md">
+                  <LayoutDashboard className="mr-2 size-4" /> My Dashboard
                 </Button>
-              </MotionButton>
-            </Link>
-            <Link href="/events" className="flex-1 sm:flex-initial">
-              <MotionButton className="w-full">
-                <Button variant="secondary" size="sm" className="w-full">Browse Other Sprints</Button>
-              </MotionButton>
-            </Link>
-            <Link href="/" className="flex-1 sm:flex-initial">
-              <MotionButton className="w-full">
-                <Button variant="outline" size="sm" className="w-full text-slate-400 hover:text-slate-200">Return Home</Button>
-              </MotionButton>
-            </Link>
-          </div>
-        </Card>
+              </Link>
+              <Link href="/events">
+                <Button variant="outline" size="md">
+                  Browse more events
+                </Button>
+              </Link>
+            </div>
+          </Card>
         </AnimatedSection>
       </div>
     );
   }
 
+  // ── REGISTRATION FORM ──
   return (
-    <div className="tech-grid min-h-screen py-16 flex justify-center px-4">
-      <div className="max-w-2xl w-full">
-        
-        {/* Back Link */}
-        <Link href={`/events/${slug}`} className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-emerald-400 transition-colors mb-8 group">
-          <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" /> Back to event details
+    <div className="min-h-screen py-12 md:py-16 px-4">
+      <div className="max-w-5xl mx-auto space-y-8">
+
+        {/* Back link */}
+        <Link
+          href={`/events/${slug}`}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-400 transition-colors"
+        >
+          <ArrowLeft className="size-3.5" /> Back to event details
         </Link>
 
-        {/* Form Container */}
-        <AnimatedSection className="w-full" direction="up" delay={0.1}>
-          <Card hoverEffect={false} className="p-8 border-emerald-500/10 bg-slate-900/60 backdrop-blur-md">
-          <div className="mb-8">
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 capitalize mb-2 inline-block">
-              RSVP PORTAL
-            </span>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <Terminal className="size-5 text-emerald-400" /> Register: {event?.title}
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Please provide correct student credentials to reserve your seat.
-            </p>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
 
-          {isDbOffline && (
-            <div className="flex items-center gap-3 p-4 bg-slate-950 border border-emerald-500/10 rounded-xl mb-6 text-xs text-slate-400 font-mono">
-              <AlertTriangle className="size-4 text-amber-500 flex-shrink-0" />
-              <span>Offline Demo Mode: Submissions will simulate success triggers.</span>
-            </div>
-          )}
+          {/* ── LEFT: EVENT SUMMARY ── */}
+          <AnimatedSection className="lg:col-span-2 space-y-5">
+            <Card hoverEffect className="p-6">
+              <Badge variant="default" className="mb-3">
+                {(event.event_type || event.type || 'workshop').replace('_', ' ')}
+              </Badge>
+              <h2 className="text-lg font-bold text-slate-50 leading-snug mb-4">
+                {event.title}
+              </h2>
 
-          {errorMsg && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-lg mb-6">
-              {errorMsg}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Full Name */}
-              <div>
-                <label htmlFor="page-full-name" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  Full Name <span className="text-emerald-500">*</span>
-                </label>
-                <input id="page-full-name"
-                  type="text"
-                  required
-                  placeholder="e.g. Rahul Sharma"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
+              <div className="space-y-3 text-xs text-slate-500">
+                <div className="flex items-center gap-2.5">
+                  <Calendar className="size-4 text-slate-600 shrink-0" />
+                  <div>
+                    <p className="text-slate-400 font-medium">{formatDate(event.date)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Clock className="size-4 text-slate-600 shrink-0" />
+                  <div>
+                    <p className="text-slate-400 font-medium">
+                      {event.start_time
+                        ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
+                        : event.time}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="size-4 text-slate-600 shrink-0" />
+                  <div>
+                    <p className="text-slate-400 font-medium capitalize">
+                      {event.mode || event.location || 'Online'}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {/* Email Address */}
-              <div>
-                <label htmlFor="page-email-address" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  Email Address <span className="text-emerald-500">*</span>
-                </label>
-                <input id="page-email-address"
-                  type="email"
-                  required
-                  placeholder="e.g. rahul@college.edu"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
-              </div>
-            </div>
+              {event.registration_deadline && (
+                <div className="mt-5 pt-4 border-t border-slate-800">
+                  <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-1">Registration deadline</p>
+                  <p className="text-xs text-amber-400">{formatDate(event.registration_deadline)}</p>
+                </div>
+              )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Phone Number */}
-              <div>
-                <label htmlFor="page-phone-number" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  Phone Number <span className="text-emerald-500">*</span>
-                </label>
-                <input id="page-phone-number"
-                  type="tel"
-                  required
-                  placeholder="e.g. 9876543210"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
-              </div>
+              {event.short_description && (
+                <p className="text-xs text-slate-500 mt-4 leading-relaxed line-clamp-3">
+                  {event.short_description}
+                </p>
+              )}
+            </Card>
 
-              {/* Year / Semester */}
-              <div>
-                <label htmlFor="page-year-semester" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  Year / Semester <span className="text-emerald-500">*</span>
-                </label>
-                <select id="page-year-semester"
-                  value={formData.year}
-                  onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                >
-                  <option value="1st Year (Sem 1-2)">1st Year (Sem 1-2)</option>
-                  <option value="2nd Year (Sem 3-4)">2nd Year (Sem 3-4)</option>
-                  <option value="3rd Year (Sem 5-6)">3rd Year (Sem 5-6)</option>
-                  <option value="4th Year (Sem 7-8)">4th Year (Sem 7-8)</option>
-                </select>
-              </div>
-            </div>
+            {/* Community preview */}
+            <Card hoverEffect className="p-5">
+              <h4 className="text-xs font-semibold text-slate-400 mb-2">Join our community</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Get event updates, share code, and connect with fellow students.
+              </p>
+            </Card>
+          </AnimatedSection>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* College Name */}
-              <div>
-                <label htmlFor="page-college-name" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  College Name <span className="text-emerald-500">*</span>
-                </label>
-                <input id="page-college-name"
-                  type="text"
-                  required
-                  value={formData.college}
-                  onChange={(e) => setFormData({ ...formData, college: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
+          {/* ── RIGHT: REGISTRATION FORM ── */}
+          <AnimatedSection className="lg:col-span-3" delay={0.08}>
+            <Card hoverEffect className="p-6 md:p-8">
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-slate-50">Register for this event</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Fill in your details to reserve your spot. All fields marked with * are required.
+                </p>
               </div>
 
-              {/* Branch/Department */}
-              <div>
-                <label htmlFor="page-branch-department" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  Branch / Department <span className="text-emerald-500">*</span>
-                </label>
-                <input id="page-branch-department"
-                  type="text"
-                  required
-                  placeholder="e.g. Computer Science"
-                  value={formData.branch}
-                  onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                />
-              </div>
-            </div>
+              {isDbOffline && (
+                <div className="flex items-center gap-3 p-4 bg-slate-900 border border-slate-700 rounded-xl mb-6 text-xs text-slate-400">
+                  <AlertTriangle className="size-4 text-amber-500 shrink-0" />
+                  <span>Offline Demo Mode: Submissions will simulate success triggers.</span>
+                </div>
+              )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Coding Level */}
-              <div>
-                <label htmlFor="page-current-coding-level" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  Current Coding Level
-                </label>
-                <select id="page-current-coding-level"
-                  value={formData.codingLevel}
-                  onChange={(e) => setFormData({ ...formData, codingLevel: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                >
-                  {codingLevels.map((lvl) => (
-                    <option key={lvl} value={lvl}>{lvl}</option>
-                  ))}
-                </select>
-              </div>
+              {errorMsg && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-lg mb-6">
+                  {errorMsg}
+                </div>
+              )}
 
-              {/* Preferred Language */}
-              <div>
-                <label htmlFor="page-preferred-programming-language" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                  Preferred Programming Language
-                </label>
-                <select id="page-preferred-programming-language"
-                  value={formData.preferredLanguage}
-                  onChange={(e) => setFormData({ ...formData, preferredLanguage: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                >
-                  {languages.map((lang) => (
-                    <option key={lang} value={lang}>{lang}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Name + Email */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="fullName" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Full Name <span className="text-emerald-500">*</span>
+                    </label>
+                    <input
+                      id="fullName"
+                      type="text"
+                      required
+                      placeholder="e.g. Rahul Sharma"
+                      value={formData.fullName}
+                      onChange={(e) => updateField('fullName', e.target.value)}
+                      onBlur={(e) => validateField('fullName', e.target.value)}
+                      className={`w-full bg-slate-900 border ${
+                        fieldErrors.fullName ? 'border-red-500/50' : 'border-slate-800'
+                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
+                    />
+                    {fieldErrors.fullName && (
+                      <p className="text-xs text-red-400 mt-1">{fieldErrors.fullName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Email Address <span className="text-emerald-500">*</span>
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      placeholder="e.g. rahul@college.edu"
+                      value={formData.email}
+                      onChange={(e) => updateField('email', e.target.value)}
+                      onBlur={(e) => validateField('email', e.target.value)}
+                      className={`w-full bg-slate-900 border ${
+                        fieldErrors.email ? 'border-red-500/50' : 'border-slate-800'
+                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
+                    />
+                    {fieldErrors.email && (
+                      <p className="text-xs text-red-400 mt-1">{fieldErrors.email}</p>
+                    )}
+                  </div>
+                </div>
 
-            {/* Why join */}
-            <div>
-              <label htmlFor="page-why-do-you-want-to-join-this-event" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                Why do you want to join this event?
-              </label>
-              <textarea id="page-why-do-you-want-to-join-this-event"
-                placeholder="What do you hope to learn or accomplish?"
-                value={formData.reasonToJoin}
-                onChange={(e) => setFormData({ ...formData, reasonToJoin: e.target.value })}
-                rows={3}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-              ></textarea>
-            </div>
+                {/* Phone + Year */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="phone" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Phone Number <span className="text-emerald-500">*</span>
+                    </label>
+                    <input
+                      id="phone"
+                      type="tel"
+                      required
+                      placeholder="e.g. 9876543210"
+                      value={formData.phone}
+                      onChange={(e) => updateField('phone', e.target.value)}
+                      onBlur={(e) => validateField('phone', e.target.value)}
+                      className={`w-full bg-slate-900 border ${
+                        fieldErrors.phone ? 'border-red-500/50' : 'border-slate-800'
+                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
+                    />
+                    {fieldErrors.phone && (
+                      <p className="text-xs text-red-400 mt-1">{fieldErrors.phone}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="year" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Year / Semester <span className="text-emerald-500">*</span>
+                    </label>
+                    <select
+                      id="year"
+                      value={formData.year}
+                      onChange={(e) => updateField('year', e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    >
+                      <option value="1st Year (Sem 1-2)">1st Year (Sem 1-2)</option>
+                      <option value="2nd Year (Sem 3-4)">2nd Year (Sem 3-4)</option>
+                      <option value="3rd Year (Sem 5-6)">3rd Year (Sem 5-6)</option>
+                      <option value="4th Year (Sem 7-8)">4th Year (Sem 7-8)</option>
+                    </select>
+                    <p className="text-[10px] text-slate-600 mt-1">Select your current year of study</p>
+                  </div>
+                </div>
 
-            {/* Consent Checkbox */}
-            <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                required
-                id="consent"
-                checked={formData.consent}
-                onChange={(e) => setFormData({ ...formData, consent: e.target.checked })}
-                className="mt-1 size-4 rounded border-slate-800 bg-slate-950 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 cursor-pointer"
-              />
-              <label htmlFor="consent" className="text-xs text-slate-400 leading-relaxed cursor-pointer select-none">
-                I agree to receive event updates from CampusCoder. <span className="text-emerald-500">*</span>
-              </label>
-            </div>
+                {/* College + Branch */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="college" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      College Name <span className="text-emerald-500">*</span>
+                    </label>
+                    <input
+                      id="college"
+                      type="text"
+                      required
+                      value={formData.college}
+                      onChange={(e) => updateField('college', e.target.value)}
+                      onBlur={(e) => validateField('college', e.target.value)}
+                      className={`w-full bg-slate-900 border ${
+                        fieldErrors.college ? 'border-red-500/50' : 'border-slate-800'
+                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
+                    />
+                    {fieldErrors.college && (
+                      <p className="text-xs text-red-400 mt-1">{fieldErrors.college}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="branch" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Branch / Department <span className="text-emerald-500">*</span>
+                    </label>
+                    <input
+                      id="branch"
+                      type="text"
+                      required
+                      placeholder="e.g. Computer Science"
+                      value={formData.branch}
+                      onChange={(e) => updateField('branch', e.target.value)}
+                      onBlur={(e) => validateField('branch', e.target.value)}
+                      className={`w-full bg-slate-900 border ${
+                        fieldErrors.branch ? 'border-red-500/50' : 'border-slate-800'
+                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
+                    />
+                    {fieldErrors.branch && (
+                      <p className="text-xs text-red-400 mt-1">{fieldErrors.branch}</p>
+                    )}
+                    <p className="text-[10px] text-slate-600 mt-1">e.g. CSE, IT, ECE, Mechanical</p>
+                  </div>
+                </div>
 
-            {/* Submit button */}
-            <div className="pt-4 border-t border-slate-900">
-              <MotionButton className="w-full">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  className="w-full flex items-center justify-center gap-2 font-bold"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="size-5 animate-spin" /> Processing RSVP&hellip;
-                    </>
-                  ) : (
-                    <>
-                      Confirm Registration <ArrowRight className="size-4" />
-                    </>
-                  )}
-                </Button>
-              </MotionButton>
-            </div>
-          </form>
-        </Card>
-        </AnimatedSection>
+                {/* Coding Level + Language */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="codingLevel" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Current Coding Level
+                    </label>
+                    <select
+                      id="codingLevel"
+                      value={formData.codingLevel}
+                      onChange={(e) => updateField('codingLevel', e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    >
+                      {codingLevels.map((lvl) => (
+                        <option key={lvl} value={lvl}>{lvl}</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-slate-600 mt-1">Helps us tailor the session to your level</p>
+                  </div>
+                  <div>
+                    <label htmlFor="preferredLanguage" className="block text-xs font-medium text-slate-400 mb-1.5">
+                      Preferred Language
+                    </label>
+                    <select
+                      id="preferredLanguage"
+                      value={formData.preferredLanguage}
+                      onChange={(e) => updateField('preferredLanguage', e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                    >
+                      {languages.map((lang) => (
+                        <option key={lang} value={lang}>{lang}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Reason to join */}
+                <div>
+                  <label htmlFor="reasonToJoin" className="block text-xs font-medium text-slate-400 mb-1.5">
+                    Why do you want to join this event?
+                  </label>
+                  <textarea
+                    id="reasonToJoin"
+                    placeholder="What do you hope to learn or accomplish? (optional)"
+                    value={formData.reasonToJoin}
+                    onChange={(e) => updateField('reasonToJoin', e.target.value)}
+                    rows={3}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  />
+                </div>
+
+                {/* Consent */}
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    required
+                    id="consent"
+                    checked={formData.consent}
+                    onChange={(e) => updateField('consent', e.target.checked)}
+                    className="mt-0.5 size-4 rounded border-slate-800 bg-slate-900 text-emerald-500 focus:ring-emerald-500 accent-emerald-500 cursor-pointer shrink-0"
+                  />
+                  <label htmlFor="consent" className="text-xs text-slate-400 leading-relaxed cursor-pointer select-none">
+                    I agree to receive event updates from CampusCoder. <span className="text-emerald-500">*</span>
+                  </label>
+                </div>
+
+                {/* Submit */}
+                <div className="pt-4 border-t border-slate-800">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    className="w-full h-12"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin mr-2" /> Processing…
+                      </>
+                    ) : (
+                      <>
+                        Confirm Registration <ArrowRight className="ml-2 size-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </AnimatedSection>
+
+        </div>
       </div>
     </div>
   );
