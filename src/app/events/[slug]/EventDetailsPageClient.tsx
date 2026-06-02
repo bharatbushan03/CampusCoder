@@ -1,32 +1,35 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import {
   Calendar,
   Clock,
   MapPin,
   ArrowLeft,
-  User,
   ArrowRight,
   CheckCircle,
   AlertOctagon,
   AlertTriangle,
-  Link2,
   MessageSquare,
-  Sparkles
+  Phone,
+  Target,
+  BookOpen,
+  Users,
+  Code2,
+  GraduationCap,
+  Sparkles,
+  ChevronRight,
 } from 'lucide-react';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+import { Badge } from '@/components/ui/Badge';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
-import { AnimatedEventCard } from '@/components/AnimatedEventCard';
-import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
+import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type EventOwnerRow = Database['public']['Tables']['event_owners']['Row'];
@@ -44,6 +47,84 @@ function getSlug(title: string) {
     .replace(/(^-|-$)/g, '');
 }
 
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(timeStr: string) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${m} ${ampm}`;
+}
+
+const learningByType: Record<string, string[]> = {
+  workshop: [
+    'Build real-world projects using modern tools and frameworks',
+    'Understand best practices and industry-standard workflows',
+    'Get hands-on experience with live coding sessions',
+    'Learn debugging and problem-solving techniques',
+    'Walk away with a working project for your portfolio',
+  ],
+  coding_session: [
+    'Solve curated algorithmic problems with live walkthroughs',
+    'Learn time and space complexity analysis',
+    'Understand common interview problem patterns',
+    'Practice writing clean, efficient code under guidance',
+    'Compare multiple solution approaches',
+  ],
+  challenge: [
+    'Compete in algorithmic challenges and track your rank',
+    'Sharpen problem-solving skills under time constraints',
+    'Learn from solution discussions and alternative approaches',
+    'Build consistency with regular practice',
+    'Prepare for competitive programming contests',
+  ],
+  webinar: [
+    'Gain insights from industry professionals and seniors',
+    'Learn about career paths and skill-building strategies',
+    'Understand placement preparation roadmaps',
+    'Get your questions answered in live Q&A',
+  ],
+  orientation: [
+    'Get introduced to CampusCoder programs and resources',
+    'Learn about upcoming events and how to participate',
+    'Understand our community guidelines and learning paths',
+    'Connect with fellow students and mentors',
+  ],
+};
+
+const whoShouldAttend: Record<string, { icon: React.ComponentType<{ className?: string }>; label: string; desc: string }[]> = {
+  workshop: [
+    { icon: BookOpen, label: 'Beginners', desc: 'No prior experience needed — start from scratch' },
+    { icon: Code2, label: 'Intermediate developers', desc: 'Level up with real-world project building' },
+    { icon: Target, label: 'Placement-focused students', desc: 'Build portfolio projects for interviews' },
+  ],
+  coding_session: [
+    { icon: BookOpen, label: 'Beginners', desc: 'Start with basic problem patterns' },
+    { icon: Code2, label: 'Intermediate', desc: 'Improve speed and accuracy' },
+    { icon: Target, label: 'Placement seekers', desc: 'Master DSA for coding interviews' },
+  ],
+  challenge: [
+    { icon: BookOpen, label: 'Beginners', desc: 'Start competing and building consistency' },
+    { icon: Code2, label: 'Intermediate', desc: 'Push your ranking with harder problems' },
+    { icon: Target, label: 'Competitive programmers', desc: 'Hone skills for ICPC, CodeChef, LeetCode' },
+  ],
+  webinar: [
+    { icon: BookOpen, label: 'All students', desc: 'Learn from industry experiences' },
+    { icon: Target, label: 'Placement seekers', desc: 'Get actionable career advice' },
+    { icon: GraduationCap, label: 'Final year students', desc: 'Prepare for campus placements' },
+  ],
+  orientation: [
+    { icon: Users, label: 'New members', desc: 'Learn what CampusCoder offers' },
+    { icon: BookOpen, label: 'Curious students', desc: 'Explore our programs and events' },
+    { icon: Target, label: 'Everyone', desc: 'Find your learning path' },
+  ],
+};
+
 export default function EventDetailsPage() {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
@@ -59,14 +140,10 @@ export default function EventDetailsPage() {
       if (!slug) return;
       try {
         const supabase = createClient();
-        
-        // 1. Fetch Event by Slug
+
         const { data: eventData, error: eventError } = await supabase
           .from('events')
-          .select(`
-            *,
-            event_owners (*)
-          `)
+          .select('*, event_owners (*)')
           .eq('slug', slug)
           .in('status', ['published', 'completed', 'cancelled'])
           .single()
@@ -76,7 +153,6 @@ export default function EventDetailsPage() {
 
         setEvent(eventData);
 
-        // 2. Fetch Related Events
         const { data: relatedData } = await supabase
           .from('events')
           .select('*')
@@ -89,7 +165,6 @@ export default function EventDetailsPage() {
           setRelatedEvents(relatedData);
         }
 
-        // 3. Fetch Active Community Links
         const { data: linksData } = await supabase
           .from('community_links')
           .select('*')
@@ -111,13 +186,11 @@ export default function EventDetailsPage() {
         }
 
         console.warn('Supabase fetch failed, looking up in local placeholders:', err);
-        
-        // Local fallback lookup
+
         const localMatch = placeholderEvents.find((ev) => getSlug(ev.title) === slug);
-        
+
         if (localMatch) {
           setEvent(localMatch);
-          // Load local related events
           const localRelated = placeholderEvents
             .filter((ev) => getSlug(ev.title) !== slug)
             .slice(0, 2);
@@ -126,35 +199,69 @@ export default function EventDetailsPage() {
           setError('not_found');
         }
 
-        // Load static community links
         setCommunityLinks([
-          { platform: 'Discord', url: '#', is_active: true },
-          { platform: 'Slack Channel', url: '#', is_active: true },
-          { platform: 'GitHub Team', url: '#', is_active: true }
+          { platform: 'Discord', url: 'https://discord.gg/VdsX64E5E', is_active: true },
+          { platform: 'WhatsApp', url: 'https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2', is_active: true },
         ]);
       } finally {
         setLoading(false);
       }
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchEventDetails();
   }, [slug]);
 
-  if (loading) {
-    return <CampusCoderLoader variant="page" label="Loading sprint parameters" />;
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const eventDate = event ? new Date(event.date) : null;
+
+  const isCompleted = event?.status === 'completed' || (eventDate !== null && eventDate < today);
+  const isCancelled = event?.status === 'cancelled';
+
+  let isDeadlinePassed = false;
+  if (event?.registration_deadline) {
+    isDeadlinePassed = new Date(event.registration_deadline) < new Date();
+  } else if (eventDate !== null && eventDate < today) {
+    isDeadlinePassed = true;
   }
 
-  // Draft / Unauthorized view
+  const isRegistrationDisabled = isDeadlinePassed || isCompleted || isCancelled;
+
+  const speaker = event?.event_owners?.[0] || (event as PlaceholderEvent)?.speaker || {
+    name: 'CampusCoder Tech Panel',
+    role: 'Industry Mentors',
+    bio: 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.',
+  };
+  const speakerBio = 'bio' in speaker ? (speaker.bio || 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.') : 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.';
+
+  const eventType = (event?.event_type || event?.type || 'workshop') as string;
+  const learningItems = learningByType[eventType] || learningByType.workshop;
+  const attendeeGroups = whoShouldAttend[eventType] || whoShouldAttend.workshop;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-40 min-h-screen">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-500 font-mono">Loading event details…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (error === 'unauthorized') {
     return (
-      <div className="tech-grid min-h-screen flex items-center justify-center py-20 px-4">
-        <Card className="text-center max-w-md p-8 border-amber-500/20 bg-slate-950">
+      <div className="min-h-screen flex items-center justify-center py-20 px-4">
+        <Card glass={false} className="text-center max-w-md p-8">
           <div className="flex size-12 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 mx-auto mb-4">
             <AlertOctagon className="size-6 text-amber-500" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Access Denied</h2>
-          <p className="text-slate-400 text-xs mb-6 leading-relaxed">
+          <h2 className="text-xl font-bold text-slate-50 mb-2">Access Denied</h2>
+          <p className="text-sm text-slate-400 mb-6 leading-relaxed">
             This event is currently in a draft state and has not been published for general access yet.
           </p>
           <Link href="/events">
@@ -165,14 +272,13 @@ export default function EventDetailsPage() {
     );
   }
 
-  // Not found view
   if (error === 'not_found' || !event) {
     return (
-      <div className="tech-grid min-h-screen flex items-center justify-center py-20 px-4">
-        <Card className="text-center max-w-md p-8 border-red-500/20 bg-slate-950">
-          <h2 className="text-2xl font-bold text-white mb-2">Sprint Not Found</h2>
-          <p className="text-slate-400 text-xs mb-6 leading-relaxed">
-            The requested sprint slug could not be located in our active schedules.
+      <div className="min-h-screen flex items-center justify-center py-20 px-4">
+        <Card glass={false} className="text-center max-w-md p-8">
+          <h2 className="text-2xl font-bold text-slate-50 mb-2">Event Not Found</h2>
+          <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+            The requested event could not be located. It may have been removed or the link may be incorrect.
           </p>
           <Link href="/events">
             <Button variant="primary">Return to Events</Button>
@@ -182,265 +288,309 @@ export default function EventDetailsPage() {
     );
   }
 
-  // Enforcements Checks
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const eventDate = new Date(event.date);
-  
-  const isCompleted = event.status === 'completed' || eventDate < today;
-  const isCancelled = event.status === 'cancelled';
-  
-  // Registration deadline check
-  let isDeadlinePassed = false;
-  if (event.registration_deadline) {
-    isDeadlinePassed = new Date(event.registration_deadline) < new Date();
-  } else if (eventDate < today) {
-    isDeadlinePassed = true;
-  }
-
-  const isRegistrationDisabled = isDeadlinePassed || isCompleted || isCancelled;
-
-  // Speaker Fallback mapping
-  const speaker = event.event_owners?.[0] || event.speaker || {
-    name: 'CampusCoder Tech Panel',
-    role: 'Industry Mentors',
-    bio: 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.'
-  };
-
-  const totalSeats = event.seatsTotal || event.seats_total || 100;
-  const registered = event.seatsRegistered || event.seats_registered || 0;
-  const remainingSeats = totalSeats - registered;
-  const fillPercentage = Math.round((registered / totalSeats) * 100);
-  const eventType = event.event_type || event.type || 'workshop';
-
   return (
-    <div className="tech-grid min-h-screen py-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Back Link */}
-        <Link href="/events" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-emerald-400 transition-colors mb-8 group">
-          <ArrowLeft className="size-4 group-hover:-translate-x-0.5 transition-transform" /> Back to all events
+    <div className="min-h-screen py-12 md:py-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 md:space-y-10">
+
+        {/* ── BACK LINK ── */}
+        <Link
+          href="/events"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-400 transition-colors"
+        >
+          <ArrowLeft className="size-3.5" /> Back to all events
         </Link>
 
-        {/* Dynamic Cancelled Banner */}
+        {/* ── STATUS BANNERS ── */}
         {isCancelled && (
-          <div className="flex items-center gap-3 p-4 bg-red-950/20 border border-red-500/30 rounded-xl mb-8 text-sm text-red-400">
-            <AlertOctagon className="size-5 text-red-500 flex-shrink-0" />
+          <div className="flex items-center gap-3 p-4 bg-red-950/20 border border-red-500/30 rounded-xl text-sm text-red-400">
+            <AlertOctagon className="size-5 text-red-500 shrink-0" />
             <div>
-              <p className="font-bold">This session has been cancelled</p>
-              <p className="text-xs text-red-400/80">Please check other upcoming developer sprints in the catalogue.</p>
+              <p className="font-semibold">This event has been cancelled</p>
+              <p className="text-xs text-red-400/80 mt-0.5">Check other upcoming events in the catalogue.</p>
             </div>
           </div>
         )}
 
         {isCompleted && !isCancelled && (
-          <div className="flex items-center gap-3 p-4 bg-slate-900/80 border border-slate-700 rounded-xl mb-8 text-sm text-slate-300">
-            <CheckCircle className="size-5 text-emerald-400 flex-shrink-0" />
+          <div className="flex items-center gap-3 p-4 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-slate-300">
+            <CheckCircle className="size-5 text-emerald-400 shrink-0" />
             <div>
-              <p className="font-bold">This session has been completed</p>
-              <p className="text-xs text-slate-400">Registration is closed, but the details remain available for reference.</p>
+              <p className="font-semibold">This event has been completed</p>
+              <p className="text-xs text-slate-400 mt-0.5">Registration is closed, but details remain available for reference.</p>
             </div>
           </div>
         )}
 
-        {/* Layout split: Main content vs Registration sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          
-          {/* Main Info Column */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Event Content card */}
-            <AnimatedSection direction="left">
-              <Card hoverEffect={false} className="p-8">
-              {event.banner_url && (
-                <div className="relative mb-8 aspect-video overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
-                  <Image
-                    src={event.banner_url}
-                    alt={`${event.title} banner`}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 100vw, 768px"
-                  />
-                </div>
-              )}
+        {/* ── HERO / EVENT SUMMARY ── */}
+        <AnimatedSection direction="up">
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+            <div className="flex-1 space-y-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="default">
+                  {eventType.replace('_', ' ')}
+                </Badge>
+                {isCancelled && <Badge variant="warning">Cancelled</Badge>}
+                {isCompleted && !isCancelled && <Badge variant="success">Completed</Badge>}
+              </div>
 
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 capitalize mb-4 inline-block">
-                {eventType.replace('_', ' ')}
-              </span>
-
-              <h1 className="text-3xl md:text-4xl font-extrabold text-white mt-2 mb-4 leading-tight">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-50 leading-tight">
                 {event.title}
               </h1>
 
-              {/* Event Metadata row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 py-4 border-y border-slate-900">
-                <div className="flex items-center gap-2.5 text-sm text-slate-300">
-                  <Calendar className="size-4.5 text-emerald-400" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                <div className="flex items-center gap-2.5">
+                  <Calendar className="size-4 text-emerald-400 shrink-0" />
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Date</p>
-                    <p className="font-medium">{new Date(event.date).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'})}</p>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Date</p>
+                    <p className="text-slate-300">{formatDate(event.date)}</p>
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-2.5 text-sm text-slate-300">
-                  <Clock className="size-4.5 text-emerald-400" />
+                <div className="flex items-center gap-2.5">
+                  <Clock className="size-4 text-emerald-400 shrink-0" />
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Time</p>
-                    <p className="font-medium">{event.start_time ? `${event.start_time.slice(0,5)} - ${event.end_time.slice(0,5)}` : event.time}</p>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Time</p>
+                    <p className="text-slate-300">
+                      {event.start_time
+                        ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
+                        : event.time}
+                    </p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2.5 text-sm text-slate-300">
-                  <MapPin className="size-4.5 text-emerald-400" />
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="size-4 text-emerald-400 shrink-0" />
                   <div>
-                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">Location / Mode</p>
-                    <p className="font-medium truncate max-w-[180px] capitalize">{event.location || event.mode}</p>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Mode</p>
+                    <p className="text-slate-300 capitalize">{event.mode || event.location || 'Online'}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="prose prose-invert max-w-none space-y-4">
-                <h3 className="text-lg font-bold text-white mb-2 font-mono">About session</h3>
-                <p className="text-slate-300 leading-relaxed text-sm">
-                  {event.full_description || event.longDescription || event.short_description || event.description}
-                </p>
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Link href={isRegistrationDisabled ? '#' : `/events/${slug}/register`}>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="w-full sm:w-auto h-12 px-8"
+                    disabled={isRegistrationDisabled}
+                  >
+                    {isCancelled ? 'Cancelled' : isCompleted ? 'Completed' : isDeadlinePassed ? 'Registrations Closed' : 'Register now'}
+                    {!isRegistrationDisabled && <ArrowRight className="ml-2 size-4" />}
+                  </Button>
+                </Link>
+                <div className="flex gap-2">
+                  {communityLinks
+                    .filter((l) => l.platform.toLowerCase().includes('discord'))
+                    .map((l) => (
+                      <a key={l.id ?? 'discord'} href={l.url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="secondary" size="lg" className="h-12 px-6">
+                          <MessageSquare className="mr-2 size-4" />
+                          Join Community
+                        </Button>
+                      </a>
+                    ))}
+                </div>
               </div>
+            </div>
 
-              {/* Event Tags */}
-              <div className="mt-8 flex flex-wrap gap-2">
-                {(event.tags || ['Coding', 'Tech']).map((tag: string) => (
-                  <span key={tag} className="text-xs font-mono bg-slate-950/80 text-emerald-400/80 border border-slate-850 px-3 py-1 rounded-full">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            </Card>
+            {/* Sidebar registration card */}
+            <div className="lg:w-80 shrink-0">
+              <Card hoverEffect className="p-6">
+                <h3 className="text-sm font-semibold text-slate-50 mb-4">Registration</h3>
+
+                {!isCancelled && !isCompleted && (
+                  <div className="space-y-4 mb-5">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500">Seats filled</span>
+                        <span className="text-emerald-400 font-medium">{Math.min(100, Math.round(((event.seatsRegistered || 0) / (event.seatsTotal || 100)) * 100))}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, Math.round(((event.seatsRegistered || 0) / (event.seatsTotal || 100)) * 100))}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {(event.seatsTotal || 100) - (event.seatsRegistered || 0)} of {event.seatsTotal || 100} seats remaining
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 text-xs text-slate-500">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="size-3.5 text-emerald-400" />
+                        <span>Free entry for all students</span>
+                      </div>
+                      {event.registration_deadline && (
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="size-3.5 text-amber-500" />
+                          <span>Register by {formatDate(event.registration_deadline)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {isCancelled && (
+                  <div className="bg-red-500/5 border border-red-500/20 text-red-400 text-xs p-3 rounded-lg mb-5 text-center">
+                    Registration cancelled
+                  </div>
+                )}
+                {isCompleted && !isCancelled && (
+                  <div className="bg-slate-800/50 border border-slate-700 text-slate-400 text-xs p-3 rounded-lg mb-5 text-center">
+                    Event completed
+                  </div>
+                )}
+                {isDeadlinePassed && !isCompleted && !isCancelled && (
+                  <div className="bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs p-3 rounded-lg mb-5 text-center">
+                    Registration deadline passed
+                  </div>
+                )}
+
+                <Link href={isRegistrationDisabled ? '#' : `/events/${slug}/register`} className="block">
+                  <Button
+                    variant={isRegistrationDisabled ? 'outline' : 'primary'}
+                    size="md"
+                    className="w-full"
+                    disabled={isRegistrationDisabled}
+                  >
+                    {isCancelled ? 'Cancelled' : isCompleted ? 'Completed' : isDeadlinePassed ? 'Closed' : 'Register now'}
+                  </Button>
+                </Link>
+              </Card>
+            </div>
+          </div>
+        </AnimatedSection>
+
+        {/* ── MAIN CONTENT + SIDEBAR ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+
+          {/* ── MAIN CONTENT ── */}
+          <div className="lg:col-span-2 space-y-8">
+
+            {/* Info panel */}
+            <AnimatedSection delay={0.05}>
+              <Card hoverEffect className="p-6 md:p-8">
+                <h2 className="text-base font-semibold text-slate-50 mb-5">Event Information</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm">
+                  <div>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Date</p>
+                    <p className="text-slate-300">{formatDate(event.date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Time</p>
+                    <p className="text-slate-300">
+                      {event.start_time
+                        ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
+                        : event.time}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Mode</p>
+                    <p className="text-slate-300 capitalize">{event.mode || event.location || 'Online'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Platform</p>
+                    <p className="text-slate-300 capitalize">{event.meeting_link ? 'Online meeting link' : event.location || event.mode || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Registration deadline</p>
+                    <p className="text-slate-300">{event.registration_deadline ? formatDate(event.registration_deadline) : '—'}</p>
+                  </div>
+                </div>
+              </Card>
             </AnimatedSection>
 
-            {/* Speaker Information */}
-            <AnimatedSection direction="left" delay={0.1}>
-              <Card hoverEffect={false} className="p-8">
-              <h3 className="text-lg font-bold text-white mb-6 font-mono">Speaker Panel</h3>
-              <div className="flex items-start gap-4">
-                <div className="size-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
-                  <User className="size-6 text-emerald-400" />
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-white">{speaker.name}</h4>
-                  <p className="text-xs text-emerald-400 font-mono mb-2">{speaker.role}</p>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    {speaker.bio || 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.'}
-                  </p>
-                </div>
-              </div>
-            </Card>
+            {/* Description */}
+            {(event.full_description || event.longDescription || event.short_description || event.description) && (
+              <AnimatedSection delay={0.08}>
+                <Card hoverEffect className="p-6 md:p-8">
+                  <h2 className="text-base font-semibold text-slate-50 mb-4">About this event</h2>
+                  <div className="text-sm text-slate-400 leading-relaxed space-y-4 whitespace-pre-line">
+                    {event.full_description || event.longDescription || event.short_description || event.description}
+                  </div>
+                </Card>
+              </AnimatedSection>
+            )}
+
+            {/* What you will learn */}
+            <AnimatedSection delay={0.1}>
+              <Card hoverEffect className="p-6 md:p-8">
+                <h2 className="text-base font-semibold text-slate-50 mb-4">What you will learn</h2>
+                <ul className="space-y-3">
+                  {learningItems.map((item, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm text-slate-400">
+                      <CheckCircle className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
             </AnimatedSection>
+
+            {/* Who should attend */}
+            <AnimatedSection delay={0.12}>
+              <Card hoverEffect className="p-6 md:p-8">
+                <h2 className="text-base font-semibold text-slate-50 mb-4">Who should attend</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {attendeeGroups.map((group) => (
+                    <div key={group.label} className="rounded-lg border border-slate-800/60 bg-slate-900/30 p-4">
+                      <group.icon className="size-5 text-emerald-400 mb-2" />
+                      <p className="text-sm font-semibold text-slate-200">{group.label}</p>
+                      <p className="text-xs text-slate-500 mt-1">{group.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </AnimatedSection>
+
+            {/* Speakers */}
+            <AnimatedSection delay={0.14}>
+              <Card hoverEffect className="p-6 md:p-8">
+                <h2 className="text-base font-semibold text-slate-50 mb-4">Speaker</h2>
+                <div className="flex items-start gap-4">
+                  <div className="size-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-emerald-400">
+                      {speaker.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-50">{speaker.name}</h3>
+                    <p className="text-xs text-emerald-400 mt-0.5">{speaker.role}</p>
+                    <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                      {speakerBio}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </AnimatedSection>
+
+          </div>
+
+          {/* ── SIDEBAR ── */}
+          <div className="space-y-6">
 
             {/* Meeting link notice */}
             {event.meeting_link && (event.mode === 'online' || event.mode === 'hybrid') && (
-              <AnimatedSection direction="left" delay={0.15}>
-                <Card hoverEffect={false} className="p-8 border-emerald-500/20 bg-slate-900/40">
-                  <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-                    <Link2 className="size-5 text-emerald-400" /> Meeting Details
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+              <AnimatedSection delay={0.1}>
+                <Card hoverEffect className="p-5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+                    Meeting Details
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     This is a virtual event. The private meeting link is shared directly with registered students by email and community channels.
                   </p>
                 </Card>
               </AnimatedSection>
             )}
-          </div>
 
-          {/* Sidebar drawer: RSVP & community links */}
-          <div className="space-y-6">
-            
-            {/* RSVP drawer card */}
-            <AnimatedSection direction="right">
-              <Card hoverEffect={false} className={`border-emerald-500/20 bg-slate-900 p-6 ${isRegistrationDisabled ? 'opacity-90' : ''}`}>
-              <h3 className="text-lg font-bold text-white mb-4 font-mono">Registration</h3>
-              
-              {/* Registration seats progress */}
-              {!isCancelled && !isCompleted && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between text-xs font-mono text-slate-400 mb-2">
-                    <span>Available Seats</span>
-                    <span className="font-semibold text-emerald-400">
-                      {remainingSeats} of {totalSeats} left
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-850">
-                    <div
-                      className="h-full bg-emerald-500 rounded-full"
-                      style={{ width: `${fillPercentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Status information banners */}
-              {isCancelled ? (
-                <div className="bg-red-500/5 border border-red-500/20 text-red-400 text-xs p-3 rounded-lg mb-6 text-center font-mono">
-                  RSVPs CANCELLED
-                </div>
-              ) : isCompleted ? (
-                <div className="bg-slate-950 border border-slate-850 text-slate-400 text-xs p-3 rounded-lg mb-6 text-center font-mono">
-                  SESSION COMPLETED
-                </div>
-              ) : isDeadlinePassed ? (
-                <div className="bg-amber-500/5 border border-amber-500/20 text-amber-400 text-xs p-3 rounded-lg mb-6 text-center font-mono">
-                  DEADLINE PASSED
-                </div>
-              ) : (
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center gap-2 text-xs text-slate-300">
-                    <CheckCircle className="size-4 text-emerald-400" />
-                    <span>Free entry for campus students</span>
-                  </div>
-                  {event.registration_deadline && (
-                    <div className="flex items-center gap-2 text-xs text-slate-300">
-                      <AlertTriangle className="size-4 text-amber-500" />
-                      <span>RSVP by: {new Date(event.registration_deadline).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Action register button */}
-              <Link href={isRegistrationDisabled ? '#' : `/events/${slug}/register`} className="block">
-                <MotionButton className="w-full">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="w-full flex items-center justify-center gap-2"
-                    disabled={isRegistrationDisabled}
-                  >
-                    {isCancelled ? (
-                      'Cancelled'
-                    ) : isCompleted ? (
-                      'Sprints Finished'
-                    ) : isDeadlinePassed ? (
-                      'Registrations Closed'
-                    ) : (
-                      <>
-                        Register for Event <ArrowRight className="size-4" />
-                      </>
-                    )}
-                  </Button>
-                </MotionButton>
-              </Link>
-            </Card>
-            </AnimatedSection>
-
-            {/* Community Links card */}
-            <AnimatedSection direction="right" delay={0.1}>
-              <Card hoverEffect={false} className="p-6">
-                <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-                  <MessageSquare className="size-4 text-emerald-400" /> Join Channels
+            {/* Community links */}
+            <AnimatedSection delay={0.12}>
+              <Card hoverEffect className="p-5">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                  <MessageSquare className="size-3.5 text-emerald-400" /> Join Community
                 </h4>
-                <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-                  Connect with our active channels to get updates, slides, code repositories, and notifications.
+                <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                  Connect with fellow students for event updates, code sharing, and discussions.
                 </p>
                 <div className="space-y-2">
                   {communityLinks.length > 0 ? communityLinks.map((link) => (
@@ -449,52 +599,50 @@ export default function EventDetailsPage() {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between text-xs text-slate-300 hover:text-emerald-400 p-2.5 rounded bg-slate-950/60 border border-slate-900 transition-colors group"
+                      className="flex items-center justify-between text-xs text-slate-300 hover:text-emerald-400 px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 transition-colors group"
                     >
-                      <span className="capitalize">{link.platform}</span>
-                      <ArrowRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      <span className="flex items-center gap-2 capitalize">
+                        {link.platform.toLowerCase().includes('discord') && <MessageSquare className="size-3.5" />}
+                        {link.platform.toLowerCase().includes('whatsapp') && <Phone className="size-3.5" />}
+                        {link.platform}
+                      </span>
+                      <ChevronRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </a>
                   )) : (
-                    <p className="text-[10px] text-slate-500 font-mono italic">No channels linked yet.</p>
+                    <p className="text-[10px] text-slate-600 font-mono">No channels linked yet.</p>
                   )}
                 </div>
               </Card>
             </AnimatedSection>
           </div>
-
         </div>
 
-        {/* 13. Related Upcoming Events Section */}
+        {/* ── RELATED EVENTS ── */}
         {relatedEvents.length > 0 && (
-          <AnimatedSection className="mt-16 pt-12 border-t border-slate-900/80" direction="up">
-            <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-2 font-mono">
-              <Sparkles className="size-5 text-emerald-400" /> Other Upcoming Sprints
+          <AnimatedSection className="pt-10 border-t border-slate-800/40" delay={0.15}>
+            <h3 className="text-lg font-semibold text-slate-50 mb-6 flex items-center gap-2">
+              <Sparkles className="size-4 text-emerald-400" /> Other events you might like
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {relatedEvents.map((rel, index) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {relatedEvents.map((rel) => {
                 const relType = rel.event_type || rel.type || 'workshop';
                 const relSlug = rel.slug || getSlug(rel.title);
+                const relDate = rel.date ? formatDate(rel.date) : '';
                 return (
-                  <AnimatedEventCard key={rel.id} delay={index * 0.15} className="group flex flex-col justify-between h-full bg-slate-950">
-                    <div className="p-6">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 capitalize inline-block mb-3">
-                        {relType.replace('_', ' ')}
-                      </span>
-                      <h4 className="text-base font-bold text-white group-hover:text-emerald-400 transition-colors mb-2">
-                        {rel.title}
-                      </h4>
-                      <p className="text-xs text-slate-400 mb-6 line-clamp-2">
-                        {rel.short_description || rel.description}
-                      </p>
-                    </div>
-                    <div className="p-6 pt-0">
-                      <Link href={`/events/${relSlug}`} className="block">
-                        <Button variant="secondary" size="sm" className="w-full justify-between">
-                          View Details <ArrowRight className="size-3.5" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </AnimatedEventCard>
+                  <Link key={rel.id} href={`/events/${relSlug}`} className="group block">
+                    <Card hoverEffect className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-2 min-w-0">
+                          <Badge variant="default">{relType.replace('_', ' ')}</Badge>
+                          <h4 className="text-sm font-semibold text-slate-50 group-hover:text-emerald-400 transition-colors">
+                            {rel.title}
+                          </h4>
+                          {relDate && <p className="text-xs text-slate-500">{relDate}</p>}
+                        </div>
+                        <ChevronRight className="size-4 text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0 mt-1" />
+                      </div>
+                    </Card>
+                  </Link>
                 );
               })}
             </div>
