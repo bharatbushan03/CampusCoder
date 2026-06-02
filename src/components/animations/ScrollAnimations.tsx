@@ -141,25 +141,18 @@ interface MotionButtonProps {
 }
 
 /**
- * Wrapper for buttons to add visual weight and micro-interactions on hover and click.
+ * Pass-through wrapper — Button component handles its own motion internally.
+ * Kept for API compatibility; wraps children in a plain span.
  */
 export const MotionButton: React.FC<MotionButtonProps> = React.memo(function MotionButton({
   children,
   className = '',
   ...props
 }) {
-  const reducedMotion = usePrefersReducedMotion();
-
   return (
-    <motion.div
-      className={`inline-block ${className}`}
-      whileHover={reducedMotion ? {} : { scale: 1.03 }}
-      whileTap={reducedMotion ? {} : { scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 450, damping: 15 }}
-      {...props}
-    >
+    <span className={`inline-block ${className}`} {...props}>
       {children}
-    </motion.div>
+    </span>
   );
 });
 

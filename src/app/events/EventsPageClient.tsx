@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
@@ -171,10 +172,13 @@ export default function EventsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-40 min-h-screen">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-          <p className="text-xs text-slate-500 font-mono">Loading events…</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 space-y-10 md:space-y-14">
+        <div className="space-y-2">
+          <div className="h-8 w-64 bg-slate-800/60 animate-pulse rounded-lg" />
+          <div className="h-4 w-96 bg-slate-800/60 animate-pulse rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+          <SkeletonCard count={6} />
         </div>
       </div>
     );

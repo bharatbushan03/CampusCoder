@@ -1,6 +1,15 @@
-import React from 'react';
+'use client';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+import React from 'react';
+import { motion } from 'framer-motion';
+import { usePrefersReducedMotion } from '@/components/animations/ScrollAnimations';
+
+type ButtonPropsBase = Omit<
+  React.ButtonHTMLAttributes<HTMLButtonElement>,
+  'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration'
+>;
+
+interface ButtonProps extends ButtonPropsBase {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
@@ -8,7 +17,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const baseStyles =
-  'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500/30 disabled:opacity-50 disabled:pointer-events-none cursor-pointer select-none active:scale-[0.98]';
+  'inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500/30 disabled:opacity-50 disabled:pointer-events-none cursor-pointer select-none';
 
 const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
@@ -35,19 +44,55 @@ export const Button: React.FC<ButtonProps> = React.memo(function Button({
   className = '',
   isLoading = false,
   children,
-  ...props
+  disabled,
+  form,
+  formAction,
+  name,
+  tabIndex,
+  title,
+  value,
+  onClick,
+  onBlur,
+  onFocus,
+  onKeyDown,
+  onKeyUp,
+  onMouseEnter,
+  onMouseLeave,
+  id,
+  autoFocus,
+  style,
 }) {
+  const reducedMotion = usePrefersReducedMotion();
+
   return (
-    <button
+    <motion.button
       type="button"
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      disabled={isLoading || props.disabled}
-      {...props}
+      disabled={isLoading || disabled}
+      whileHover={reducedMotion ? {} : { scale: 1.02 }}
+      whileTap={reducedMotion ? {} : { scale: 0.97 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      form={form}
+      formAction={formAction}
+      name={name}
+      tabIndex={tabIndex}
+      title={title}
+      value={value}
+      id={id}
+      autoFocus={autoFocus}
+      style={style}
+      onClick={onClick}
+      onBlur={onBlur}
+      onFocus={onFocus}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {isLoading && (
         <div className="mr-2 size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
       )}
       {children}
-    </button>
+    </motion.button>
   );
 });
