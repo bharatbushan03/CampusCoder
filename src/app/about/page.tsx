@@ -4,7 +4,7 @@ import AboutPageClient from './AboutPageClient';
 
 export const metadata: Metadata = {
   title: 'About | CampusCoder',
-  description: 'Learn about CampusCoder - a student-led coding community bridging academic learning and industry standards with hands-on technical workshops and sprints.',
+  description: 'Learn about CampusCoder - a student-run coding community for workshops, placement prep, and peer learning.',
 };
 
 export default function AboutPage() {

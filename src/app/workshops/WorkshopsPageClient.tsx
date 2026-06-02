@@ -51,7 +51,7 @@ export default function WorkshopsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-40 min-h-screen">
-        <CampusCoderLoader size="lg" text="Syncing Workshop Materials" />
+        <CampusCoderLoader size="lg" text="Loading workshops" />
       </div>
     );
   }
@@ -68,7 +68,7 @@ export default function WorkshopsPage() {
           </div>
           <h1 className="text-4xl font-extrabold text-white tracking-tight font-mono">Technical <span className="text-emerald-500">Workshops</span></h1>
         </div>
-        <p className="text-slate-400 max-w-2xl text-lg">In-depth, hands-on learning sessions led by industry professionals and community experts. Master new technologies through building.</p>
+        <p className="text-slate-400 max-w-2xl text-lg">Hands-on sessions led by seniors and mentors. Build real projects and learn by doing.</p>
       </AnimatedSection>
 
       {workshops.length > 0 ? (
@@ -132,9 +132,9 @@ export default function WorkshopsPage() {
       ) : (
         <div className="text-center py-20 bg-slate-900/10 border border-slate-800 rounded-3xl space-y-4">
           <Layers className="size-12 text-slate-800 mx-auto" />
-          <p className="text-slate-500 font-mono">No technical workshops scheduled at the moment.</p>
+          <p className="text-slate-500 font-mono">No workshops scheduled right now.</p>
           <Link href="/events">
-            <Button variant="primary">Check All Events</Button>
+            <Button variant="primary">Browse all events</Button>
           </Link>
         </div>
       )}

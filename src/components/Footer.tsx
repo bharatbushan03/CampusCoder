@@ -70,7 +70,7 @@ export const Footer: React.FC = React.memo(function Footer() {
               </span>
             </Link>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Empowering the next generation of student developers through hands-on technical workshops and collaborative learning ecosystems.
+              A student-run coding community organizing workshops, sprints, and peer learning sessions.
             </p>
             <div className="flex items-center gap-3">
               {links.map((link) => (
@@ -132,7 +132,7 @@ export const Footer: React.FC = React.memo(function Footer() {
               </div>
               <div className="space-y-2">
                 <p className="text-[11px] text-slate-500 leading-tight">
-                  A new college coding community. Events and resources are being set up.
+                  A growing student coding community. New events and resources added regularly.
                 </p>
                 <div className="pt-2">
                   <Link href="/register">
@@ -147,7 +147,7 @@ export const Footer: React.FC = React.memo(function Footer() {
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-slate-900 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-xs text-slate-500 font-mono">
-            &copy; {copyrightYear} CampusCoder Hub. All rights reserved.
+            &copy; {copyrightYear} CampusCoder. All rights reserved.
           </p>
           <div className="flex items-center gap-6 text-xs text-slate-600">
             <Link href="/privacy" className="transition-colors hover:text-slate-400">
@@ -157,7 +157,7 @@ export const Footer: React.FC = React.memo(function Footer() {
               Terms
             </Link>
             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-emerald-500/80">
-              <Code className="size-3" /> built for builders
+              <Code className="size-3" /> by students, for students
             </span>
           </div>
         </div>

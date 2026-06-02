@@ -63,36 +63,36 @@ function formatTime(timeStr: string) {
 
 const learningByType: Record<string, string[]> = {
   workshop: [
-    'Build real-world projects using modern tools and frameworks',
-    'Understand best practices and industry-standard workflows',
-    'Get hands-on experience with live coding sessions',
-    'Learn debugging and problem-solving techniques',
-    'Walk away with a working project for your portfolio',
+    'Build projects using modern tools and frameworks',
+    'Learn industry best practices and workflows',
+    'Code along with live sessions',
+    'Practice debugging and problem-solving',
+    'Leave with a working portfolio project',
   ],
   coding_session: [
-    'Solve curated algorithmic problems with live walkthroughs',
-    'Learn time and space complexity analysis',
-    'Understand common interview problem patterns',
-    'Practice writing clean, efficient code under guidance',
-    'Compare multiple solution approaches',
+    'Solve curated problems with live walkthroughs',
+    'Understand time and space complexity',
+    'Recognize common interview patterns',
+    'Write cleaner, efficient code with guidance',
+    'Compare different solution approaches',
   ],
   challenge: [
-    'Compete in algorithmic challenges and track your rank',
-    'Sharpen problem-solving skills under time constraints',
-    'Learn from solution discussions and alternative approaches',
+    'Compete in challenges and track your rank',
+    'Solve problems under time constraints',
+    'Learn from solution discussions',
     'Build consistency with regular practice',
-    'Prepare for competitive programming contests',
+    'Prepare for competitive programming',
   ],
   webinar: [
-    'Gain insights from industry professionals and seniors',
-    'Learn about career paths and skill-building strategies',
-    'Understand placement preparation roadmaps',
-    'Get your questions answered in live Q&A',
+    'Hear from seniors and industry professionals',
+    'Learn about career paths and strategies',
+    'Understand placement prep roadmaps',
+    'Get your questions answered live',
   ],
   orientation: [
-    'Get introduced to CampusCoder programs and resources',
-    'Learn about upcoming events and how to participate',
-    'Understand our community guidelines and learning paths',
+    'Learn about CampusCoder programs and resources',
+    'Find upcoming events and how to join',
+    'Understand community guidelines',
     'Connect with fellow students and mentors',
   ],
 };
@@ -262,7 +262,7 @@ export default function EventDetailsPage() {
           </div>
           <h2 className="text-xl font-bold text-slate-50 mb-2">Access Denied</h2>
           <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-            This event is currently in a draft state and has not been published for general access yet.
+            This event has not been published yet. Check back later.
           </p>
           <Link href="/events">
             <Button variant="primary" size="sm">Return to Events</Button>
@@ -278,7 +278,7 @@ export default function EventDetailsPage() {
         <Card glass={false} className="text-center max-w-md p-8">
           <h2 className="text-2xl font-bold text-slate-50 mb-2">Event Not Found</h2>
           <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-            The requested event could not be located. It may have been removed or the link may be incorrect.
+            We could not find this event. It might have been removed or the link may be incorrect.
           </p>
           <Link href="/events">
             <Button variant="primary">Return to Events</Button>
@@ -315,8 +315,8 @@ export default function EventDetailsPage() {
           <div className="flex items-center gap-3 p-4 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-slate-300">
             <CheckCircle className="size-5 text-emerald-400 shrink-0" />
             <div>
-              <p className="font-semibold">This event has been completed</p>
-              <p className="text-xs text-slate-400 mt-0.5">Registration is closed, but details remain available for reference.</p>
+              <p className="font-semibold">This event has ended</p>
+              <p className="text-xs text-slate-400 mt-0.5">Registration is closed, but details are still available.</p>
             </div>
           </div>
         )}
@@ -418,7 +418,7 @@ export default function EventDetailsPage() {
                     <div className="space-y-2 text-xs text-slate-500">
                       <div className="flex items-center gap-2">
                         <CheckCircle className="size-3.5 text-emerald-400" />
-                        <span>Free entry for all students</span>
+                        <span>Free for all students</span>
                       </div>
                       {event.registration_deadline && (
                         <div className="flex items-center gap-2">
@@ -470,7 +470,7 @@ export default function EventDetailsPage() {
             {/* Info panel */}
             <AnimatedSection delay={0.05}>
               <Card hoverEffect className="p-6 md:p-8">
-                <h2 className="text-base font-semibold text-slate-50 mb-5">Event Information</h2>
+                <h2 className="text-base font-semibold text-slate-50 mb-5">Event info</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm">
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Date</p>
@@ -530,7 +530,7 @@ export default function EventDetailsPage() {
             {/* Who should attend */}
             <AnimatedSection delay={0.12}>
               <Card hoverEffect className="p-6 md:p-8">
-                <h2 className="text-base font-semibold text-slate-50 mb-4">Who should attend</h2>
+                <h2 className="text-base font-semibold text-slate-50 mb-4">Who is this for</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {attendeeGroups.map((group) => (
                     <div key={group.label} className="rounded-lg border border-slate-800/60 bg-slate-900/30 p-4">
@@ -577,7 +577,7 @@ export default function EventDetailsPage() {
                     Meeting Details
                   </h4>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    This is a virtual event. The private meeting link is shared directly with registered students by email and community channels.
+                    This event is online. The meeting link will be shared with registered students by email and in the community.
                   </p>
                 </Card>
               </AnimatedSection>
@@ -590,7 +590,7 @@ export default function EventDetailsPage() {
                   <MessageSquare className="size-3.5 text-emerald-400" /> Join Community
                 </h4>
                 <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                  Connect with fellow students for event updates, code sharing, and discussions.
+                  Get event updates, share code, and connect with other participants.
                 </p>
                 <div className="space-y-2">
                   {communityLinks.length > 0 ? communityLinks.map((link) => (
@@ -620,8 +620,8 @@ export default function EventDetailsPage() {
         {/* ── RELATED EVENTS ── */}
         {relatedEvents.length > 0 && (
           <AnimatedSection className="pt-10 border-t border-slate-800/40" delay={0.15}>
-            <h3 className="text-lg font-semibold text-slate-50 mb-6 flex items-center gap-2">
-              <Sparkles className="size-4 text-emerald-400" /> Other events you might like
+              <h3 className="text-lg font-semibold text-slate-50 mb-6 flex items-center gap-2">
+              <Sparkles className="size-4 text-emerald-400" /> More events
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {relatedEvents.map((rel) => {
