@@ -76,7 +76,7 @@ export default function AdminAnnouncementsPage() {
   });
 
   if (loading) {
-    return <CampusCoderLoader variant="inline" label="Loading announcements" />;
+    return <CampusCoderLoader text="Loading announcements" />;
   }
 
   return (

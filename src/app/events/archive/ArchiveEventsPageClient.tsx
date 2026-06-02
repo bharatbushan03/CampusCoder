@@ -62,7 +62,7 @@ export default function EventArchivePage() {
   });
 
   if (loading) {
-    return <CampusCoderLoader variant="page" label="Loading event archive" />;
+    return <CampusCoderLoader fullPage text="Loading event archive" />;
   }
 
   return (
