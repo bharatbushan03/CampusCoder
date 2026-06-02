@@ -58,7 +58,7 @@ export const Footer: React.FC = React.memo(function Footer() {
   return (
     <footer className="relative z-10 bg-slate-950 border-t border-slate-900 pt-20 pb-12 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8 mb-16">
           {/* Brand Column */}
           <div className="space-y-6 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 group">
@@ -79,7 +79,7 @@ export const Footer: React.FC = React.memo(function Footer() {
                   href={link.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="size-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all"
+                  className="size-10 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all"
                   title={link.platform}
                 >
                   {getPlatformIcon(link.platform)}
