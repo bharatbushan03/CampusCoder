@@ -11,7 +11,7 @@ import {
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
-import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
@@ -248,7 +248,26 @@ export default function AdminRegistrationsPage() {
   const registeredOnlyCount = filteredRegistrations.filter(r => r.attendance_status === 'registered').length;
 
   if (loading) {
-    return <CampusCoderLoader variant="inline" label="Loading registrations ledger" />;
+    return (
+      <div className="space-y-8">
+        <div className="space-y-1">
+          <Skeleton variant="text" className="h-3 w-32" />
+          <Skeleton variant="text" className="h-8 w-72" />
+          <Skeleton variant="text" className="h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-slate-800/60 bg-slate-900/50 p-4 space-y-2">
+              <Skeleton variant="text" className="h-3 w-24" />
+              <Skeleton variant="text" className="h-6 w-12" />
+            </div>
+          ))}
+        </div>
+        <div className="rounded-xl border border-slate-800/60 bg-slate-900/50">
+          <SkeletonTable rows={6} cols={5} />
+        </div>
+      </div>
+    );
   }
 
   return (

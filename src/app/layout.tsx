@@ -42,7 +42,19 @@ export default function RootLayout({
           </PageTransition>
         </main>
         <Footer />
-        <Toaster theme="dark" position="bottom-right" richColors />
+        <Toaster
+          theme="dark"
+          position="bottom-right"
+          richColors
+          closeButton
+          toastOptions={{
+            style: {
+              border: '1px solid rgba(30, 41, 59, 0.6)',
+              background: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(12px)',
+            },
+          }}
+        />
       </body>
     </html>
   );

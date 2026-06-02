@@ -8,7 +8,7 @@ interface BadgeProps {
 
 const variants = {
   default: 'bg-slate-800 text-slate-300 border-slate-700',
-  accent: 'bg-emerald-900/30 text-emerald-300 border-emerald-800',
+  accent: 'bg-emerald-900/30 text-emerald-300 border-emerald-800 badge-live',
   success: 'bg-green-900/30 text-green-300 border-green-800',
   warning: 'bg-amber-900/30 text-amber-300 border-amber-800',
   error: 'bg-red-900/30 text-red-300 border-red-800',
