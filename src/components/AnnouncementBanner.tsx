@@ -39,7 +39,33 @@ export const AnnouncementBanner: React.FC = () => {
           .limit(1)
           .returns<AnnouncementWithEvent[]>();
 
-        if (error) throw error;
+        if (error) {
+          if ('code' in error && error.code === '42703') {
+            const { data: fallback } = await supabase
+              .from('announcements')
+              .select(`
+                *,
+                events (
+                  title,
+                  slug
+                )
+              `)
+              .eq('is_active', true)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .returns<AnnouncementWithEvent[]>();
+
+            if (fallback && fallback.length > 0) {
+              const latest = fallback[0];
+              const dismissedId = localStorage.getItem('dismissed_announcement_id');
+              if (dismissedId !== latest.id) {
+                setAnnouncement(latest);
+                setVisible(true);
+              }
+            }
+          }
+          return;
+        }
 
         if (data && data.length > 0) {
           const latest = data[0];
@@ -49,8 +75,8 @@ export const AnnouncementBanner: React.FC = () => {
             setVisible(true);
           }
         }
-      } catch (err) {
-        console.warn('Announcement banner fetch error:', err);
+      } catch (_err) {
+        // Banner unavailable — silently degrade
       }
     };
 
