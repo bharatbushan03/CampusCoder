@@ -62,8 +62,8 @@ export default function ForgotPasswordPage() {
               Campus<span className="text-emerald-500 font-sans">Coder</span>
             </span>
           </Link>
-          <h1 className="text-xl font-bold text-white font-mono">Reset Your Password</h1>
-          <p className="text-xs text-slate-400 mt-1">Enter your registered email to receive a secure login link.</p>
+          <h1 className="text-xl font-bold text-white font-mono">Reset your password</h1>
+          <p className="text-xs text-slate-400 mt-1">Enter your email and we will send you a reset link.</p>
         </div>
 
         {/* Forgot Password Card */}
@@ -125,9 +125,9 @@ export default function ForgotPasswordPage() {
               <div className="flex size-12 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30 mx-auto mb-4">
                 <KeyRound className="size-6 text-emerald-400" />
               </div>
-              <p className="text-sm text-slate-300 mb-6">
-                Please check your inbox. If the email exists in our system, you will receive a reset password link.
-              </p>
+                <p className="text-sm text-slate-300 mb-6">
+                  Check your inbox. If the account exists, you will receive a reset link shortly.
+                </p>
               <Link href="/login">
                 <Button variant="secondary" className="w-full">
                   Return to Login
@@ -152,7 +152,7 @@ export default function ForgotPasswordPage() {
         {/* Back link */}
         <div className="text-center mt-6">
           <Link href="/" className="text-xs text-slate-500 hover:text-slate-400">
-            &larr; Back to landing page
+            &larr; Back to home
           </Link>
         </div>
 

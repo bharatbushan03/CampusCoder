@@ -30,29 +30,29 @@ type EventRow = Database['public']['Tables']['events']['Row'];
 const programs = [
   {
     title: 'Placement Coding Sprint',
-    description: 'Structured DSA & problem-solving sessions covering arrays, strings, DP, graphs, and system design. Led by seniors placed in top tech companies.',
-    gain: 'Mock interviews, resume reviews, and real coding assessments',
+    description: 'Practice DSA with problem-solving sessions on arrays, strings, DP, graphs, and system design. Led by seniors who have been through campus placements.',
+    gain: 'Mock interviews, resume reviews, and coding assessments',
     level: 'Intermediate – Advanced',
     icon: Target,
   },
   {
     title: 'HackerRank Practice Sessions',
-    description: 'Weekly group problem-solving on HackerRank. Solve curated problem sets with live solution walkthroughs and complexity analysis.',
+    description: 'Solve curated problems every week with live walkthroughs and complexity analysis.',
     gain: 'Consistent practice, contest exposure, ranking improvement',
     level: 'Beginner – Intermediate',
     icon: Code2,
   },
   {
     title: 'Beginner Coding Workshops',
-    description: 'Hands-on full-stack workshops covering React, Node.js, Python, and modern web development. Build real projects from scratch.',
-    gain: 'Portfolio projects, framework proficiency, deployment experience',
+    description: 'Build projects with React, Node.js, Python, and modern web tools.',
+    gain: 'Portfolio projects, framework skills, deployment experience',
     level: 'Beginner – Intermediate',
     icon: BookOpen,
   },
   {
     title: 'Weekly Code Hour',
-    description: 'One-hour open coding sessions where students solve problems together, discuss approaches, and learn debugging techniques.',
-    gain: 'Consistency, peer debugging skills, confidence building',
+    description: 'Open one-hour sessions to solve problems together, discuss approaches, and debug as a group.',
+    gain: 'Consistency, peer debugging, confidence building',
     level: 'All levels',
     icon: Clock,
   },
@@ -67,14 +67,14 @@ const programs = [
 
 const trustIndicators = [
   { label: 'Student-led community', icon: Users },
-  { label: 'Virtual workshops', icon: BookOpen },
+  { label: 'Hands-on workshops', icon: BookOpen },
   { label: 'Coding challenges', icon: Code2 },
-  { label: 'Placement-focused learning', icon: Target },
+  { label: 'Placement prep', icon: Target },
 ];
 
 const stats = [
-  { value: '8+', label: 'Events hosted' },
-  { value: '200+', label: 'Students reached' },
+  { value: '8+', label: 'Workshops & sprints' },
+  { value: '200+', label: 'Students involved' },
   { value: '150+', label: 'Community members' },
   { value: '12+', label: 'Practice sessions' },
 ];
@@ -82,8 +82,8 @@ const stats = [
 const howItWorks = [
   {
     step: 1,
-    title: 'Register for events',
-    description: 'Browse upcoming workshops, coding sprints, and contests. Reserve your spot in one click.',
+    title: 'Register for an event',
+    description: 'Browse upcoming sessions and reserve your spot.',
     icon: Calendar,
   },
   {
@@ -94,8 +94,8 @@ const howItWorks = [
   },
   {
     step: 3,
-    title: 'Practice and grow with peers',
-    description: 'Attend sessions, solve problems together, track your progress, and build real skills.',
+    title: 'Code with peers',
+    description: 'Show up to sessions, solve problems together, and keep learning.',
     icon: Rocket,
   },
 ];
@@ -146,11 +146,11 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <AnimatedSection className="lg:col-span-7 space-y-6" direction="left">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-50 leading-[1.15]">
-                Build Your Coding Journey{' '}
-                <span className="text-emerald-400">With CampusCoder</span>
+                Practice coding with{' '}
+                <span className="text-emerald-400">students like you</span>
               </h1>
               <p className="text-base md:text-lg text-slate-400 max-w-xl leading-relaxed">
-                Join a student-led coding community for workshops, placement preparation, HackerRank practice, coding challenges, and peer learning.
+                A student-run community for workshops, placement prep, coding challenges, and peer learning.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Link href="/events">
@@ -203,10 +203,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="max-w-3xl mx-auto text-center space-y-6" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
-              Coding is better together
+              Learn with people headed the same way
             </h2>
             <p className="text-sm md:text-base text-slate-400 leading-relaxed">
-              Most students learn to code in isolation — following random tutorials, lacking direction, and losing motivation. CampusCoder fixes this with structured programs, peer accountability, and mentorship from seniors who have been through the same journey.
+              Most students learn to code alone — jumping between tutorials, unsure what to focus on. CampusCoder gives you structure, peer accountability, and guidance from seniors who have been through the same journey.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
               {[
@@ -228,12 +228,12 @@ export default function HomePage() {
       <section className="py-16 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
-              Our programs
-            </h2>
-            <p className="text-sm text-slate-400">
-              Every program is designed to take you from theory to practice with real projects and peer support.
-            </p>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
+                What we offer
+              </h2>
+              <p className="text-sm text-slate-400">
+                Sessions built around practice, projects, and peer learning.
+              </p>
           </AnimatedSection>
           <div className="space-y-4">
             {programs.map((program, idx) => (
@@ -273,10 +273,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-10 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
-              Upcoming event
+                Next event
             </h2>
             <p className="text-sm text-slate-400">
-              Reserve your spot in our next hands-on session.
+                See what is coming up and grab your spot.
             </p>
           </AnimatedSection>
 
@@ -338,10 +338,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
-              How it works
+                How to get started
             </h2>
             <p className="text-sm text-slate-400">
-              Three simple steps to start your coding journey with us.
+                Join an event, connect with the community, and grow with peers.
             </p>
           </AnimatedSection>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -374,7 +374,7 @@ export default function HomePage() {
               Join our community
             </h2>
             <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
-              Connect with fellow students on Discord and WhatsApp. Get event updates, share code, ask questions, and stay motivated.
+                Get event updates, share code, ask questions, and learn together.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
               <a

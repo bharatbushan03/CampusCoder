@@ -67,7 +67,7 @@ export default function ResourcesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-40 min-h-screen">
-        <CampusCoderLoader size="lg" text="Curating Learning Resources" />
+        <CampusCoderLoader size="lg" text="Loading resources" />
       </div>
     );
   }
@@ -76,13 +76,13 @@ export default function ResourcesPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
       <AnimatedSection className="space-y-4 text-center max-w-3xl mx-auto" direction="up">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-          <Sparkles className="h-3 w-3" /> Learning Repository
+          <Sparkles className="h-3 w-3" /> Learning hub
         </div>
         <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight font-mono">
-          Knowledge <span className="text-emerald-500">Hub</span>
+          <span className="text-emerald-500">Resources</span>
         </h1>
         <p className="text-slate-400 text-sm md:text-base leading-relaxed">
-          A curated collection of roadmaps, practice platforms, and placement prep kits designed to take you from a curious beginner to a professional developer.
+          Roadmaps, practice platforms, and placement prep resources shared by the community.
         </p>
       </AnimatedSection>
 
@@ -139,7 +139,7 @@ export default function ResourcesPage() {
                     {res.title}
                   </h3>
                   <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                    {res.description || "No description provided for this resource."}
+                    {res.description || "No description available."}
                   </p>
                 </div>
 
@@ -150,7 +150,7 @@ export default function ResourcesPage() {
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-between text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors group/link"
                   >
-                    Access Resource
+                    Open resource
                     <ExternalLink className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />
                   </a>
                 </div>
@@ -161,7 +161,7 @@ export default function ResourcesPage() {
       ) : (
         <div className="text-center py-24 bg-slate-900/10 border border-slate-800 rounded-3xl space-y-4">
           <BookOpen className="h-10 w-10 text-slate-800 mx-auto" />
-          <p className="text-slate-500 font-mono text-sm">No resources found matching your current view.</p>
+          <p className="text-slate-500 font-mono text-sm">No resources match your search.</p>
           <Button variant="outline" size="sm" onClick={() => {setActiveCategory('all'); setSearchQuery('');}}>
             Clear Filters
           </Button>
@@ -170,7 +170,7 @@ export default function ResourcesPage() {
       
       {/* Community Call to Action */}
       <div className="pt-12 text-center">
-        <p className="text-xs text-slate-500 font-mono">Found a great resource? Share it with the community on our Discord server.</p>
+        <p className="text-xs text-slate-500 font-mono">Know a good resource? Share it on Discord.</p>
       </div>
     </div>
   );
