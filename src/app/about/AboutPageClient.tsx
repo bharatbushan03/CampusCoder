@@ -29,8 +29,8 @@ const teamMembers = [
 
 const stats = [
   { value: 500, suffix: '+', label: 'Active Members', icon: Users },
-  { value: 32, suffix: '', label: 'Developer Sprints', icon: Trophy },
-  { value: 12, suffix: '+', label: 'Senior Mentors', icon: GraduationCap },
+  { value: 32, suffix: '', label: 'Events Organized', icon: Trophy },
+  { value: 12, suffix: '+', label: 'Mentors', icon: GraduationCap },
 ];
 
 export default function AboutPageClient() {
@@ -49,7 +49,7 @@ export default function AboutPageClient() {
             About <span className="text-emerald-500">CampusCoder</span>
           </h1>
           <p className="text-slate-400 text-sm md:text-base leading-relaxed">
-            CampusCoder is a student-led developer community designed to bridge the gap between academic theory and practical software engineering. We organize workshops, coding challenges, and peer-learning ecosystems to help students transform into high-impact builders.
+            CampusCoder is a student-run community that helps you go from classroom theory to real coding skills. We organize workshops, coding challenges, and peer learning sessions.
           </p>
         </AnimatedSection>
 
@@ -77,10 +77,10 @@ export default function AboutPageClient() {
               Why We <span className="text-emerald-500">Started</span>
             </h2>
             <p className="text-sm text-slate-300 leading-relaxed">
-              We realized that while students learn standard programming basics, they rarely get the opportunity to build full-scale projects, write clean modular code, or prepare for real-world placements in a collaborative environment.
+              Most students learn programming basics but rarely get to build real projects or prepare for placements together. CampusCoder exists to change that.
             </p>
             <p className="text-sm text-slate-300 leading-relaxed">
-              CampusCoder was founded as an open platform for peer learning. By hosting hands-on coding sprints and technical mock interview prep, we enable seniors to pass down their expertise to juniors, shaping a highly skilled campus developer community.
+              We host coding sprints and mock interviews so seniors can share what they have learned with juniors. It is students helping students get better at coding.
             </p>
           </AnimatedSection>
 
@@ -92,15 +92,15 @@ export default function AboutPageClient() {
                 <ul className="space-y-3 text-xs text-slate-300">
                   <li className="flex items-center gap-2">
                     <span className="size-1.5 rounded-full bg-emerald-500"></span>
-                    <span>100% Practical, Project-Centric Sprints</span>
+                    <span>Project-first, not theory-only</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="size-1.5 rounded-full bg-emerald-500"></span>
-                    <span>Inclusive & Zero-Barriers Entrance</span>
+                    <span>Open to all, no experience needed</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="size-1.5 rounded-full bg-emerald-500"></span>
-                    <span>Active Open-Source Collaboration</span>
+                    <span>Collaborate on real open-source projects</span>
                   </li>
                 </ul>
               </div>
@@ -115,7 +115,7 @@ export default function AboutPageClient() {
               Meet the <span className="text-emerald-500">Team</span>
             </h2>
             <p className="text-slate-400 text-sm max-w-2xl mx-auto leading-relaxed">
-              The student organizers and builders behind CampusCoder&apos;s sessions and technical systems.
+              The students organizing CampusCoder events and building the platform.
             </p>
           </div>
 

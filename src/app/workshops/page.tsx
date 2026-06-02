@@ -3,7 +3,7 @@ import WorkshopsPageClient from './WorkshopsPageClient';
 
 export const metadata: Metadata = {
   title: 'Workshops | CampusCoder',
-  description: 'Explore practical CampusCoder workshops for web development, coding practice, and career preparation.',
+  description: 'Hands-on workshops on web development, coding practice, and career prep from CampusCoder.',
 };
 
 export default function WorkshopsPage() {

@@ -131,10 +131,10 @@ function RegisterForm() {
             <CheckCircle2 className="size-8 text-emerald-400" />
           </div>
           <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">Registration Successful!</h2>
-          <p className="text-slate-400 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
-            Awesome, {formData.fullName}! We have saved your registration. A calendar invite and session link will be sent to{' '}
-            <span className="text-emerald-400 font-mono">{formData.email}</span> shortly.
-          </p>
+            <p className="text-slate-400 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
+              You are in, {formData.fullName}! We will send the calendar invite and session link to{' '}
+              <span className="text-emerald-400 font-mono">{formData.email}</span>.
+            </p>
 
           {selectedEvent && (
             <div className="bg-slate-950 p-4 rounded-lg border border-slate-900 text-left mb-8 max-w-md mx-auto">
@@ -172,17 +172,17 @@ function RegisterForm() {
       <Card hoverEffect={false} className="max-w-2xl mx-auto p-8 border-emerald-500/10">
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Terminal className="size-5 text-emerald-400" /> Event Registration
+            <Terminal className="size-5 text-emerald-400" /> Register for an event
           </h2>
           <p className="text-sm text-slate-400 mt-1">
-            Complete your information to reserve a seat at this technical workshop or sprint session.
+            Reserve your spot at an upcoming event.
           </p>
         </div>
 
         {isDbOffline && (
           <div className="flex items-center gap-3 p-4 bg-slate-900 border border-emerald-500/10 rounded-xl mb-6 text-xs text-slate-400">
             <AlertTriangle className="size-4 text-amber-500 flex-shrink-0" />
-            <span>Local Demo Mode: connect Supabase to save real registrations.</span>
+            <span>Offline mode: registrations will not be saved to the database.</span>
           </div>
         )}
 
@@ -386,7 +386,7 @@ function RegisterForm() {
                   </>
                 ) : (
                   <>
-                    Confirm Community RSVP <ArrowRight className="size-4" />
+                    Reserve my spot <ArrowRight className="size-4" />
                   </>
                 )}
               </Button>
@@ -411,7 +411,7 @@ export default function RegistrationPage() {
         {/* Wrap in Suspense to resolve searchParams */}
         <Suspense fallback={
           <div className="flex items-center justify-center py-20">
-            <CampusCoderLoader size="lg" text="Preparing Registration Form" />
+            <CampusCoderLoader size="lg" text="Loading registration form" />
           </div>
         }>
           <RegisterForm />
