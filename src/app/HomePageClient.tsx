@@ -210,7 +210,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen">
       {/* ─── HERO ─── */}
-      <section className="relative overflow-hidden pt-20 pb-16 md:pt-28 md:pb-24 border-b border-slate-800/40">
+      <section className="relative overflow-hidden pt-16 pb-12 md:pt-28 md:pb-24 border-b border-slate-800/40">
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/30 to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
@@ -247,7 +247,7 @@ export default function HomePage() {
                 ))}
               </div>
             </AnimatedSection>
-            <AnimatedSection className="lg:col-span-5 w-full h-[320px] md:h-[380px] lg:h-[440px]" direction="right">
+            <AnimatedSection className="lg:col-span-5 w-full h-[220px] sm:h-[320px] md:h-[380px] lg:h-[440px]" direction="right">
               <DynamicHeroCodeScene />
             </AnimatedSection>
           </div>
@@ -255,9 +255,9 @@ export default function HomePage() {
       </section>
 
       {/* ─── COMMUNITY SNAPSHOT ─── */}
-      <section className="py-14 md:py-16 border-b border-slate-800/40">
+      <section className="py-12 md:py-16 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AnimatedSection className="text-center mb-10" direction="up">
+          <AnimatedSection className="text-center mb-8 md:mb-10" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
               Community snapshot
             </h2>
@@ -291,7 +291,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── ABOUT ─── */}
-      <section className="py-16 md:py-24 border-b border-slate-800/40">
+      <section className="py-12 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="max-w-3xl mx-auto text-center space-y-6" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
@@ -317,7 +317,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── PROGRAMS ─── */}
-      <section className="py-16 md:py-24 border-b border-slate-800/40">
+      <section className="py-12 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
               <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
@@ -361,7 +361,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── STUDENT BENEFITS ─── */}
-      <section className="py-16 md:py-24 border-b border-slate-800/40">
+      <section className="py-12 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
@@ -390,7 +390,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── FEATURED EVENT ─── */}
-      <section className="py-16 md:py-24 border-b border-slate-800/40">
+      <section className="py-12 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-10 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
@@ -455,7 +455,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── PAST EVENTS ─── */}
-      <section className="py-16 md:py-24 border-b border-slate-800/40">
+      <section className="py-12 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
@@ -510,7 +510,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── HOW IT WORKS ─── */}
-      <section className="py-16 md:py-24 border-b border-slate-800/40">
+      <section className="py-12 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
@@ -540,7 +540,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── COMMUNITY CHANNELS ─── */}
-      <section className="py-16 md:py-24 border-b border-slate-800/40">
+      <section className="py-12 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
@@ -576,7 +576,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── FOUNDER NOTE ─── */}
-      <section className="py-14 md:py-16">
+      <section className="py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="max-w-2xl mx-auto text-center space-y-4" direction="up">
             <Quote className="size-6 text-emerald-400/60 mx-auto" />

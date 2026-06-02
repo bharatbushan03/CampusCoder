@@ -288,7 +288,7 @@ export const Navbar: React.FC = React.memo(function Navbar() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-xl text-sm font-bold font-mono uppercase tracking-widest transition-all ${
+                  className={`flex items-center px-4 min-h-11 rounded-xl text-sm font-bold font-mono uppercase tracking-widest transition-all ${
                     isActive(link.href)
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                       : 'text-slate-400 hover:bg-slate-900 hover:text-white'
