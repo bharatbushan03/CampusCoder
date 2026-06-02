@@ -3,7 +3,18 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Calendar, Users, LogOut, Terminal, Menu, X, Bell, Link2, BookOpen } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Calendar,
+  Users,
+  LogOut,
+  Menu,
+  X,
+  Bell,
+  Link2,
+  BookOpen,
+  ChevronRight,
+} from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 
 interface AdminSidebarProps {
@@ -11,13 +22,23 @@ interface AdminSidebarProps {
   role: string;
 }
 
-const sidebarLinks = [
-  { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-  { label: 'Manage Events', href: '/admin/events', icon: Calendar },
-  { label: 'Registrations', href: '/admin/registrations', icon: Users },
-  { label: 'Announcements', href: '/admin/announcements', icon: Bell },
-  { label: 'Community Links', href: '/admin/community-links', icon: Link2 },
-  { label: 'Resource Library', href: '/admin/resources', icon: BookOpen },
+const navGroups = [
+  {
+    label: 'Main',
+    links: [
+      { label: 'Overview', href: '/admin', icon: LayoutDashboard },
+      { label: 'Events', href: '/admin/events', icon: Calendar },
+      { label: 'Registrations', href: '/admin/registrations', icon: Users },
+    ],
+  },
+  {
+    label: 'Content',
+    links: [
+      { label: 'Announcements', href: '/admin/announcements', icon: Bell },
+      { label: 'Community Links', href: '/admin/community-links', icon: Link2 },
+      { label: 'Resources', href: '/admin/resources', icon: BookOpen },
+    ],
+  },
 ];
 
 export default function AdminSidebar({ email, role }: AdminSidebarProps) {
@@ -25,11 +46,14 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isLinkActive = (href: string) => pathname === href;
+  const isLinkActive = (href: string) => {
+    if (href === '/admin') return pathname === href;
+    return pathname.startsWith(href);
+  };
 
   const handleSignOut = async () => {
     try {
-      const supabase = createClient() as any;
+      const supabase = createClient();
       await supabase.auth.signOut();
       router.push('/');
       router.refresh();
@@ -42,74 +66,97 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
 
   return (
     <>
-      {/* Mobile Sidebar Toggle */}
-      <div className="lg:hidden absolute top-3.5 right-16 z-50">
-        <button type="button"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
-        >
-          {sidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </button>
-      </div>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-slate-950/60 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-      {/* Sidebar Navigation */}
-      <aside
-        className={`fixed inset-y-16 left-0 z-40 w-64 border-r border-slate-900 bg-slate-950 p-6 transition-transform lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:static`}
+      {/* Mobile toggle */}
+      <button
+        type="button"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed top-4 right-4 z-50 lg:hidden p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+        aria-label="Toggle sidebar"
       >
-        <div className="flex flex-col h-full justify-between">
-          <div className="space-y-6">
-            <div className="flex items-center gap-2 px-2">
-              <Terminal className="size-4 text-emerald-400" />
-              <span className="text-xs font-mono font-bold tracking-widest text-slate-500 uppercase">
-                Console Panel
+        {sidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+      </button>
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-60 border-r border-slate-800/60 bg-slate-950 flex flex-col transition-transform duration-200 lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Logo area */}
+        <div className="h-16 flex items-center gap-2.5 px-5 border-b border-slate-800/60 shrink-0">
+          <div className="size-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+            <LayoutDashboard className="size-3.5 text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-50 leading-tight">CampusCoder</p>
+            <p className="text-[10px] text-slate-600 font-mono">Admin Console</p>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600 px-2 mb-2">
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {group.links.map((link) => {
+                  const Icon = link.icon;
+                  const active = isLinkActive(link.href);
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
+                        active
+                          ? 'bg-emerald-500/10 text-emerald-400 font-medium'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Icon className="size-4" />
+                        <span>{link.label}</span>
+                      </span>
+                      {active && <ChevronRight className="size-3.5 text-emerald-400" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="px-3 py-4 border-t border-slate-800/60 shrink-0 space-y-3">
+          <div className="flex items-center gap-3 px-2">
+            <div className="size-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-xs font-semibold text-emerald-400 shrink-0">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-slate-300 truncate">{email}</p>
+              <span className="inline-block text-[9px] font-medium bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded mt-0.5 capitalize">
+                {role}
               </span>
             </div>
-
-            <nav className="space-y-1">
-              {sidebarLinks.map((link) => {
-                const Icon = link.icon;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      isLinkActive(link.href)
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : 'text-slate-400 hover:bg-slate-900/60 hover:text-slate-200 border border-transparent'
-                    }`}
-                  >
-                    <Icon className="size-4" />
-                    <span>{link.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
           </div>
 
-          {/* Sidebar Footer / Log out */}
-          <div className="pt-6 border-t border-slate-900">
-            <div className="flex items-center gap-3 px-3 py-2 mb-4">
-              <div className="size-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center font-mono text-sm font-semibold text-emerald-400">
-                {initials}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-300 truncate">Console User</p>
-                <p className="text-[10px] text-slate-500 font-mono truncate">{email}</p>
-                <span className="inline-block text-[9px] font-mono bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 px-1.5 py-0.2 rounded mt-0.5 capitalize">{role}</span>
-              </div>
-            </div>
-            
-            <button type="button"
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all text-left cursor-pointer"
-            >
-              <LogOut className="size-4" />
-              <span>Sign Out</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
+          >
+            <LogOut className="size-4" />
+            <span>Sign out</span>
+          </button>
         </div>
       </aside>
     </>
