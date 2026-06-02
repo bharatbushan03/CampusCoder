@@ -485,7 +485,7 @@ export default function EventRegistrationPage() {
                       onChange={(e) => updateField('fullName', e.target.value)}
                       onBlur={(e) => validateField('fullName', e.target.value)}
                       className={`w-full bg-slate-900 border ${
-                        fieldErrors.fullName ? 'border-red-500/50' : 'border-slate-800'
+                        fieldErrors.fullName ? 'border-red-500/50 shake' : 'border-slate-800'
                       } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
                     />
                     {fieldErrors.fullName && (
@@ -505,7 +505,7 @@ export default function EventRegistrationPage() {
                       onChange={(e) => updateField('email', e.target.value)}
                       onBlur={(e) => validateField('email', e.target.value)}
                       className={`w-full bg-slate-900 border ${
-                        fieldErrors.email ? 'border-red-500/50' : 'border-slate-800'
+                        fieldErrors.email ? 'border-red-500/50 shake' : 'border-slate-800'
                       } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
                     />
                     {fieldErrors.email && (
@@ -529,7 +529,7 @@ export default function EventRegistrationPage() {
                       onChange={(e) => updateField('phone', e.target.value)}
                       onBlur={(e) => validateField('phone', e.target.value)}
                       className={`w-full bg-slate-900 border ${
-                        fieldErrors.phone ? 'border-red-500/50' : 'border-slate-800'
+                        fieldErrors.phone ? 'border-red-500/50 shake' : 'border-slate-800'
                       } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
                     />
                     {fieldErrors.phone && (
@@ -569,7 +569,7 @@ export default function EventRegistrationPage() {
                       onChange={(e) => updateField('college', e.target.value)}
                       onBlur={(e) => validateField('college', e.target.value)}
                       className={`w-full bg-slate-900 border ${
-                        fieldErrors.college ? 'border-red-500/50' : 'border-slate-800'
+                        fieldErrors.college ? 'border-red-500/50 shake' : 'border-slate-800'
                       } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
                     />
                     {fieldErrors.college && (
@@ -589,7 +589,7 @@ export default function EventRegistrationPage() {
                       onChange={(e) => updateField('branch', e.target.value)}
                       onBlur={(e) => validateField('branch', e.target.value)}
                       className={`w-full bg-slate-900 border ${
-                        fieldErrors.branch ? 'border-red-500/50' : 'border-slate-800'
+                        fieldErrors.branch ? 'border-red-500/50 shake' : 'border-slate-800'
                       } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
                     />
                     {fieldErrors.branch && (

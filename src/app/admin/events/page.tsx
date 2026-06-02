@@ -10,7 +10,7 @@ import {
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
-import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type EventStatus = EventRow['status'];
@@ -94,7 +94,18 @@ export default function AdminEventsListingPage() {
   });
 
   if (loading) {
-    return <CampusCoderLoader variant="inline" label="Loading events directory" />;
+    return (
+      <div className="space-y-8">
+        <div className="space-y-1">
+          <Skeleton variant="text" className="h-3 w-32" />
+          <Skeleton variant="text" className="h-8 w-56" />
+          <Skeleton variant="text" className="h-4 w-72" />
+        </div>
+        <div className="rounded-xl border border-slate-800/60 bg-slate-900/50">
+          <SkeletonTable rows={5} cols={4} />
+        </div>
+      </div>
+    );
   }
 
   return (

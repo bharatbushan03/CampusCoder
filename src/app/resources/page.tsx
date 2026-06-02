@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { SkeletonCard } from '@/components/ui/Skeleton';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
-import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type ResourceRow = Database['public']['Tables']['resources']['Row'];
 
@@ -66,8 +66,15 @@ export default function ResourcesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-40 min-h-screen">
-        <CampusCoderLoader size="lg" text="Loading resources" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
+        <div className="space-y-4 text-center">
+          <div className="h-6 w-40 bg-slate-800/60 animate-pulse rounded-full mx-auto" />
+          <div className="h-8 w-52 bg-slate-800/60 animate-pulse rounded-lg mx-auto" />
+          <div className="h-4 w-80 bg-slate-800/60 animate-pulse rounded-lg mx-auto" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <SkeletonCard count={6} />
+        </div>
       </div>
     );
   }
