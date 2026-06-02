@@ -15,6 +15,11 @@ import {
   Clock,
   Rocket,
   Phone,
+  Sparkles,
+  Hash,
+  Quote,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -72,13 +77,6 @@ const trustIndicators = [
   { label: 'Placement prep', icon: Target },
 ];
 
-const stats = [
-  { value: '8+', label: 'Workshops & sprints' },
-  { value: '200+', label: 'Students involved' },
-  { value: '150+', label: 'Community members' },
-  { value: '12+', label: 'Practice sessions' },
-];
-
 const howItWorks = [
   {
     step: 1,
@@ -100,6 +98,65 @@ const howItWorks = [
   },
 ];
 
+const benefits = [
+  {
+    title: 'Build consistency',
+    description: 'Regular weekly sessions keep you coding even when motivation dips. Show up, solve problems, and build a habit.',
+    icon: TrendingUp,
+  },
+  {
+    title: 'Learn with peers',
+    description: 'Stuck on a problem? Someone in the community has solved it before. Ask, discuss, and learn together.',
+    icon: Users,
+  },
+  {
+    title: 'Practice for coding rounds',
+    description: 'Mock interviews, timed contests, and live walkthroughs that mirror real assessment environments.',
+    icon: Code2,
+  },
+  {
+    title: 'Understand coding platforms',
+    description: 'Get comfortable with HackerRank, LeetCode-style interfaces, and submission workflows used in placements.',
+    icon: BarChart3,
+  },
+  {
+    title: 'Prepare for placements gradually',
+    description: 'No last-minute cramming. Start early, follow a path, and build skills step by step with peer support.',
+    icon: Target,
+  },
+];
+
+const founderNote = {
+  text: 'CampusCoder is a student-led community created to help students practice coding consistently and stay connected through events and peer learning.',
+  author: '— Community Organizers',
+};
+
+const communityChannels = [
+  {
+    platform: 'Discord',
+    url: 'https://discord.gg/VdsX64E5E',
+    description: 'Daily coding discussions, event announcements, live help channels, and voice sessions.',
+    icon: MessageSquare,
+    cta: 'Join Discord',
+    variant: 'primary' as const,
+  },
+  {
+    platform: 'WhatsApp',
+    url: 'https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2',
+    description: 'Quick updates, poll reminders, and peer chats. Best for staying in touch on the go.',
+    icon: Phone,
+    cta: 'Join WhatsApp',
+    variant: 'secondary' as const,
+  },
+];
+
+const snapshotDefaults = {
+  firstSession: 'April 2025',
+  studentsAttended: 180,
+  upcomingWorkshops: 3,
+  practiceCommunity: '12+ weekly participants',
+};
+
 function getSlug(title: string) {
   return title
     .toLowerCase()
@@ -109,26 +166,39 @@ function getSlug(title: string) {
 
 export default function HomePage() {
   const [featuredEvent, setFeaturedEvent] = useState<EventRow | null>(null);
+  const [completedEvents, setCompletedEvents] = useState<EventRow[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const supabase = createClient();
 
-        const { data: events } = await supabase
-          .from('events')
-          .select('*')
-          .eq('status', 'published')
-          .gte('date', new Date().toISOString().split('T')[0])
-          .order('date', { ascending: true })
-          .limit(1)
-          .returns<EventRow[]>();
+        const [featuredRes, completedRes] = await Promise.all([
+          supabase
+            .from('events')
+            .select('*')
+            .eq('status', 'published')
+            .gte('date', new Date().toISOString().split('T')[0])
+            .order('date', { ascending: true })
+            .limit(1)
+            .returns<EventRow[]>(),
+          supabase
+            .from('events')
+            .select('*')
+            .eq('status', 'completed')
+            .order('date', { ascending: false })
+            .limit(3)
+            .returns<EventRow[]>(),
+        ]);
 
-        if (events && events.length > 0) {
-          setFeaturedEvent(events[0]);
+        if (featuredRes.data && featuredRes.data.length > 0) {
+          setFeaturedEvent(featuredRes.data[0]);
+        }
+        if (completedRes.data && completedRes.data.length > 0) {
+          setCompletedEvents(completedRes.data);
         }
       } catch {
-        // Use placeholder fallback
+        // Use placeholder fallbacks
       }
     };
 
@@ -184,16 +254,38 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── STATS STRIP ─── */}
-      <section className="py-12 border-b border-slate-800/40">
+      {/* ─── COMMUNITY SNAPSHOT ─── */}
+      <section className="py-14 md:py-16 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <p className="text-2xl md:text-3xl font-bold text-slate-50">{stat.value}</p>
-                <p className="text-xs md:text-sm text-slate-500 mt-1">{stat.label}</p>
-              </div>
-            ))}
+          <AnimatedSection className="text-center mb-10" direction="up">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
+              Community snapshot
+            </h2>
+            <p className="text-sm text-slate-400 mt-2">
+              Real activity from a growing student coding community.
+            </p>
+          </AnimatedSection>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+            <div className="text-center p-5 rounded-xl border border-slate-800/60 bg-slate-900/30">
+              <Calendar className="size-5 text-emerald-400 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-50">First session</p>
+              <p className="text-xs text-slate-500 mt-1 font-mono">{snapshotDefaults.firstSession}</p>
+            </div>
+            <div className="text-center p-5 rounded-xl border border-slate-800/60 bg-slate-900/30">
+              <Users className="size-5 text-emerald-400 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-50">Students attended</p>
+              <p className="text-xs text-slate-500 mt-1 font-mono">{snapshotDefaults.studentsAttended}+</p>
+            </div>
+            <div className="text-center p-5 rounded-xl border border-slate-800/60 bg-slate-900/30">
+              <Sparkles className="size-5 text-emerald-400 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-50">Upcoming workshops</p>
+              <p className="text-xs text-slate-500 mt-1 font-mono">{snapshotDefaults.upcomingWorkshops}</p>
+            </div>
+            <div className="text-center p-5 rounded-xl border border-slate-800/60 bg-slate-900/30">
+              <Hash className="size-5 text-emerald-400 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-50">Active practice</p>
+              <p className="text-xs text-slate-500 mt-1 font-mono">{snapshotDefaults.practiceCommunity}</p>
+            </div>
           </div>
         </div>
       </section>
@@ -268,6 +360,35 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── STUDENT BENEFITS ─── */}
+      <section className="py-16 md:py-24 border-b border-slate-800/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
+              What students get out of it
+            </h2>
+            <p className="text-sm text-slate-400">
+              Real outcomes from showing up consistently and coding with peers.
+            </p>
+          </AnimatedSection>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {benefits.map((benefit, idx) => (
+              <AnimatedSection key={benefit.title} delay={idx * 0.06}>
+                <Card hoverEffect className="p-5 h-full">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center justify-center size-9 rounded-lg bg-slate-800 border border-slate-700 shrink-0">
+                      <benefit.icon className="size-4 text-emerald-400" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-50">{benefit.title}</h3>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed">{benefit.description}</p>
+                </Card>
+              </AnimatedSection>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── FEATURED EVENT ─── */}
       <section className="py-16 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -333,6 +454,61 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── PAST EVENTS ─── */}
+      <section className="py-16 md:py-24 border-b border-slate-800/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
+              Past events
+            </h2>
+            <p className="text-sm text-slate-400">
+              Sessions we have run so far in the community.
+            </p>
+          </AnimatedSection>
+
+          {completedEvents.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {completedEvents.map((ev, idx) => (
+                <AnimatedSection key={ev.id} delay={idx * 0.08}>
+                  <Card hoverEffect className="p-5 h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <Badge variant="default">{ev.event_type.replace('_', ' ')}</Badge>
+                      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-mono font-medium border bg-slate-800 border-slate-700 text-slate-400 capitalize">
+                        Completed
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-50 leading-snug mb-2">{ev.title}</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 flex-1">
+                      {ev.short_description || 'No description available.'}
+                    </p>
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-900 text-xs text-slate-500">
+                      <span>{ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
+                      <Link href={`/events/${ev.slug}`} className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+                        Details <ArrowRight className="size-3" />
+                      </Link>
+                    </div>
+                  </Card>
+                </AnimatedSection>
+              ))}
+            </div>
+          ) : (
+            <AnimatedSection delay={0.05}>
+              <div className="text-center py-12 bg-slate-900/10 border border-slate-900 rounded-xl">
+                <p className="text-xs text-slate-500 font-mono">Past events will appear here once sessions are completed.</p>
+              </div>
+            </AnimatedSection>
+          )}
+
+          <div className="text-center mt-8">
+            <Link href="/events/archive">
+              <Button variant="outline" size="md">
+                View event archive <ArrowRight className="ml-2 size-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ─── HOW IT WORKS ─── */}
       <section className="py-16 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -363,41 +539,51 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── COMMUNITY CTA ─── */}
-      <section className="py-16 md:py-24">
+      {/* ─── COMMUNITY CHANNELS ─── */}
+      <section className="py-16 md:py-24 border-b border-slate-800/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AnimatedSection className="max-w-3xl mx-auto text-center space-y-6" direction="up">
-            <div className="flex items-center justify-center size-14 rounded-xl bg-slate-800 border border-slate-700 mx-auto">
-              <MessageSquare className="size-6 text-emerald-400" />
-            </div>
+          <AnimatedSection className="text-center max-w-2xl mx-auto mb-12 space-y-3" direction="up">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-50">
-              Join our community
+              Community channels
             </h2>
-            <p className="text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
-                Get event updates, share code, ask questions, and learn together.
+            <p className="text-sm text-slate-400">
+              Two ways to stay connected. Pick the one that works for you.
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-              <a
-                href="https://discord.gg/VdsX64E5E"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                  <MessageSquare className="mr-2 size-4" />
-                  Join Discord
-                </Button>
-              </a>
-              <a
-                href="https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button variant="secondary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                  <Phone className="mr-2 size-4" />
-                  Join WhatsApp
-                </Button>
-              </a>
-            </div>
+          </AnimatedSection>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+            {communityChannels.map((channel) => (
+              <AnimatedSection key={channel.platform} delay={0.1}>
+                <Card hoverEffect className="p-6 h-full">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center justify-center size-10 rounded-lg bg-slate-800 border border-slate-700 shrink-0">
+                      <channel.icon className="size-5 text-emerald-400" />
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-50">{channel.platform}</h3>
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed mb-5">
+                    {channel.description}
+                  </p>
+                  <a href={channel.url} target="_blank" rel="noopener noreferrer">
+                    <Button variant={channel.variant} size="md" className="w-full">
+                      {channel.cta}
+                    </Button>
+                  </a>
+                </Card>
+              </AnimatedSection>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FOUNDER NOTE ─── */}
+      <section className="py-14 md:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimatedSection className="max-w-2xl mx-auto text-center space-y-4" direction="up">
+            <Quote className="size-6 text-emerald-400/60 mx-auto" />
+            <p className="text-sm md:text-base text-slate-400 leading-relaxed italic">
+              &ldquo;{founderNote.text}&rdquo;
+            </p>
+            <p className="text-xs text-slate-600 font-mono">{founderNote.author}</p>
           </AnimatedSection>
         </div>
       </section>
