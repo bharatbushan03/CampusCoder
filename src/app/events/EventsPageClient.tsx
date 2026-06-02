@@ -1,42 +1,113 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { 
+import {
   Calendar,
   Clock,
   MapPin,
   Search,
-  Layers,
-  Sparkles,
-  ChevronRight
+  ChevronRight,
+  MessageSquare,
+  CalendarDays,
+  AlertCircle,
 } from 'lucide-react';
-import { AnimatedEventCard } from '@/components/AnimatedEventCard';
 import { Button } from '@/components/ui/Button';
-import { TechBackground } from '@/components/animations/TechBackground';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
-import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 
-const eventTypes = [
-  { id: 'all', label: 'All Sprints' },
-  { id: 'workshop', label: 'Workshops' },
-  { id: 'coding_session', label: 'Coding' },
-  { id: 'challenge', label: 'Challenges' },
-];
+const eventTypeOptions = [
+  { value: 'all', label: 'All types' },
+  { value: 'workshop', label: 'Workshops' },
+  { value: 'coding_session', label: 'Coding Sessions' },
+  { value: 'challenge', label: 'Challenges' },
+  { value: 'webinar', label: 'Webinars' },
+  { value: 'orientation', label: 'Orientations' },
+] as const;
 
-import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+const statusOptions = [
+  { value: 'all', label: 'All status' },
+  { value: 'published', label: 'Upcoming' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+] as const;
 
-// ... (keep existing types)
+const modeOptions = [
+  { value: 'all', label: 'All modes' },
+  { value: 'online', label: 'Online' },
+  { value: 'offline', label: 'Offline' },
+  { value: 'hybrid', label: 'Hybrid' },
+] as const;
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatTime(timeStr: string) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
+  return `${hour12}:${m} ${ampm}`;
+}
+
+function getStatusVariant(status: string): 'accent' | 'success' | 'warning' | 'default' {
+  switch (status) {
+    case 'published': return 'accent';
+    case 'completed': return 'success';
+    case 'cancelled': return 'warning';
+    default: return 'default';
+  }
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'published': return 'Upcoming';
+    case 'completed': return 'Completed';
+    case 'cancelled': return 'Cancelled';
+    default: return status;
+  }
+}
+
+function SelectFilter({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: readonly { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/40 appearance-none cursor-pointer min-w-0"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  );
+}
 
 export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeType, setActiveCategory] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [modeFilter, setModeFilter] = useState('all');
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -57,184 +128,314 @@ export default function EventsPage() {
         setLoading(false);
       }
     };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadEvents();
   }, []);
 
-  const filteredEvents = events.filter(ev => {
-    const matchesSearch = ev.title.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCat = activeType === 'all' ? true : ev.event_type === activeType;
-    return matchesSearch && matchesCat;
-  });
+  const featuredEvent = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return events.find(
+      ev => ev.status === 'published' && new Date(ev.date) >= today
+    );
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    let list = events;
+
+    if (featuredEvent) {
+      list = list.filter(ev => ev.id !== featuredEvent.id);
+    }
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(ev =>
+        ev.title.toLowerCase().includes(q) ||
+        (ev.short_description || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (typeFilter !== 'all') {
+      list = list.filter(ev => ev.event_type === typeFilter);
+    }
+
+    if (statusFilter !== 'all') {
+      list = list.filter(ev => ev.status === statusFilter);
+    }
+
+    if (modeFilter !== 'all') {
+      list = list.filter(ev => ev.mode === modeFilter);
+    }
+
+    return list;
+  }, [events, searchQuery, typeFilter, statusFilter, modeFilter, featuredEvent]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-40 min-h-screen">
-        <CampusCoderLoader size="lg" text="Syncing Sprint Database" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-500 font-mono">Loading events…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative overflow-hidden w-full min-h-screen">
-      <TechBackground />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-16 relative z-10">
-        {/* Header */}
-        <AnimatedSection className="flex flex-col lg:flex-row lg:items-end justify-between gap-8" direction="up">
-          <div className="space-y-6 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-              <Sparkles className="size-3" /> Live Sprints
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight font-mono">
-                Build your <span className="text-emerald-500 underline decoration-emerald-500/20 underline-offset-8">stack.</span>
-              </h1>
-              <p className="text-slate-400 text-lg leading-relaxed">
-                Hands-on sessions designed to bridge the gap between classroom theory and industry reality.
-              </p>
-            </div>
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 space-y-10 md:space-y-14">
+        {/* ── HEADER ── */}
+        <AnimatedSection className="flex flex-col sm:flex-row sm:items-end justify-between gap-4" direction="up">
+          <div className="space-y-2">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-50 tracking-tight">
+              Events & Workshops
+            </h1>
+            <p className="text-sm text-slate-400 max-w-xl leading-relaxed">
+              Discover upcoming CampusCoder sessions, coding challenges, placement preparation workshops, and community events.
+            </p>
           </div>
-          
-          <Link href="/events/archive">
-            <MotionButton>
-              <Button variant="outline" className="group h-12 px-6">
-                View Past Archive <ChevronRight className="ml-2 size-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </MotionButton>
+          <Link
+            href="/events/archive"
+            className="text-xs text-slate-500 hover:text-emerald-400 transition-colors shrink-0 flex items-center gap-1"
+          >
+            Past archive <ChevronRight className="size-3" />
           </Link>
         </AnimatedSection>
 
-      {/* Control Bar */}
-      <AnimatedSection className="flex flex-col md:flex-row gap-6 items-center justify-between p-2 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm" direction="none" delay={0.15}>
-        <div className="flex p-1 bg-slate-950 rounded-xl border border-slate-900/50 w-full md:w-auto">
-          {eventTypes.map((cat) => (
-            <button type="button"
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`flex-1 md:flex-none px-4 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-tighter transition-all ${
-                activeType === cat.id 
-                  ? 'bg-emerald-500 text-emerald-950' 
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-          <input aria-label="Filter sprints"
-            type="text"
-            placeholder="Filter sprints&hellip;"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-900 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/30 transition-all"
-          />
-        </div>
-      </AnimatedSection>
-
-      {/* Grid */}
-      {filteredEvents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-10">
-          {filteredEvents.map((ev, index) => (
-            <AnimatedEventCard key={ev.id} delay={index * 0.1} className="group flex flex-col h-full bg-slate-950 overflow-hidden">
-              <div className="aspect-video relative overflow-hidden border-b border-slate-900">
-                {ev.banner_url ? (
-                  <Image
-                    src={ev.banner_url} 
-                    alt={ev.title} 
-                    fill
-                    unoptimized
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" 
-                  />
-                ) : (
-                  <div className="w-full h-full bg-slate-900 flex items-center justify-center">
-                    <Layers className="size-10 text-slate-800 transition-transform duration-500 group-hover:-translate-y-1.5 group-hover:text-emerald-400" />
+        {/* ── FEATURED EVENT ── */}
+        {featuredEvent && (
+          <AnimatedSection delay={0.05}>
+            <Card hoverEffect className="p-0 overflow-hidden">
+              <div className="flex flex-col md:flex-row">
+                <div className="md:w-2/5 bg-emerald-900/10 p-8 md:p-10 flex flex-col justify-center items-center md:items-start text-center md:text-left border-b md:border-b-0 md:border-r border-slate-800/60">
+                  <Badge variant="accent" className="mb-4">Next event</Badge>
+                  <div className="text-5xl md:text-6xl font-bold text-emerald-400 leading-none">
+                    {new Date(featuredEvent.date).getDate()}
                   </div>
-                )}
-                <div className="absolute top-4 left-4 flex gap-2">
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-slate-950/90 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest backdrop-blur-md flex items-center gap-1.5">
-                    {ev.status === 'published' && (
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  <div className="text-base text-slate-400 mt-1">
+                    {new Date(featuredEvent.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </div>
+                  <div className="flex items-center gap-2 mt-4 text-xs text-slate-500">
+                    <Clock className="size-3.5" />
+                    {formatTime(featuredEvent.start_time)} – {formatTime(featuredEvent.end_time)}
+                  </div>
+                </div>
+                <div className="flex-1 p-8 md:p-10 flex flex-col justify-center">
+                  <Badge variant="default" className="mb-3 w-fit">
+                    {featuredEvent.event_type.replace('_', ' ')}
+                  </Badge>
+                  <h2 className="text-2xl md:text-3xl font-bold text-slate-50 leading-tight">
+                    {featuredEvent.title}
+                  </h2>
+                  {featuredEvent.short_description && (
+                    <p className="text-sm text-slate-400 mt-3 leading-relaxed line-clamp-2">
+                      {featuredEvent.short_description}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-5 text-xs text-slate-500">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="size-3.5" />
+                      {featuredEvent.mode}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="size-3.5" />
+                      {formatDate(featuredEvent.date)}
+                    </span>
+                    {featuredEvent.registration_deadline && (
+                      <span className="flex items-center gap-1.5">
+                        <AlertCircle className="size-3.5" />
+                        Register by {formatDate(featuredEvent.registration_deadline)}
                       </span>
                     )}
-                    {ev.event_type.replace('_', ' ')}
-                  </span>
-                </div>
-                {ev.status !== 'published' && (
-                  <div className="absolute top-4 right-4">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold border uppercase tracking-widest backdrop-blur-md ${
-                      ev.status === 'cancelled'
-                        ? 'bg-red-950/90 text-red-300 border-red-500/30'
-                        : 'bg-slate-950/90 text-slate-300 border-slate-700'
-                    }`}>
-                      {ev.status}
-                    </span>
                   </div>
-                )}
-              </div>
-
-              <div className="p-8 flex-1 flex flex-col justify-between gap-y-6">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4 text-emerald-500 text-[10px] font-mono font-bold uppercase tracking-widest opacity-80">
-                    <span className="flex items-center gap-1.5"><Calendar className="size-3.5" /> {new Date(ev.date).toLocaleDateString()}</span>
-                    <span className="flex items-center gap-1.5"><Clock className="size-3.5" /> {ev.start_time.slice(0,5)}</span>
+                  <div className="mt-6">
+                    <Link href={`/events/${featuredEvent.slug}`}>
+                      <Button variant="primary" size="md">
+                        Register now <ChevronRight className="ml-1 size-4" />
+                      </Button>
+                    </Link>
                   </div>
-                  <h3 className="text-2xl font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">
-                    {ev.title}
-                  </h3>
-                  <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">
-                    {ev.short_description || "Master real-world tech through intensive peer-led building sessions."}
-                  </p>
-                </div>
-
-                <div className="pt-6 border-t border-slate-900/50 mt-auto flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500 uppercase tracking-tighter">
-                    <MapPin className="size-3 text-emerald-500/50" /> {ev.mode}
-                  </div>
-                  <Link href={`/events/${ev.slug}`}>
-                    <Button variant="primary" size="sm" className="font-bold shadow-lg shadow-emerald-500/10">
-                      {ev.status === 'published' ? 'Reserve RSVP' : 'View Details'}
-                    </Button>
-                  </Link>
                 </div>
               </div>
-            </AnimatedEventCard>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-32 bg-slate-900/10 border border-dashed border-slate-800 rounded-3xl space-y-4">
-          <Layers className="size-12 text-slate-800 mx-auto" />
-          <p className="text-slate-500 font-mono text-sm uppercase tracking-widest">No matching sprints found</p>
-          <Button variant="outline" size="sm" onClick={() => {setActiveCategory('all'); setSearchQuery('');}}>
-            Reset Filters
-          </Button>
-        </div>
-      )}
+            </Card>
+          </AnimatedSection>
+        )}
 
-      {/* Newsletter / CTA */}
-      <section className="py-20 bg-emerald-500/5 rounded-[2rem] border border-emerald-500/10 relative overflow-hidden">
-        <div className="max-w-4xl mx-auto px-6 text-center space-y-8 relative z-10">
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white font-mono uppercase tracking-tighter">
-            Don&apos;t miss the <span className="text-emerald-500">next drop.</span>
-          </h2>
-          <p className="text-slate-400 max-w-xl mx-auto font-medium">
-            New sprints are announced weekly. Join our Discord to get notifications before registration reaches capacity.
-          </p>
-          <div className="flex justify-center">
-            <Link href="https://discord.gg/campuscoder">
-              <Button variant="secondary" size="lg" className="h-14 px-10">
-                Join Community Discord
-              </Button>
-            </Link>
+        {/* ── FILTER BAR ── */}
+        <AnimatedSection delay={0.1}>
+          <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center justify-between">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <SelectFilter
+                options={eventTypeOptions}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                label="Filter by event type"
+              />
+              <SelectFilter
+                options={statusOptions}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                label="Filter by status"
+              />
+              <SelectFilter
+                options={modeOptions}
+                value={modeFilter}
+                onChange={setModeFilter}
+                label="Filter by mode"
+              />
+            </div>
+            <div className="relative w-full lg:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+              <input
+                aria-label="Search events"
+                type="text"
+                placeholder="Search events…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/40 transition-colors"
+              />
+            </div>
           </div>
-        </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 size-[600px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
-      </section>
+        </AnimatedSection>
+
+        {/* ── EVENT GRID ── */}
+        {filteredEvents.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+            {filteredEvents.map((ev, index) => (
+              <AnimatedSection key={ev.id} delay={index * 0.05} className="h-full">
+                <Card hoverEffect className="p-0 overflow-hidden h-full flex flex-col">
+                  {/* Top accent bar based on status */}
+                  <div className={`h-1 shrink-0 ${
+                    ev.status === 'published' ? 'bg-emerald-500/60' :
+                    ev.status === 'completed' ? 'bg-slate-600/40' :
+                    'bg-red-500/40'
+                  }`} />
+
+                  <div className="p-5 md:p-6 flex flex-col flex-1 gap-4">
+                    {/* Badge row */}
+                    <div className="flex items-start justify-between gap-2">
+                      <Badge variant="default">
+                        {ev.event_type.replace('_', ' ')}
+                      </Badge>
+                      <Badge variant={getStatusVariant(ev.status)}>
+                        {getStatusLabel(ev.status)}
+                      </Badge>
+                    </div>
+
+                    {/* Date block */}
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <CalendarDays className="size-4 text-slate-600 shrink-0" />
+                      <span className="font-medium text-slate-300">{formatDate(ev.date)}</span>
+                    </div>
+
+                    {/* Title + Description */}
+                    <div className="space-y-2 flex-1">
+                      <h3 className="text-base font-semibold text-slate-50 leading-snug">
+                        <Link href={`/events/${ev.slug}`} className="hover:text-emerald-400 transition-colors">
+                          {ev.title}
+                        </Link>
+                      </h3>
+                      <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                        {ev.short_description || 'No description available.'}
+                      </p>
+                    </div>
+
+                    {/* Meta row */}
+                    <div className="space-y-1.5 text-xs text-slate-500">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="size-3.5 text-slate-600" />
+                        {formatTime(ev.start_time)} – {formatTime(ev.end_time)}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="size-3.5 text-slate-600" />
+                        {ev.mode}
+                      </div>
+                      {ev.registration_deadline && (
+                        <div className="flex items-center gap-1.5">
+                          <AlertCircle className="size-3.5 text-slate-600" />
+                          Register by {formatDate(ev.registration_deadline)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CTA */}
+                    <div className="pt-3 border-t border-slate-800/60 mt-auto">
+                      <Link href={`/events/${ev.slug}`}>
+                        <Button
+                          variant={ev.status === 'published' ? 'primary' : 'outline'}
+                          size="sm"
+                          className="w-full"
+                        >
+                          {ev.status === 'published' ? 'Register now' : 'View details'}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </Card>
+              </AnimatedSection>
+            ))}
+          </div>
+        ) : (
+          <AnimatedSection>
+            <Card glass={false} className="p-12 md:p-16 text-center">
+              <div className="max-w-sm mx-auto space-y-4">
+                <Calendar className="size-10 text-slate-700 mx-auto" />
+                <h3 className="text-lg font-semibold text-slate-300">
+                  {searchQuery || typeFilter !== 'all' || statusFilter !== 'all' || modeFilter !== 'all'
+                    ? 'No events match your filters'
+                    : 'No events yet'}
+                </h3>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  {searchQuery || typeFilter !== 'all' || statusFilter !== 'all' || modeFilter !== 'all'
+                    ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
+                    : 'New events are being planned. Join our community to get notified when the next session drops.'}
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  {(searchQuery || typeFilter !== 'all' || statusFilter !== 'all' || modeFilter !== 'all') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setTypeFilter('all');
+                        setStatusFilter('all');
+                        setModeFilter('all');
+                      }}
+                    >
+                      Reset filters
+                    </Button>
+                  )}
+                  <a
+                    href="https://discord.gg/VdsX64E5E"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="secondary" size="sm">
+                      <MessageSquare className="mr-1.5 size-3.5" />
+                      Join Discord
+                    </Button>
+                  </a>
+                </div>
+              </div>
+            </Card>
+          </AnimatedSection>
+        )}
+
+        {/* ── BOTTOM COMMUNITY CTA ── */}
+        <AnimatedSection className="text-center py-10 md:py-14 border-t border-slate-800/40" delay={0.15}>
+          <p className="text-xs text-slate-500 mb-3">Stay in the loop</p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href="https://discord.gg/VdsX64E5E"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="secondary" size="md">
+                <MessageSquare className="mr-2 size-4" />
+                Join Discord
+              </Button>
+            </a>
+          </div>
+        </AnimatedSection>
       </div>
     </div>
   );
