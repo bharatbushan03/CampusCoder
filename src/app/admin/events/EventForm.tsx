@@ -4,9 +4,9 @@ import React, { useState, useRef } from 'react';
 import Image from 'next/image';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { 
+import {
   Terminal, Lock, Unlock, Upload, X, Plus, Trash2, Mail, User, Users,
-  Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock
+  Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock, Link2, Info
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { eventSchema } from '@/lib/validation';
@@ -36,6 +36,28 @@ function generateSlug(value: string) {
     .replace(/(^-|-$)+/g, '');
 }
 
+function SectionHeader({ icon: Icon, title, description }: { icon: any; title: string; description?: string }) {
+  return (
+    <div className="border-b border-slate-900 pb-4">
+      <div className="flex items-center gap-2">
+        <Icon className="size-4 text-emerald-400" />
+        <h3 className="text-lg font-bold text-white font-mono">{title}</h3>
+      </div>
+      {description && (
+        <p className="text-xs text-slate-500 mt-1 ml-6">{description}</p>
+      )}
+    </div>
+  );
+}
+
+function HelpText({ text }: { text: string }) {
+  return (
+    <p className="flex items-center gap-1 mt-1.5 text-[10px] text-slate-600 font-mono">
+      <Info className="size-3" /> {text}
+    </p>
+  );
+}
+
 export default function EventForm({
   initialData,
   initialSpeakers = [],
@@ -43,8 +65,7 @@ export default function EventForm({
   isSubmitting,
   submitButtonText
 }: EventFormProps) {
-  
-  // General event form fields
+
   const [title, setTitle] = useState(initialData?.title || '');
   const [slug, setSlug] = useState(initialData?.slug || '');
   const [slugLocked, setSlugLocked] = useState(!initialData?.slug);
@@ -57,29 +78,26 @@ export default function EventForm({
   const [endTime, setEndTime] = useState(initialData?.end_time || '');
   const [meetingLink, setMeetingLink] = useState(initialData?.meeting_link || '');
   const [registrationDeadline, setRegistrationDeadline] = useState(
-    initialData?.registration_deadline 
-      ? new Date(initialData.registration_deadline).toISOString().slice(0, 16) 
+    initialData?.registration_deadline
+      ? new Date(initialData.registration_deadline).toISOString().slice(0, 16)
       : ''
   );
   const [bannerUrl, setBannerUrl] = useState(initialData?.banner_url || '');
   const [status, setStatus] = useState(initialData?.status || 'draft');
 
-  // Speakers list state
   const [speakers, setSpeakers] = useState<Speaker[]>(initialSpeakers);
 
-  // New speaker input subform state
   const [newSpeakerName, setNewSpeakerName] = useState('');
   const [newSpeakerRole, setNewSpeakerRole] = useState('');
   const [newSpeakerEmail, setNewSpeakerEmail] = useState('');
   const [newSpeakerBio, setNewSpeakerBio] = useState('');
   const [newSpeakerImageUrl, setNewSpeakerImageUrl] = useState('');
 
-  // Banner image upload state
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState(initialData?.banner_url || '');
   const [uploadProgress, setUploadProgress] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTitleChange = (value: string) => {
@@ -97,7 +115,6 @@ export default function EventForm({
     }
   };
 
-  // Handle Banner file change and validation
   const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -108,7 +125,6 @@ export default function EventForm({
       return;
     }
 
-    // Validate size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       setUploadError('Image size exceeds 2MB limit.');
       return;
@@ -116,20 +132,17 @@ export default function EventForm({
 
     setUploadError('');
     setBannerFile(file);
-    
-    // Create preview
+
     const previewUrl = URL.createObjectURL(file);
     setBannerPreview(previewUrl);
   };
 
-  // Upload image to Supabase Storage
   const uploadBanner = async (file: File): Promise<string | null> => {
     try {
       const supabase = createClient() as any;
       const fileExt = file.name.split('.').pop();
       const fileName = `banners/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      // Upload file to 'banners' bucket
       const { data, error } = await supabase.storage
         .from('banners')
         .upload(fileName, file, {
@@ -138,12 +151,10 @@ export default function EventForm({
         });
 
       if (error) {
-        // If bucket doesn't exist, log and notify
         console.warn('Storage bucket upload failed, check if public "banners" bucket is configured:', error);
         throw error;
       }
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('banners')
         .getPublicUrl(fileName);
@@ -151,13 +162,11 @@ export default function EventForm({
       return publicUrl;
     } catch (err: any) {
       console.warn('Error uploading banner to Supabase:', err);
-      // Fail gracefully - fall back to text url or local object url
       setUploadError('Could not upload to Supabase storage. Check the banners bucket and try again.');
       return null;
     }
   };
 
-  // Add Speaker to local state list
   const handleAddSpeaker = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!newSpeakerName) {
@@ -175,7 +184,6 @@ export default function EventForm({
 
     setSpeakers([...speakers, speaker]);
 
-    // Reset speaker fields
     setNewSpeakerName('');
     setNewSpeakerRole('');
     setNewSpeakerEmail('');
@@ -187,7 +195,6 @@ export default function EventForm({
     setSpeakers(speakers.filter((_, i) => i !== index));
   };
 
-  // Form submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -236,68 +243,67 @@ export default function EventForm({
     }
   };
 
+  const inputClass = "w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors placeholder:text-slate-700";
+  const selectClass = "w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none cursor-pointer";
+  const labelClass = "block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2";
+  const inputMonoClass = inputClass + " font-mono";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      
-      {/* 1. Core Event Details Card */}
+
+      {/* 1. Core Event Details */}
       <Card hoverEffect={false} className="border-slate-900 bg-slate-950/20 p-6 md:p-8 space-y-6">
-        <h3 className="text-lg font-bold text-white border-b border-slate-900 pb-3 flex items-center gap-2 font-mono">
-          <Terminal className="size-4 text-emerald-400" /> Event Details
-        </h3>
+        <SectionHeader
+          icon={Terminal}
+          title="Event Details"
+          description="Core information about the sprint event including schedule, type, and descriptions."
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Title */}
           <div>
-            <label htmlFor="eventform-event-title" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              Event Title *
-            </label>
-            <input id="eventform-event-title"
+            <label htmlFor="eventform-title" className={labelClass}>Event Title *</label>
+            <input id="eventform-title"
               type="text"
               required
               placeholder="e.g. Next.js Web Dev Camp"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+              className={inputClass}
             />
+            <HelpText text="Public-facing name of the event" />
           </div>
-
-          {/* Slug */}
           <div>
-            <label htmlFor="eventform-url-slug" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              URL Slug *
-            </label>
+            <label htmlFor="eventform-slug" className={labelClass}>URL Slug *</label>
             <div className="relative">
-              <input id="eventform-url-slug"
+              <input id="eventform-slug"
                 type="text"
                 required
                 disabled={slugLocked}
                 placeholder="nextjs-web-dev-camp"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 disabled:bg-slate-950/40 disabled:text-slate-500 rounded-lg pl-4 pr-10 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors font-mono"
+                className={inputMonoClass + (slugLocked ? " disabled:bg-slate-950/40 disabled:text-slate-500" : "") + " pr-10"}
               />
               <button
                 type="button"
                 onClick={toggleSlugLock}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-emerald-400 transition-colors cursor-pointer"
-                title={slugLocked ? 'Unlock Slug' : 'Lock Slug'}
+                title={slugLocked ? 'Auto-generate from title' : 'Manual slug editing'}
               >
                 {slugLocked ? <Lock className="size-4" /> : <Unlock className="size-4" />}
               </button>
             </div>
+            <HelpText text={slugLocked ? 'Auto-generated from title — unlock to customize' : 'Edit freely — lock to re-enable auto-generation'} />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Event Type */}
           <div>
-            <label htmlFor="eventform-event-type" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              Event Type
-            </label>
-            <select id="eventform-event-type"
+            <label htmlFor="eventform-type" className={labelClass}>Event Type</label>
+            <select id="eventform-type"
               value={eventType}
               onChange={(e) => setEventType(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+              className={selectClass}
             >
               <option value="workshop">Workshop</option>
               <option value="coding_session">Coding Session</option>
@@ -306,158 +312,142 @@ export default function EventForm({
               <option value="webinar">Webinar</option>
             </select>
           </div>
-
-          {/* Mode */}
           <div>
-            <label htmlFor="eventform-mode" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              Mode
-            </label>
+            <label htmlFor="eventform-mode" className={labelClass}>Mode</label>
             <select id="eventform-mode"
               value={mode}
               onChange={(e) => setMode(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+              className={selectClass}
             >
               <option value="online">Online</option>
               <option value="offline">Offline</option>
               <option value="hybrid">Hybrid</option>
             </select>
           </div>
-
-          {/* Status */}
           <div>
-            <label htmlFor="eventform-status" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              Status
-            </label>
+            <label htmlFor="eventform-status" className={labelClass}>Status</label>
             <select id="eventform-status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+              className={selectClass}
             >
               <option value="draft">Draft (Private)</option>
               <option value="published">Published (Public)</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            <HelpText text="Only published events are visible to students" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Date */}
           <div>
-            <label htmlFor="eventform-date" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
-              <Calendar className="size-3.5" /> Date *
+            <label htmlFor="eventform-date" className={labelClass}>
+              <Calendar className="size-3.5 inline mr-1" /> Date *
             </label>
             <input id="eventform-date"
               type="date"
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+              className={inputClass}
             />
           </div>
-
-          {/* Start Time */}
           <div>
-            <label htmlFor="eventform-start-time" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
-              <Clock className="size-3.5" /> Start Time *
+            <label htmlFor="eventform-start" className={labelClass}>
+              <Clock className="size-3.5 inline mr-1" /> Start Time *
             </label>
-            <input id="eventform-start-time"
+            <input id="eventform-start"
               type="time"
               required
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+              className={inputClass}
             />
           </div>
-
-          {/* End Time */}
           <div>
-            <label htmlFor="eventform-end-time" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
-              <Clock className="size-3.5" /> End Time *
+            <label htmlFor="eventform-end" className={labelClass}>
+              <Clock className="size-3.5 inline mr-1" /> End Time *
             </label>
-            <input id="eventform-end-time"
+            <input id="eventform-end"
               type="time"
               required
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+              className={inputClass}
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Meeting Link */}
           <div>
-            <label htmlFor="eventform-stream-meeting-link-google-meet-zoom" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              Stream / Meeting Link (Google Meet, Zoom)
+            <label htmlFor="eventform-meeting-link" className={labelClass}>
+              <Link2 className="size-3.5 inline mr-1" /> Stream / Meeting Link
             </label>
-            <input id="eventform-stream-meeting-link-google-meet-zoom"
+            <input id="eventform-meeting-link"
               type="url"
               placeholder="https://meet.google.com/..."
               value={meetingLink}
               onChange={(e) => setMeetingLink(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors font-mono"
+              className={inputMonoClass}
             />
+            <HelpText text="Google Meet, Zoom, or physical venue address for offline events" />
           </div>
-
-          {/* Registration Deadline */}
           <div>
-            <label htmlFor="eventform-registration-deadline" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-              Registration Deadline
-            </label>
-            <input id="eventform-registration-deadline"
+            <label htmlFor="eventform-reg-deadline" className={labelClass}>Registration Deadline</label>
+            <input id="eventform-reg-deadline"
               type="datetime-local"
               value={registrationDeadline}
               onChange={(e) => setRegistrationDeadline(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+              className={inputClass}
             />
+            <HelpText text="Leave empty to allow registration until event start" />
           </div>
         </div>
 
-        {/* Short Description */}
         <div>
-          <label htmlFor="eventform-short-description-card-preview" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
-            <AlignLeft className="size-3.5" /> Short Description (Card Preview)
+          <label htmlFor="eventform-short-desc" className={labelClass}>
+            <AlignLeft className="size-3.5 inline mr-1" /> Short Description
           </label>
-          <input id="eventform-short-description-card-preview"
+          <input id="eventform-short-desc"
             type="text"
-            placeholder="Brief learning outcome summary&hellip;"
+            placeholder="Brief one-liner shown on event cards…"
             value={shortDescription}
             onChange={(e) => setShortDescription(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+            className={inputClass}
           />
+          <HelpText text="Displayed on event listing cards and previews" />
         </div>
 
-        {/* Full Description */}
         <div>
-          <label htmlFor="eventform-detailed-description-supports-markdown" className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
-            Detailed Description (Supports Markdown)
-          </label>
-          <textarea id="eventform-detailed-description-supports-markdown"
+          <label htmlFor="eventform-full-desc" className={labelClass}>Detailed Description</label>
+          <textarea id="eventform-full-desc"
             rows={6}
-            placeholder="Provide a detailed breakdown of the curriculum, schedule, materials&hellip;"
+            placeholder="Full curriculum, schedule breakdown, prerequisites, materials…"
             value={fullDescription}
             onChange={(e) => setFullDescription(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-          ></textarea>
+            className={inputClass + " resize-y min-h-[120px]"}
+          />
+          <HelpText text="Supports Markdown formatting for rich content" />
         </div>
       </Card>
 
-      {/* 2. Banner Upload Card */}
+      {/* 2. Event Banner */}
       <Card hoverEffect={false} className="border-slate-900 bg-slate-950/20 p-6 md:p-8 space-y-6">
-        <h3 className="text-lg font-bold text-white border-b border-slate-900 pb-3 flex items-center gap-2 font-mono">
-          <Upload className="size-4 text-emerald-400" /> Event Banner
-        </h3>
+        <SectionHeader
+          icon={Upload}
+          title="Event Banner"
+          description="Upload a hero image for the event detail page."
+        />
 
         {uploadError && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
-            <AlertTriangle className="size-4" /> {uploadError}
+            <AlertTriangle className="size-4 flex-shrink-0" /> {uploadError}
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-          {/* Upload Area */}
-          <div 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div
             onClick={() => fileInputRef.current?.click()}
             className="border-2 border-dashed border-slate-800 hover:border-emerald-500/40 rounded-xl p-8 text-center bg-slate-950/50 cursor-pointer transition-colors group"
           >
@@ -471,11 +461,10 @@ export default function EventForm({
             <div className="flex size-12 items-center justify-center rounded-lg bg-slate-900 border border-slate-800 mx-auto mb-4 group-hover:border-emerald-500/25 transition-colors">
               <Upload className="size-5 text-slate-500 group-hover:text-emerald-400 transition-colors" />
             </div>
-            <p className="text-sm font-semibold text-white">Click or drag banner image here</p>
-            <p className="text-xs text-slate-500 mt-1 font-mono">PNG, JPG, WEBP up to 2MB</p>
+            <p className="text-sm font-semibold text-white">Click or drag image here</p>
+            <p className="text-xs text-slate-500 mt-1 font-mono">PNG, JPG, WEBP, GIF &middot; max 2MB</p>
           </div>
 
-          {/* Preview Area */}
           <div>
             {bannerPreview ? (
               <div className="relative border border-slate-800 bg-slate-950/50 rounded-xl p-2 max-w-sm mx-auto group">
@@ -503,19 +492,16 @@ export default function EventForm({
                 </button>
               </div>
             ) : (
-              <div className="border border-slate-900/60 bg-slate-950/30 rounded-xl aspect-video max-w-sm mx-auto flex items-center justify-center text-slate-600 text-xs font-mono">
-                No banner image selected.
+              <div className="border border-slate-900/60 bg-slate-950/30 rounded-xl aspect-video max-w-sm mx-auto flex items-center justify-center text-slate-600 text-xs font-mono text-center px-4">
+                No banner selected.<br />Preview will appear here.
               </div>
             )}
           </div>
         </div>
 
-        {/* Fallback URL input */}
         <div className="pt-4 border-t border-slate-900/40">
-          <label htmlFor="eventform-or-paste-a-direct-image-url-fallback" className="block text-xs font-mono uppercase tracking-wider text-slate-500 mb-2">
-            Or paste a direct image URL (fallback)
-          </label>
-          <input id="eventform-or-paste-a-direct-image-url-fallback"
+          <label htmlFor="eventform-banner-url" className={labelClass}>Or use a direct image URL</label>
+          <input id="eventform-banner-url"
             type="url"
             placeholder="https://images.unsplash.com/photo-..."
             value={bannerUrl}
@@ -523,18 +509,20 @@ export default function EventForm({
               setBannerUrl(e.target.value);
               setBannerPreview(e.target.value);
             }}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50 font-mono transition-colors"
+            className={inputMonoClass + " text-xs"}
           />
+          <HelpText text="Fallback if upload fails; also accepts local preview URLs" />
         </div>
       </Card>
 
-      {/* 3. Event Owners / Speakers Section */}
+      {/* 3. Speakers & Event Owners */}
       <Card hoverEffect={false} className="border-slate-900 bg-slate-950/20 p-6 md:p-8 space-y-6">
-        <h3 className="text-lg font-bold text-white border-b border-slate-900 pb-3 flex items-center gap-2 font-mono">
-          <Users className="size-4 text-emerald-400" /> Speakers & Event Owners
-        </h3>
+        <SectionHeader
+          icon={Users}
+          title="Speakers &amp; Event Owners"
+          description="Add the people hosting or presenting at this event."
+        />
 
-        {/* Added speakers list */}
         {speakers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-6 border-b border-slate-900/60">
             {speakers.map((speaker, idx) => (
@@ -565,37 +553,33 @@ export default function EventForm({
             ))}
           </div>
         ) : (
-          <p className="text-xs text-slate-500 font-mono pb-4 border-b border-slate-900/40">No speakers added yet. Sprints should ideally feature at least one speaker/organizer.</p>
+          <p className="text-xs text-slate-500 font-mono pb-4 border-b border-slate-900/40">No speakers added yet. Sprints should ideally feature at least one speaker or organizer.</p>
         )}
 
-        {/* Add speaker subform */}
-        <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-900 space-y-4">
+        <div className="bg-slate-950/40 p-5 rounded-xl border border-slate-900 space-y-5">
           <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-            <Plus className="size-4 text-emerald-500" /> Add New Speaker
+            <Plus className="size-4 text-emerald-500" /> Add Speaker
           </h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Speaker Name */}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label htmlFor="eventform-name" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Name</label>
+              <label htmlFor="eventform-speaker-name" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Name *</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-600" />
-                <input id="eventform-name"
+                <input id="eventform-speaker-name"
                   type="text"
-                  placeholder="Speaker Name"
+                  placeholder="Speaker name"
                   value={newSpeakerName}
                   onChange={(e) => setNewSpeakerName(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50"
                 />
               </div>
             </div>
-
-            {/* Speaker Role */}
             <div>
-              <label htmlFor="eventform-role-affiliation" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Role / Affiliation</label>
+              <label htmlFor="eventform-speaker-role" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Role / Affiliation</label>
               <div className="relative">
                 <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-600" />
-                <input id="eventform-role-affiliation"
+                <input id="eventform-speaker-role"
                   type="text"
                   placeholder="e.g. SDE-2 @ Google"
                   value={newSpeakerRole}
@@ -606,13 +590,12 @@ export default function EventForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Speaker Email */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label htmlFor="eventform-email" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Email</label>
+              <label htmlFor="eventform-speaker-email" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Email</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-600" />
-                <input id="eventform-email"
+                <input id="eventform-speaker-email"
                   type="email"
                   placeholder="speaker@college.edu"
                   value={newSpeakerEmail}
@@ -621,60 +604,58 @@ export default function EventForm({
                 />
               </div>
             </div>
-
-            {/* Speaker Image URL */}
             <div>
-              <label htmlFor="eventform-profile-image-url-optional" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Profile Image URL (Optional)</label>
+              <label htmlFor="eventform-speaker-image" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Profile Image URL</label>
               <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-600" />
-                <input id="eventform-profile-image-url-optional"
+                <input id="eventform-speaker-image"
                   type="url"
-                  placeholder="https://..."
+                  placeholder="https://…"
                   value={newSpeakerImageUrl}
                   onChange={(e) => setNewSpeakerImageUrl(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 font-mono"
                 />
               </div>
+              <HelpText text="Leave empty for auto-generated avatar" />
             </div>
           </div>
 
-          {/* Speaker Bio */}
           <div>
-            <label htmlFor="eventform-short-bio" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">Short Bio</label>
-            <textarea id="eventform-short-bio"
+            <label htmlFor="eventform-speaker-bio" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Short Bio</label>
+            <textarea id="eventform-speaker-bio"
               rows={2}
-              placeholder="Short introductory bio&hellip;"
+              placeholder="Brief introduction about the speaker…"
               value={newSpeakerBio}
               onChange={(e) => setNewSpeakerBio(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50"
-            ></textarea>
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 resize-none"
+            />
           </div>
 
-          <Button 
-            type="button" 
-            variant="secondary" 
+          <Button
+            type="button"
+            variant="secondary"
             size="sm"
             onClick={handleAddSpeaker}
             className="flex items-center gap-1"
           >
-            <Plus className="size-3.5" /> Append Speaker
+            <Plus className="size-3.5" /> Add Speaker
           </Button>
         </div>
       </Card>
 
-      {/* Form Submission Footer Actions */}
+      {/* Footer Actions */}
       <div className="flex items-center justify-end gap-4 border-t border-slate-900 pt-6">
-        <Button 
-          type="button" 
+        <Button
+          type="button"
           variant="outline"
           onClick={() => window.history.back()}
           className="border-slate-800 text-slate-300 hover:text-white"
         >
           Cancel
         </Button>
-        <Button 
-          type="submit" 
-          variant="primary" 
+        <Button
+          type="submit"
+          variant="primary"
           disabled={isSubmitting || uploadProgress}
           className="flex items-center gap-2"
         >
