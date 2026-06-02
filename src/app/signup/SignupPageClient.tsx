@@ -87,8 +87,8 @@ export default function SignupPage() {
               Campus<span className="text-emerald-500 font-sans">Coder</span>
             </span>
           </Link>
-          <h1 className="text-xl font-bold text-white font-mono">Create Student Profile</h1>
-          <p className="text-xs text-slate-400 mt-1">Join the campus developer ecosystem and start sprint trackings.</p>
+          <h1 className="text-xl font-bold text-white font-mono">Create your account</h1>
+          <p className="text-xs text-slate-400 mt-1">Join the community and sign up for events.</p>
         </div>
 
         {/* Signup Card */}
@@ -232,11 +232,11 @@ export default function SignupPage() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" /> Registering&hellip;
+                    <Loader2 className="size-4 animate-spin" /> Creating account&hellip;
                   </>
                 ) : (
                   <>
-                    Sign Up <ArrowRight className="size-4" />
+                    Create account <ArrowRight className="size-4" />
                   </>
                 )}
               </Button>
@@ -257,7 +257,7 @@ export default function SignupPage() {
         {/* Back link */}
         <div className="text-center mt-6">
           <Link href="/" className="text-xs text-slate-500 hover:text-slate-400">
-            &larr; Back to landing page
+            &larr; Back to home
           </Link>
         </div>
 

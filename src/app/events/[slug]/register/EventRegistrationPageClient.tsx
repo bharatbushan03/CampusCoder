@@ -236,7 +236,7 @@ export default function EventRegistrationPage() {
       <div className="flex items-center justify-center py-40 min-h-screen">
         <div className="flex flex-col items-center gap-3">
           <div className="size-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-          <p className="text-xs text-slate-500 font-mono">Loading registration portal…</p>
+          <p className="text-xs text-slate-500 font-mono">Loading registration…</p>
         </div>
       </div>
     );
@@ -361,7 +361,7 @@ export default function EventRegistrationPage() {
               </Link>
               <Link href="/events">
                 <Button variant="outline" size="md">
-                  Browse more events
+                  Explore more events
                 </Button>
               </Link>
             </div>
@@ -439,9 +439,9 @@ export default function EventRegistrationPage() {
 
             {/* Community preview */}
             <Card hoverEffect className="p-5">
-              <h4 className="text-xs font-semibold text-slate-400 mb-2">Join our community</h4>
+              <h4 className="text-xs font-semibold text-slate-400 mb-2">Join the community</h4>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Get event updates, share code, and connect with fellow students.
+                Get event updates, share code, and connect with others.
               </p>
             </Card>
           </AnimatedSection>
@@ -452,14 +452,14 @@ export default function EventRegistrationPage() {
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-slate-50">Register for this event</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Fill in your details to reserve your spot. All fields marked with * are required.
+                  Enter your details to confirm your spot.
                 </p>
               </div>
 
               {isDbOffline && (
                 <div className="flex items-center gap-3 p-4 bg-slate-900 border border-slate-700 rounded-xl mb-6 text-xs text-slate-400">
                   <AlertTriangle className="size-4 text-amber-500 shrink-0" />
-                  <span>Offline Demo Mode: Submissions will simulate success triggers.</span>
+                  <span>Offline mode: registration will not be saved to the database.</span>
                 </div>
               )}
 
@@ -615,7 +615,7 @@ export default function EventRegistrationPage() {
                         <option key={lvl} value={lvl}>{lvl}</option>
                       ))}
                     </select>
-                    <p className="text-[10px] text-slate-600 mt-1">Helps us tailor the session to your level</p>
+                    <p className="text-[10px] text-slate-600 mt-1">Helps us match the session to your level</p>
                   </div>
                   <div>
                     <label htmlFor="preferredLanguage" className="block text-xs font-medium text-slate-400 mb-1.5">
@@ -637,7 +637,7 @@ export default function EventRegistrationPage() {
                 {/* Reason to join */}
                 <div>
                   <label htmlFor="reasonToJoin" className="block text-xs font-medium text-slate-400 mb-1.5">
-                    Why do you want to join this event?
+                    What do you hope to learn?
                   </label>
                   <textarea
                     id="reasonToJoin"
@@ -679,7 +679,7 @@ export default function EventRegistrationPage() {
                       </>
                     ) : (
                       <>
-                        Confirm Registration <ArrowRight className="ml-2 size-4" />
+                        Reserve my spot <ArrowRight className="ml-2 size-4" />
                       </>
                     )}
                   </Button>

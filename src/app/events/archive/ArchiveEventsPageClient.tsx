@@ -72,7 +72,7 @@ export default function EventArchivePage() {
           <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Events
         </Link>
         <h1 className="text-4xl font-extrabold text-white tracking-tight font-mono">Event <span className="text-emerald-500">Archive</span></h1>
-        <p className="text-slate-400 max-w-2xl">Relive our past sprints, workshops, and coding challenges. Access recordings, slide decks, and project repositories.</p>
+        <p className="text-slate-400 max-w-2xl">Past events with recordings, slides, and project resources.</p>
       </div>
 
       {/* Filters */}
@@ -132,7 +132,7 @@ export default function EventArchivePage() {
                 </div>
 
                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed flex-1">
-                  {ev.summary || ev.short_description || "No summary available for this past event."}
+                  {ev.summary || ev.short_description || "No description available."}
                 </p>
 
                 <div className="flex items-center justify-between pt-4 border-t border-slate-900">
@@ -160,7 +160,7 @@ export default function EventArchivePage() {
         </div>
       ) : (
         <div className="text-center py-20 bg-slate-900/10 border border-slate-800 rounded-3xl">
-          <p className="text-slate-500 font-mono">No archived events found matching your criteria.</p>
+          <p className="text-slate-500 font-mono">No past events match your search.</p>
         </div>
       )}
     </div>

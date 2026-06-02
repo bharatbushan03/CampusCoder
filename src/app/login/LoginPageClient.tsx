@@ -88,8 +88,8 @@ export default function LoginPage() {
               Campus<span className="text-emerald-500 font-sans">Coder</span>
             </span>
           </Link>
-          <h1 className="text-xl font-bold text-white">Sign In to Your Workspace</h1>
-          <p className="text-xs text-slate-400 mt-1">Access events management and member dashboard.</p>
+          <h1 className="text-xl font-bold text-white">Sign in</h1>
+          <p className="text-xs text-slate-400 mt-1">Access your dashboard and manage events.</p>
         </div>
 
         {/* Login Card */}
@@ -152,7 +152,7 @@ export default function LoginPage() {
               >
                 {isSubmitting ? (
                   <>
-                    <CampusCoderLoader size="sm" /> Authorizing&hellip;
+                    <CampusCoderLoader size="sm" /> Signing in&hellip;
                   </>
                 ) : (
                   <>
@@ -177,7 +177,7 @@ export default function LoginPage() {
         {/* Back link */}
         <div className="text-center mt-6">
           <Link href="/" className="text-xs text-slate-500 hover:text-slate-400">
-            &larr; Back to landing page
+            &larr; Back to home
           </Link>
         </div>
 

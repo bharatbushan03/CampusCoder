@@ -190,7 +190,7 @@ export default function EventsPage() {
               Events & Workshops
             </h1>
             <p className="text-sm text-slate-400 max-w-xl leading-relaxed">
-              Discover upcoming CampusCoder sessions, coding challenges, placement preparation workshops, and community events.
+              Find upcoming coding sessions, workshops, and challenges organized by the CampusCoder community.
             </p>
           </div>
           <Link
@@ -386,8 +386,8 @@ export default function EventsPage() {
                 </h3>
                 <p className="text-sm text-slate-500 leading-relaxed">
                   {searchQuery || typeFilter !== 'all' || statusFilter !== 'all' || modeFilter !== 'all'
-                    ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
-                    : 'New events are being planned. Join our community to get notified when the next session drops.'}
+                    ? 'Try different filters or search terms.'
+                    : 'No events scheduled yet. Join the community to know when the next one is live.'}
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                   {(searchQuery || typeFilter !== 'all' || statusFilter !== 'all' || modeFilter !== 'all') && (
@@ -422,7 +422,7 @@ export default function EventsPage() {
 
         {/* ── BOTTOM COMMUNITY CTA ── */}
         <AnimatedSection className="text-center py-10 md:py-14 border-t border-slate-800/40" delay={0.15}>
-          <p className="text-xs text-slate-500 mb-3">Stay in the loop</p>
+          <p className="text-xs text-slate-500 mb-3">Hear about new events first</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
               href="https://discord.gg/VdsX64E5E"
