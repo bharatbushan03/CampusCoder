@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
-import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 
@@ -50,8 +50,28 @@ export default function WorkshopsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-40 min-h-screen">
-        <CampusCoderLoader size="lg" text="Loading workshops" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+        <div className="space-y-4">
+          <div className="h-4 w-32 bg-slate-800/60 animate-pulse rounded-lg" />
+          <div className="flex items-center gap-3">
+            <Skeleton variant="avatar" className="size-12" />
+            <Skeleton variant="text" className="h-8 w-72" />
+          </div>
+          <Skeleton variant="text" className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-slate-800/60 bg-slate-900/50 overflow-hidden">
+              <Skeleton variant="card" className="h-48 md:h-auto rounded-none" />
+              <div className="p-6 space-y-3">
+                <Skeleton variant="text" className="h-4 w-20" />
+                <Skeleton variant="text" className="h-6 w-3/4" />
+                <Skeleton variant="text" className="h-4 w-full" />
+                <Skeleton variant="text" className="h-4 w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
