@@ -212,7 +212,7 @@ export default function EventRegistrationPage() {
           
           <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2 font-mono uppercase tracking-tight">Registration Confirmed</h2>
           <p className="text-slate-400 text-sm max-w-md mx-auto mb-8 font-medium">
-            You're successfully registered for this CampusCoder event.
+            You&apos;re successfully registered for this CampusCoder event.
           </p>
 
           {/* Event Summary Details */}
