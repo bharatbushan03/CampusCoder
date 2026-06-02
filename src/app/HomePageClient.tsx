@@ -28,7 +28,7 @@ import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { placeholderEvents } from '@/lib/placeholderData';
 import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
-import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
+import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 
@@ -224,24 +224,20 @@ export default function HomePage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Link href="/events">
-                  <MotionButton>
-                    <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                      Explore Events <ArrowRight className="ml-2 size-4" />
-                    </Button>
-                  </MotionButton>
+                  <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
+                    Explore Events <ArrowRight className="ml-2 size-4" />
+                  </Button>
                 </Link>
                 <Link href="/register">
-                  <MotionButton>
-                    <Button variant="secondary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                      Join Community
-                    </Button>
-                  </MotionButton>
+                  <Button variant="secondary" size="lg" className="w-full sm:w-auto h-12 px-8">
+                    Join Community
+                  </Button>
                 </Link>
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2 pt-4">
                 {trustIndicators.map((item) => (
-                  <div key={item.label} className="flex items-center gap-1.5 text-xs text-slate-500">
-                    <item.icon className="size-3.5 text-slate-600" />
+                  <div key={item.label} className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <item.icon className="size-3.5 text-slate-500" />
                     {item.label}
                   </div>
                 ))}
@@ -526,7 +522,7 @@ export default function HomePage() {
                 <div className="flex items-center justify-center size-14 rounded-xl bg-slate-800 border border-slate-700 mx-auto">
                   <step.icon className="size-6 text-emerald-400" />
                 </div>
-                <div className="mt-2 mb-4 text-sm font-mono text-slate-600 font-bold">
+                <div className="mt-2 mb-4 text-sm font-mono text-slate-500 font-bold">
                   Step {step.step}
                 </div>
                 <h3 className="text-lg font-semibold text-slate-50">{step.title}</h3>
@@ -579,7 +575,7 @@ export default function HomePage() {
       <section className="py-12 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <AnimatedSection className="max-w-2xl mx-auto text-center space-y-4" direction="up">
-            <Quote className="size-6 text-emerald-400/60 mx-auto" />
+            <Quote className="size-8 text-emerald-400/50 mx-auto" />
             <p className="text-sm md:text-base text-slate-400 leading-relaxed italic">
               &ldquo;{founderNote.text}&rdquo;
             </p>

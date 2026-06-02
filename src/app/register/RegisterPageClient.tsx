@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
@@ -12,7 +12,7 @@ import { registerForEvent } from '@/app/actions/registrationActions';
 import { registrationSchema } from '@/lib/validation';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
-import { AnimatedSection, MotionButton } from '@/components/animations/ScrollAnimations';
+import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
@@ -148,18 +148,14 @@ function RegisterForm() {
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 max-w-sm mx-auto">
             <Link href="/events" className="w-full sm:w-auto">
-              <MotionButton className="w-full sm:w-auto">
-                <Button variant="primary" className="w-full">
-                  Explore More Events
-                </Button>
-              </MotionButton>
+              <Button variant="primary" className="w-full">
+                Explore More Events
+              </Button>
             </Link>
             <Link href="/" className="w-full sm:w-auto">
-              <MotionButton className="w-full sm:w-auto">
-                <Button variant="outline" className="w-full text-slate-300">
-                  Return Home
-                </Button>
-              </MotionButton>
+              <Button variant="outline" className="w-full text-slate-300">
+                Return Home
+              </Button>
             </Link>
           </div>
         </Card>
@@ -372,25 +368,23 @@ function RegisterForm() {
 
           {/* Action Button */}
           <div className="pt-4">
-            <MotionButton className="w-full">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full flex items-center justify-center gap-2"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <CampusCoderLoader size="sm" /> Processing RSVP&hellip;
-                  </>
-                ) : (
-                  <>
-                    Reserve my spot <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
-            </MotionButton>
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              className="w-full flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Processing RSVP&hellip;
+                </>
+              ) : (
+                <>
+                  Reserve my spot <ArrowRight className="size-4" />
+                </>
+              )}
+            </Button>
           </div>
         </form>
       </Card>
