@@ -62,8 +62,10 @@ const CodeCore = React.memo(function CodeCore() {
 const TechSphere = React.memo(function TechSphere() {
   const outerSphereRef = useRef<THREE.Mesh>(null);
   const innerSphereRef = useRef<THREE.Mesh>(null);
+  const reducedMotion = useReducedMotion();
 
   useFrame((_state, delta) => {
+    if (reducedMotion) return;
     if (outerSphereRef.current) {
       outerSphereRef.current.rotation.y -= delta * 0.08;
       outerSphereRef.current.rotation.z += delta * 0.04;
@@ -115,7 +117,7 @@ export default function HeroCodeScene() {
   const dpr = useAdaptiveDPR();
 
   return (
-    <div className="w-full h-full relative select-none">
+    <div className="w-full h-full relative select-none will-change-transform" aria-label="3D coding symbols and geometric shapes animation">
       <Canvas
         camera={{ position: [0, 0, 4.5], fov: 45 }}
         dpr={dpr}

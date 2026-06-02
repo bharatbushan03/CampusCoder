@@ -85,8 +85,8 @@ const GlobeNetwork = React.memo(function GlobeNetwork() {
   useFrame((state, delta) => {
     if (groupRef.current) {
       if (!reducedMotion) {
-        groupRef.current.rotation.y += delta * 0.12;
-        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -state.pointer.y * 0.15, 0.05);
+        groupRef.current.rotation.y += delta * 0.15;
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -state.pointer.y * 0.12, 0.05);
       }
     }
   });
@@ -132,7 +132,7 @@ export default function CommunityGlobe() {
   const dpr = useAdaptiveDPR();
 
   return (
-    <div className="w-full h-full relative select-none">
+    <div className="w-full h-full relative select-none will-change-transform" aria-label="3D community network globe visualization">
       <Canvas
         camera={{ position: [0, 0, 3.8], fov: 45 }}
         dpr={dpr}

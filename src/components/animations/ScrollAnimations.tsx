@@ -72,7 +72,7 @@ export const AnimatedSection: React.FC<AnimatedSectionProps> = React.memo(functi
       transition: {
         duration: reducedMotion ? 0 : duration,
         delay: reducedMotion ? 0 : delay,
-        ease: [0.21, 0.47, 0.32, 0.98],
+        ease: [0.21, 0.47, 0.32, 0.98] as const,
       }
     }
   };

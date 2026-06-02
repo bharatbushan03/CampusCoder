@@ -30,7 +30,7 @@ export const CampusCoderLoader: React.FC<CampusCoderLoaderProps> = React.memo(fu
   };
 
   const container = (
-    <div className="relative flex flex-col items-center justify-center">
+    <div className="relative flex flex-col items-center justify-center" role="status" aria-label="Loading content">
       {/* Outer Rotating Ring */}
       <motion.div
         className={`${sizeClasses[size]} rounded-full border-2 border-emerald-500/10 border-t-emerald-500`}

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Terminal, Code, Cpu, Sparkles } from 'lucide-react';
-import { usePrefersReducedMotion } from '@/components/animations/ScrollAnimations';
+import { useReducedMotion } from '@/utils/performance';
 
 interface FloatingParticle {
   id: number;
@@ -15,8 +15,7 @@ interface FloatingParticle {
   scale: number;
 }
 
-// Checkmark draw animation variants
-const CHECKMARK_PATH_VARIANTS = {
+const CHECKMARK_PATH_VARIANTS: Variants = {
   hidden: { pathLength: 0, opacity: 0 },
   visible: {
     pathLength: 1,
@@ -28,8 +27,7 @@ const CHECKMARK_PATH_VARIANTS = {
   }
 };
 
-// Rotating 3D Badge variants
-const BADGE_VARIANTS = {
+const BADGE_VARIANTS: Variants = {
   hidden: { scale: 0.6, rotateY: -180, opacity: 0 },
   visible: {
     scale: 1,
@@ -45,7 +43,7 @@ const BADGE_VARIANTS = {
 };
 
 export const RegistrationSuccessVisual: React.FC = () => {
-  const reducedMotion = usePrefersReducedMotion();
+  const reducedMotion = useReducedMotion();
   const [particles, setParticles] = useState<FloatingParticle[]>([]);
 
   useEffect(() => {

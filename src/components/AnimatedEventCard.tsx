@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import { useReducedMotion } from '@/utils/performance';
 
 interface AnimatedEventCardProps {
   children: React.ReactNode;
@@ -17,9 +18,9 @@ export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = React.memo(fu
   delay = 0,
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
   const [isTouch, setIsTouch] = useState(false);
 
-  // Detect if the user is on a touch device
   useEffect(() => {
     const detectTouch = () => {
       setIsTouch(window.matchMedia('(pointer: coarse)').matches);
@@ -27,20 +28,19 @@ export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = React.memo(fu
     requestAnimationFrame(detectTouch);
   }, []);
 
-  // Framer Motion values for 3D tilt
+  const isInteractive = !isTouch && !reducedMotion;
+
   const x = useMotionValue(0.5);
   const y = useMotionValue(0.5);
 
-  // Map coordinates [0, 1] to rotate angles [-10, 10] degrees
-  const rotateX = useTransform(y, [0, 1], [8, -8]);
-  const rotateY = useTransform(x, [0, 1], [-8, 8]);
+  const rotateX = useTransform(y, [0, 1], [6, -6]);
+  const rotateY = useTransform(x, [0, 1], [-6, 6]);
 
-  // Spring animations for rotation to make them super smooth
   const rotateXSpring = useSpring(rotateX, SPRING_CONFIG);
   const rotateYSpring = useSpring(rotateY, SPRING_CONFIG);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isTouch || !cardRef.current) return;
+    if (!isInteractive || !cardRef.current) return;
     
     const rect = cardRef.current.getBoundingClientRect();
     const width = rect.width;
@@ -91,14 +91,14 @@ export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = React.memo(fu
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       style={{
-        rotateX: isTouch ? 0 : rotateXSpring,
-        rotateY: isTouch ? 0 : rotateYSpring,
+        rotateX: isInteractive ? rotateXSpring : 0,
+        rotateY: isInteractive ? rotateYSpring : 0,
         transformStyle: 'preserve-3d',
       }}
       className={`group relative rounded-2xl border bg-slate-950 border-slate-900 overflow-hidden transition-all duration-300 hover:border-emerald-500/40 hover:shadow-[0_0_30px_-5px_rgba(16,185,129,0.2)] ${className}`}
     >
       {/* Radial Shine Overlay */}
-      {!isTouch && (
+      {isInteractive && (
         <div
           className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"
           style={{

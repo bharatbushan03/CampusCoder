@@ -29,9 +29,9 @@ export default function Test3DComponent() {
   const dpr = useAdaptiveDPR();
 
   return (
-    <div className="w-full h-[400px] md:h-[500px] bg-slate-950/50 rounded-2xl border border-slate-800 relative overflow-hidden flex items-center justify-center">
-      <div className="absolute top-4 left-4 z-10 font-mono text-[10px] text-slate-500 uppercase tracking-widest pointer-events-none">
-        React Three Fiber Active
+    <div className="w-full h-[400px] md:h-[500px] bg-slate-950/50 rounded-2xl border border-slate-800 relative overflow-hidden flex items-center justify-center will-change-transform" aria-label="3D interactive torus visualization">
+      <div className="absolute top-4 left-4 z-10 font-mono text-[10px] text-slate-500 uppercase tracking-widest pointer-events-none select-none">
+        3D Canvas Active
       </div>
 
       <Canvas camera={{ position: [0, 0, 4], fov: 50 }} dpr={dpr}>
