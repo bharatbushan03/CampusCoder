@@ -9,12 +9,14 @@ import { useReducedMotion, useAdaptiveDPR } from '@/utils/performance';
 const FloatingSymbol = React.memo(function FloatingSymbol({ symbol, position, speed = 1 }: { symbol: string; position: [number, number, number]; speed?: number }) {
   const ref = useRef<THREE.Group>(null);
   const initialY = position[1];
+  const elapsedRef = useRef(0);
   const reducedMotion = useReducedMotion();
 
-  useFrame((state) => {
+  useFrame((_state, delta) => {
     if (!ref.current) return;
+    elapsedRef.current += delta;
     if (!reducedMotion) {
-      ref.current.position.y = initialY + Math.sin(state.clock.getElapsedTime() * speed + position[0]) * 0.15;
+      ref.current.position.y = initialY + Math.sin(elapsedRef.current * speed + position[0]) * 0.15;
       ref.current.rotation.y += 0.005;
       ref.current.rotation.x += 0.002;
     }
@@ -32,15 +34,17 @@ const FloatingSymbol = React.memo(function FloatingSymbol({ symbol, position, sp
 const CodeCore = React.memo(function CodeCore() {
   const groupRef = useRef<THREE.Group>(null);
   const cubeRef = useRef<THREE.Mesh>(null);
+  const elapsedRef = useRef(0);
   const reducedMotion = useReducedMotion();
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
+    elapsedRef.current += delta;
     if (groupRef.current) {
       groupRef.current.rotation.y += delta * 0.2;
       groupRef.current.rotation.x += delta * 0.1;
     }
     if (cubeRef.current && !reducedMotion) {
-      const scale = 1 + Math.sin(state.clock.getElapsedTime() * 1.5) * 0.06;
+      const scale = 1 + Math.sin(elapsedRef.current * 1.5) * 0.06;
       cubeRef.current.scale.set(scale, scale, scale);
     }
   });
