@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/utils/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
@@ -158,14 +159,14 @@ export default function StudentDashboard() {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 space-y-12 min-h-screen">
         <div className="flex justify-between items-center">
-          <div className="h-10 w-64 skeleton"></div>
-          <div className="h-10 w-32 skeleton"></div>
+          <Skeleton variant="button" className="w-64" />
+          <Skeleton variant="button" className="w-32" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="h-96 skeleton rounded-2xl"></div>
+          <Skeleton variant="card" className="h-96" />
           <div className="lg:col-span-2 space-y-4">
-            <div className="h-48 skeleton rounded-2xl"></div>
-            <div className="h-48 skeleton rounded-2xl"></div>
+            <Skeleton variant="card" />
+            <Skeleton variant="card" />
           </div>
         </div>
       </div>
