@@ -8,7 +8,7 @@ interface PageTransitionProps {
   children: React.ReactNode;
 }
 
-export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
+export const PageTransition: React.FC<PageTransitionProps> = React.memo(function PageTransition({ children }) {
   const pathname = usePathname();
 
   return (
@@ -25,4 +25,4 @@ export const PageTransition: React.FC<PageTransitionProps> = ({ children }) => {
       {children}
     </motion.div>
   );
-};
+});

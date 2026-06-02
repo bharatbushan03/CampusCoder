@@ -11,11 +11,11 @@ interface AnimatedEventCardProps {
 
 const SPRING_CONFIG = { damping: 25, stiffness: 200, mass: 0.5 };
 
-export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = ({
+export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = React.memo(function AnimatedEventCard({
   children,
   className = '',
   delay = 0,
-}) => {
+}) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isTouch, setIsTouch] = useState(false);
 
@@ -113,6 +113,6 @@ export const AnimatedEventCard: React.FC<AnimatedEventCardProps> = ({
       </div>
     </motion.div>
   );
-};
+});
 
 export default AnimatedEventCard;

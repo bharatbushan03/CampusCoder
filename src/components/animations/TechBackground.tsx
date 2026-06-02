@@ -1,31 +1,13 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { usePerformanceTier, useReducedMotion } from '@/utils/performance';
 
-export const TechBackground: React.FC = () => {
+export const TechBackground: React.FC = React.memo(function TechBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    
-    const detectMotion = () => {
-      setReducedMotion(mediaQuery.matches);
-    };
-    requestAnimationFrame(detectMotion);
-
-    const handleQueryChange = (e: MediaQueryListEvent) => {
-      setReducedMotion(e.matches);
-    };
-
-    mediaQuery.addEventListener('change', handleQueryChange);
-    return () => {
-      mediaQuery.removeEventListener('change', handleQueryChange);
-    };
-  }, []);
+  const reducedMotion = useReducedMotion();
+  const tier = usePerformanceTier();
 
   useEffect(() => {
     if (reducedMotion || typeof window === 'undefined') return;
@@ -46,7 +28,7 @@ export const TechBackground: React.FC = () => {
       width = rect.width;
       height = rect.height;
 
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = tier === 'low' ? 1 : Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       ctx.scale(dpr, dpr);
@@ -66,8 +48,9 @@ export const TechBackground: React.FC = () => {
       speed: number;
     }
 
+    const maxLines = tier === 'low' ? 4 : tier === 'medium' ? 8 : 12;
+
     const lines: CircuitLine[] = [];
-    const maxLines = 12;
 
     const createLine = (): CircuitLine => {
       const isHorizontal = Math.random() > 0.5;
@@ -80,7 +63,7 @@ export const TechBackground: React.FC = () => {
         dx,
         dy,
         length: 0,
-        maxLength: 40 + Math.random() * 120,
+        maxLength: (tier === 'low' ? 20 : 40) + Math.random() * (tier === 'low' ? 60 : 120),
         color: `rgba(16, 185, 129, ${0.03 + Math.random() * 0.08})`,
         speed: 0.3 + Math.random() * 0.8,
       };
@@ -101,18 +84,20 @@ export const TechBackground: React.FC = () => {
       targetMouse.y = e.clientY - rect.top;
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    if (tier !== 'low') {
+      window.addEventListener('mousemove', handleMouseMove);
+    }
 
     const draw = () => {
       ctx.clearRect(0, 0, width, height);
 
-      // Smooth mouse tracking
-      mouseX += (targetMouse.x - mouseX) * 0.05;
-      mouseY += (targetMouse.y - mouseY) * 0.05;
+      if (tier !== 'low') {
+        mouseX += (targetMouse.x - mouseX) * 0.05;
+        mouseY += (targetMouse.y - mouseY) * 0.05;
+      }
 
-      // 1. Draw subtle grid
-      const gridSize = 50;
-      ctx.strokeStyle = 'rgba(16, 185, 129, 0.015)';
+      const gridSize = tier === 'low' ? 100 : 50;
+      ctx.strokeStyle = tier === 'low' ? 'rgba(16, 185, 129, 0.01)' : 'rgba(16, 185, 129, 0.015)';
       ctx.lineWidth = 1;
 
       for (let x = 0; x < width; x += gridSize) {
@@ -128,14 +113,14 @@ export const TechBackground: React.FC = () => {
         ctx.stroke();
       }
 
-      // 2. Draw soft radial glow behind mouse (parallax)
-      const gradient = ctx.createRadialGradient(mouseX, mouseY, 5, mouseX, mouseY, 250);
-      gradient.addColorStop(0, 'rgba(16, 185, 129, 0.035)');
-      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
+      if (tier !== 'low') {
+        const gradient = ctx.createRadialGradient(mouseX, mouseY, 5, mouseX, mouseY, 250);
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.035)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+      }
 
-      // 3. Draw and update circuit lines
       lines.forEach((line, index) => {
         ctx.strokeStyle = line.color;
         ctx.lineWidth = 1;
@@ -147,7 +132,6 @@ export const TechBackground: React.FC = () => {
         ctx.lineTo(endX, endY);
         ctx.stroke();
 
-        // Draw small dot at the head of the circuit
         ctx.fillStyle = 'rgba(52, 211, 153, 0.1)';
         ctx.beginPath();
         ctx.arc(endX, endY, 1.5, 0, Math.PI * 2);
@@ -159,12 +143,12 @@ export const TechBackground: React.FC = () => {
           const turn = Math.random() > 0.4;
           const nextX = endX;
           const nextY = endY;
-          
+
           if (turn && nextX > 0 && nextX < width && nextY > 0 && nextY < height) {
             line.x = nextX;
             line.y = nextY;
             line.length = 0;
-            line.maxLength = 30 + Math.random() * 80;
+            line.maxLength = (tier === 'low' ? 15 : 30) + Math.random() * (tier === 'low' ? 40 : 80);
 
             const isHorizontal = line.dx === 0;
             line.dx = isHorizontal ? (Math.random() > 0.5 ? 1 : -1) : 0;
@@ -182,17 +166,16 @@ export const TechBackground: React.FC = () => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('mousemove', handleMouseMove);
+      if (tier !== 'low') window.removeEventListener('mousemove', handleMouseMove);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [reducedMotion]);
+  }, [reducedMotion, tier]);
 
   return (
     <div
       ref={containerRef}
       className="absolute inset-0 overflow-hidden pointer-events-none -z-20"
     >
-      {/* Static grid background for reduced motion */}
       {reducedMotion ? (
         <div
           className="absolute inset-0 opacity-[0.015]"
@@ -206,6 +189,6 @@ export const TechBackground: React.FC = () => {
       )}
     </div>
   );
-};
+});
 
 export default TechBackground;

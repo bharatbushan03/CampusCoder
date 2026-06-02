@@ -23,14 +23,14 @@ const sizes: Record<NonNullable<ButtonProps['size']>, string> = {
   lg: 'px-8 py-3.5 text-base',
 };
 
-export const Button: React.FC<ButtonProps> = ({
+export const Button: React.FC<ButtonProps> = React.memo(function Button({
   variant = 'primary',
   size = 'md',
   className = '',
   isLoading = false,
   children,
   ...props
-}) => {
+}) {
   return (
     <button type="button"
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
@@ -43,4 +43,4 @@ export const Button: React.FC<ButtonProps> = ({
       {children}
     </button>
   );
-};
+});

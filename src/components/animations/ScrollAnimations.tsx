@@ -38,13 +38,13 @@ interface AnimatedSectionProps {
 /**
  * Fades up/in a section on scroll when it enters the viewport.
  */
-export const AnimatedSection: React.FC<AnimatedSectionProps> = ({
+export const AnimatedSection: React.FC<AnimatedSectionProps> = React.memo(function AnimatedSection({
   children,
   className = '',
   delay = 0,
   direction = 'up',
   duration = 0.5,
-}) => {
+}) {
   const reducedMotion = usePrefersReducedMotion();
 
   const getOffset = () => {
@@ -88,7 +88,7 @@ export const AnimatedSection: React.FC<AnimatedSectionProps> = ({
       {children}
     </motion.div>
   );
-};
+});
 
 interface AnimatedCardProps {
   children: React.ReactNode;
@@ -99,11 +99,11 @@ interface AnimatedCardProps {
 /**
  * Card container with optional hover effect and staggered entrance capability.
  */
-export const AnimatedCard: React.FC<AnimatedCardProps> = ({
+export const AnimatedCard: React.FC<AnimatedCardProps> = React.memo(function AnimatedCard({
   children,
   className = '',
   delay = 0,
-}) => {
+}) {
   const reducedMotion = usePrefersReducedMotion();
 
   const cardVariants = {
@@ -132,7 +132,7 @@ export const AnimatedCard: React.FC<AnimatedCardProps> = ({
       {children}
     </motion.div>
   );
-};
+});
 
 interface MotionButtonProps {
   children: React.ReactNode;
@@ -143,11 +143,11 @@ interface MotionButtonProps {
 /**
  * Wrapper for buttons to add visual weight and micro-interactions on hover and click.
  */
-export const MotionButton: React.FC<MotionButtonProps> = ({
+export const MotionButton: React.FC<MotionButtonProps> = React.memo(function MotionButton({
   children,
   className = '',
   ...props
-}) => {
+}) {
   const reducedMotion = usePrefersReducedMotion();
 
   return (
@@ -161,7 +161,7 @@ export const MotionButton: React.FC<MotionButtonProps> = ({
       {children}
     </motion.div>
   );
-};
+});
 
 interface CounterStatProps {
   value: number;
@@ -174,13 +174,13 @@ interface CounterStatProps {
 /**
  * Incrementing stat number animation that counts from 0 to value when visible.
  */
-export const CounterStat: React.FC<CounterStatProps> = ({
+export const CounterStat: React.FC<CounterStatProps> = React.memo(function CounterStat({
   value,
   duration = 2,
   prefix = '',
   suffix = '',
   className = '',
-}) => {
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const reducedMotion = usePrefersReducedMotion();
   const motionValue = useMotionValue(0);
@@ -215,4 +215,4 @@ export const CounterStat: React.FC<CounterStatProps> = ({
       {prefix}0{suffix}
     </span>
   );
-};
+});

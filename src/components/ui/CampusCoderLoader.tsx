@@ -10,11 +10,11 @@ interface CampusCoderLoaderProps {
   text?: string;
 }
 
-export const CampusCoderLoader: React.FC<CampusCoderLoaderProps> = ({
+export const CampusCoderLoader: React.FC<CampusCoderLoaderProps> = React.memo(function CampusCoderLoader({
   size = 'md',
   fullPage = false,
   text,
-}) => {
+}) {
   const sizeClasses = {
     sm: 'size-12',
     md: 'size-20',
@@ -118,4 +118,4 @@ export const CampusCoderLoader: React.FC<CampusCoderLoaderProps> = ({
   }
 
   return container;
-};
+});
