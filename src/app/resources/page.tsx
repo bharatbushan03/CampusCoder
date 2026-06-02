@@ -9,7 +9,7 @@ import {
   Briefcase,
   Sparkles,
   Map,
-  Database
+  Database as DatabaseIcon
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -30,7 +30,7 @@ export default function ResourcesPage() {
     { id: 'all', label: 'All Resources', icon: BookOpen },
     { id: 'roadmaps', label: 'Roadmaps', icon: Map },
     { id: 'practice', label: 'Practice', icon: Code },
-    { id: 'dsa', label: 'DSA Kits', icon: Database },
+    { id: 'dsa', label: 'DSA Kits', icon: DatabaseIcon },
     { id: 'placement', label: 'Placements', icon: Briefcase },
   ];
 
@@ -132,7 +132,7 @@ export default function ResourcesPage() {
                   <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                     {res.category === 'roadmaps' && <Map className="h-5 w-5 text-emerald-400" />}
                     {res.category === 'practice' && <Code className="h-5 w-5 text-emerald-400" />}
-                    {res.category === 'dsa' && <Database className="h-5 w-5 text-emerald-400" />}
+                    {res.category === 'dsa' && <DatabaseIcon className="h-5 w-5 text-emerald-400" />}
                     {res.category === 'placement' && <Briefcase className="h-5 w-5 text-emerald-400" />}
                     {(!['roadmaps', 'practice', 'dsa', 'placement'].includes(res.category)) && <BookOpen className="h-5 w-5 text-emerald-400" />}
                   </div>
