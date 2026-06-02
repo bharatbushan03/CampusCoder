@@ -244,10 +244,24 @@ export default function EventDetailsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-40 min-h-screen">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-5 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-          <p className="text-xs text-slate-500 font-mono">Loading event details…</p>
+      <div className="min-h-screen py-12 md:py-16">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 md:space-y-10">
+          <div className="h-4 w-24 bg-slate-800/60 animate-pulse rounded-lg" />
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
+            <div className="flex-1 space-y-5">
+              <div className="h-6 w-32 bg-slate-800/60 animate-pulse rounded-lg" />
+              <div className="h-10 w-3/4 bg-slate-800/60 animate-pulse rounded-lg" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
+                <div className="h-16 bg-slate-800/60 animate-pulse rounded-lg" />
+                <div className="h-16 bg-slate-800/60 animate-pulse rounded-lg" />
+                <div className="h-16 bg-slate-800/60 animate-pulse rounded-lg" />
+              </div>
+              <div className="h-12 w-40 bg-slate-800/60 animate-pulse rounded-lg" />
+            </div>
+            <div className="lg:w-80 shrink-0">
+              <div className="h-64 bg-slate-800/60 animate-pulse rounded-2xl" />
+            </div>
+          </div>
         </div>
       </div>
     );
