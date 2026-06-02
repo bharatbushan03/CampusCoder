@@ -15,7 +15,6 @@ import {
   Megaphone,
   ExternalLink,
   Calendar,
-  Clock,
   ArrowUpRight,
   Layers
 } from 'lucide-react';
@@ -338,8 +337,7 @@ export default function HomePage() {
                 <div className="p-6 flex-1 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center gap-3 text-emerald-500 text-[10px] font-mono font-bold uppercase tracking-tighter mb-3">
-                      <span className="flex items-center gap-1"><Calendar className="size-3" /> {ev.date}</span>
-                      <span className="flex items-center gap-1"><Clock className="size-3" /> {ev.time.split(' ')[0]}</span>
+                      <span className="flex items-center gap-1"><Calendar className="size-3" /> Coming Soon</span>
                     </div>
                     <h3 className="text-xl font-bold text-white mb-3 group-hover:text-emerald-400 transition-colors">{ev.title}</h3>
                     <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 mb-6">{ev.description}</p>
