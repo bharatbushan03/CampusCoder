@@ -40,18 +40,19 @@ function NoWebGLFallback() {
   );
 }
 
-export const DynamicHeroCodeScene = dynamic(
-  () => import('./HeroCodeScene').then((mod) => {
-    const WrappedHero = () => {
-      const webgl = useWebGLSupport();
-      if (!webgl) return <NoWebGLFallback />;
-      return <mod.default />;
-    };
-    return { default: WrappedHero };
-  }),
+const HeroCodeSceneComponent = dynamic(
+  () => import('./HeroCodeScene'),
   {
     ssr: false,
     loading: () => <StaticHeroFallback />,
   }
 );
+
+export const DynamicHeroCodeScene = () => {
+  const webgl = useWebGLSupport();
+  
+  if (!webgl) return <NoWebGLFallback />;
+  return <HeroCodeSceneComponent />;
+};
+
 export default DynamicHeroCodeScene;

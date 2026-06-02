@@ -52,19 +52,19 @@ function NoWebGLFallback() {
   );
 }
 
-const DynamicCommunityGlobe = dynamic(
-  () => import('./CommunityGlobe').then((mod) => {
-    const WrappedGlobe = () => {
-      const webgl = useWebGLSupport();
-      if (!webgl) return <NoWebGLFallback />;
-      return <mod.default />;
-    };
-    return { default: WrappedGlobe };
-  }),
+const CommunityGlobeComponent = dynamic(
+  () => import('./CommunityGlobe'),
   {
     ssr: false,
     loading: () => <StaticGlobeFallback />,
   }
 );
+
+const DynamicCommunityGlobe = () => {
+  const webgl = useWebGLSupport();
+  
+  if (!webgl) return <NoWebGLFallback />;
+  return <CommunityGlobeComponent />;
+};
 
 export default DynamicCommunityGlobe;
