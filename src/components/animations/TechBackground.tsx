@@ -64,7 +64,7 @@ export const TechBackground: React.FC = React.memo(function TechBackground() {
         dy,
         length: 0,
         maxLength: (tier === 'low' ? 20 : 40) + Math.random() * (tier === 'low' ? 60 : 120),
-        color: `rgba(16, 185, 129, ${0.03 + Math.random() * 0.08})`,
+        color: `rgba(16, 185, 129, ${0.04 + Math.random() * 0.10})`,
         speed: 0.3 + Math.random() * 0.8,
       };
     };

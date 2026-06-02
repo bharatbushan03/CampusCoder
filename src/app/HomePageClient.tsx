@@ -131,7 +131,7 @@ export default function HomePage() {
             <AnimatedSection className="lg:col-span-7 text-left space-y-8" direction="left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
                 <span className="relative flex size-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
                 </span>
                 Community for Builders
@@ -280,7 +280,7 @@ export default function HomePage() {
             <AnimatedSection className="lg:col-span-6 space-y-6 text-left" direction="left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
                 <span className="relative flex size-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full size-2 bg-emerald-500"></span>
                 </span>
                 Global Network
@@ -328,7 +328,7 @@ export default function HomePage() {
                   <div className="absolute top-4 left-4 flex gap-2">
                     <span className="px-2 py-1 rounded bg-slate-950/80 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
                       <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                       </span>
                       {ev.type.replace('_', ' ')}
@@ -382,7 +382,7 @@ export default function HomePage() {
               <Card className="aspect-square bg-slate-900/40 border-slate-800 p-1 flex items-center justify-center overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 z-0"></div>
                 <div className="relative z-10 text-center space-y-4 p-8">
-                  <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 inline-block shadow-2xl animate-float">
+                  <div className="p-4 rounded-3xl bg-slate-950/80 border border-slate-800 inline-block shadow-2xl motion-safe:animate-float">
                     <Terminal className="size-16 text-emerald-400" />
                   </div>
                   <h3 className="text-2xl font-bold text-white font-mono uppercase tracking-widest">Built by Students <br /> for Students</h3>
@@ -393,9 +393,8 @@ export default function HomePage() {
                   </div>
                 </div>
               </Card>
-              {/* Decorative elements */}
-              <div className="absolute -top-4 -right-4 size-24 bg-emerald-500/10 rounded-full blur-2xl animate-pulse-slow"></div>
-              <div className="absolute -bottom-8 -left-8 size-32 bg-cyan-500/10 rounded-full blur-2xl animate-pulse-slow delay-1000"></div>
+              <div className="absolute -top-4 -right-4 size-24 bg-emerald-500/10 rounded-full blur-2xl motion-safe:animate-pulse-slow"></div>
+              <div className="absolute -bottom-8 -left-8 size-32 bg-cyan-500/10 rounded-full blur-2xl motion-safe:animate-pulse-slow delay-1000"></div>
             </AnimatedSection>
           </div>
         </div>
