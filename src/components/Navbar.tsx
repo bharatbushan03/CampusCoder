@@ -20,7 +20,7 @@ const navLinks = [
   { label: 'Archive', href: '/events/archive' },
 ];
 
-export const Navbar: React.FC = () => {
+export const Navbar: React.FC = React.memo(function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -313,4 +313,4 @@ export const Navbar: React.FC = () => {
       </AnimatePresence>
     </motion.header>
   );
-};
+});

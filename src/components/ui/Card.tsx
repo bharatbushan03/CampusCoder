@@ -6,13 +6,13 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-export const Card: React.FC<CardProps> = ({
+export const Card: React.FC<CardProps> = React.memo(function Card({
   hoverEffect = true,
   glass = true,
   className = '',
   children,
   ...props
-}) => {
+}) {
   return (
     <div
       className={`rounded-2xl border transition-all duration-300 ${
@@ -25,4 +25,4 @@ export const Card: React.FC<CardProps> = ({
       {children}
     </div>
   );
-};
+});

@@ -27,7 +27,7 @@ function getPlatformIcon(platform: string) {
   return <Globe className="size-5" />;
 }
 
-export const Footer: React.FC = () => {
+export const Footer: React.FC = React.memo(function Footer() {
   const [links, setLinks] = useState<CommunityLink[]>(fallbackLinks);
 
   useEffect(() => {
@@ -167,4 +167,4 @@ export const Footer: React.FC = () => {
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
     </footer>
   );
-};
+});
