@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, X, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 
 type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
 type EventSummary = Pick<Database['public']['Tables']['events']['Row'], 'title' | 'slug'>;
 type AnnouncementWithEvent = AnnouncementRow & { events?: EventSummary | null };
+type LatestAnnouncementResponse = { announcement: AnnouncementWithEvent | null };
 
 export const AnnouncementBanner: React.FC = () => {
   const [announcement, setAnnouncement] = useState<AnnouncementWithEvent | null>(null);
@@ -16,66 +16,21 @@ export const AnnouncementBanner: React.FC = () => {
 
   useEffect(() => {
     const fetchLatestAnnouncement = async () => {
-      if (!isSupabaseConfigured()) {
-        return;
-      }
-
       try {
-        const supabase = createClient();
-        const nowStr = new Date().toISOString();
-
-        const { data, error } = await supabase
-          .from('announcements')
-          .select(`
-            *,
-            events (
-              title,
-              slug
-            )
-          `)
-          .eq('is_active', true)
-          .lte('publish_date', nowStr)
-          .order('publish_date', { ascending: false })
-          .limit(1)
-          .returns<AnnouncementWithEvent[]>();
-
-        if (error) {
-          if ('code' in error && error.code === '42703') {
-            const { data: fallback } = await supabase
-              .from('announcements')
-              .select(`
-                *,
-                events (
-                  title,
-                  slug
-                )
-              `)
-              .eq('is_active', true)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .returns<AnnouncementWithEvent[]>();
-
-            if (fallback && fallback.length > 0) {
-              const latest = fallback[0];
-              const dismissedId = localStorage.getItem('dismissed_announcement_id');
-              if (dismissedId !== latest.id) {
-                setAnnouncement(latest);
-                setVisible(true);
-              }
-            }
-          }
+        const response = await fetch('/api/announcements/latest', { cache: 'no-store' });
+        if (!response.ok) {
           return;
         }
 
-        if (data && data.length > 0) {
-          const latest = data[0];
+        const { announcement: latest } = (await response.json()) as LatestAnnouncementResponse;
+        if (latest) {
           const dismissedId = localStorage.getItem('dismissed_announcement_id');
           if (dismissedId !== latest.id) {
             setAnnouncement(latest);
             setVisible(true);
           }
         }
-      } catch (_err) {
+      } catch {
         // Banner unavailable — silently degrade
       }
     };

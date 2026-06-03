@@ -99,12 +99,8 @@ export default function EventManagementPage({ params }: PageProps) {
     
     try {
       const res = await sendMeetingLinkToAll(id, force);
-      if (res.success) {
-        setSuccessMsg(`Successfully sent meeting link to ${res.count} students.`);
-        await loadData();
-      } else {
-        setErrorMsg(res.error || 'Failed to send emails.');
-      }
+      setSuccessMsg(`Successfully sent meeting link to ${res.count} students.`);
+      await loadData();
     } catch (err: any) {
       setErrorMsg('Error during email blast: ' + err.message);
     } finally {

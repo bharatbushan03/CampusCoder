@@ -3,7 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { registrationSchema } from '@/lib/validation';
-import { sendRegistrationEmails } from './emailActions';
+import { sendRegistrationEmails } from '@/lib/registrationEmails';
 import { z } from 'zod';
 import { createHash } from 'crypto';
 
