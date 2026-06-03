@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/utils/supabase/client';
+import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
 
@@ -122,7 +123,7 @@ export default function WorkshopsPage() {
                       }`}>
                         {ws.status === 'published' ? 'Upcoming' : 'Archived'}
                       </span>
-                      <span className="text-[10px] font-mono text-slate-500">{new Date(ws.date).toLocaleDateString()}</span>
+                      <span className="text-[10px] font-mono text-slate-500">{EVENT_DATE_LABEL}</span>
                     </div>
                     <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors">{ws.title}</h3>
                     <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">

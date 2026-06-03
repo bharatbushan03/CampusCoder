@@ -23,6 +23,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { createClient } from '@/utils/supabase/client';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
 import type { User } from '@supabase/supabase-js';
@@ -329,8 +330,8 @@ export default function StudentDashboard() {
                         <div className="space-y-2">
                           <h3 className="text-2xl font-bold text-white leading-tight font-mono group-hover:text-emerald-400 transition-colors">{ev.title}</h3>
                           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-mono text-slate-500 uppercase tracking-widest">
-                            <span className="flex items-center gap-2"><Calendar className="size-4 text-emerald-500/40" /> {new Date(ev.date).toLocaleDateString()}</span>
-                            <span className="flex items-center gap-2"><Clock className="size-4 text-emerald-500/40" /> {ev.start_time.slice(0,5)}</span>
+                            <span className="flex items-center gap-2"><Calendar className="size-4 text-emerald-500/40" /> {EVENT_DATE_LABEL}</span>
+                            <span className="flex items-center gap-2"><Clock className="size-4 text-emerald-500/40" /> {EVENT_TIME_LABEL}</span>
                             <span className="flex items-center gap-2"><MapPin className="size-4 text-emerald-500/40" /> {ev.mode}</span>
                           </div>
                         </div>

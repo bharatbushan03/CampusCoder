@@ -5,6 +5,7 @@ import { RegistrationConfirmationEmail } from '@/components/emails/RegistrationC
 import { AdminNotificationEmail } from '@/components/emails/AdminNotification';
 import { MeetingLinkEmail } from '@/components/emails/MeetingLinkAnnouncement';
 import { createClient } from '@/utils/supabase/server';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 
 export async function sendRegistrationEmails(registrationData: any, eventData: any) {
   if (!resend) {
@@ -32,8 +33,8 @@ export async function sendRegistrationEmails(registrationData: any, eventData: a
         <RegistrationConfirmationEmail
           studentName={registrationData.full_name}
           eventTitle={eventData.title}
-          eventDate={new Date(eventData.date).toLocaleDateString()}
-          eventTime={`${eventData.start_time} - ${eventData.end_time}`}
+          eventDate={EVENT_DATE_LABEL}
+          eventTime={EVENT_TIME_LABEL}
           mode={eventData.mode}
           communityLinks={links}
         />
@@ -125,8 +126,8 @@ export async function sendMeetingLinkToAll(eventId: string, force: boolean = fal
           <MeetingLinkEmail
             studentName={reg.full_name}
             eventTitle={event.title}
-            eventDate={new Date(event.date).toLocaleDateString()}
-            eventTime={`${event.start_time} - ${event.end_time}`}
+            eventDate={EVENT_DATE_LABEL}
+            eventTime={EVENT_TIME_LABEL}
             meetingLink={event.meeting_link!}
           />
         ),
