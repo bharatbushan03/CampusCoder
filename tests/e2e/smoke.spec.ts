@@ -64,7 +64,7 @@ test('protected student and admin routes redirect anonymous users to login', asy
 
 test('registration form shows validation before submit reaches server', async ({ page }) => {
   await page.goto('/register', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /confirm community rsvp/i }).click();
+  await page.getByRole('button', { name: /reserve my spot/i }).click();
   await expect.poll(async () => page.locator('input:invalid, select:invalid, textarea:invalid').count()).toBeGreaterThan(0);
 });
 

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { getErrorMessage } from '@/lib/errors';
 import type { Database } from '@/types/database.types';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 
@@ -39,10 +40,11 @@ export default function AdminEventsListingPage() {
     } catch (err) {
       console.warn('Database offline, using mock data for events table:', err);
       setIsDbOffline(true);
+      const now = new Date().toISOString();
       setEvents([
-        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', status: 'published', meeting_link: 'https://meet.google.com/abc' },
-        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', event_type: 'webinar', mode: 'online', date: '2026-06-12', start_time: '18:00', end_time: '19:30', status: 'published', meeting_link: 'https://meet.google.com/def' },
-        { id: '3', title: 'Weekly Coding Sprint: HackerRank practice', slug: 'weekly-coding-sprint-hackerrank', event_type: 'coding_session', mode: 'online', date: '2026-05-20', start_time: '17:00', end_time: '19:00', status: 'completed' }
+        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', short_description: null, full_description: null, event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', status: 'published', meeting_link: 'https://meet.google.com/abc', registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now },
+        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', short_description: null, full_description: null, event_type: 'webinar', mode: 'online', date: '2026-06-12', start_time: '18:00', end_time: '19:30', status: 'published', meeting_link: 'https://meet.google.com/def', registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now },
+        { id: '3', title: 'Weekly Coding Sprint: HackerRank practice', slug: 'weekly-coding-sprint-hackerrank', short_description: null, full_description: null, event_type: 'coding_session', mode: 'online', date: '2026-05-20', start_time: '17:00', end_time: '19:00', status: 'completed', meeting_link: null, registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now }
       ]);
     } finally {
       setLoading(false);
@@ -65,7 +67,7 @@ export default function AdminEventsListingPage() {
       if (error) throw error;
       await loadEvents();
     } catch (err) {
-      alert('Failed to update event: ' + err.message);
+      alert('Failed to update event: ' + getErrorMessage(err));
     }
   };
 
@@ -81,7 +83,7 @@ export default function AdminEventsListingPage() {
       if (error) throw error;
       await loadEvents();
     } catch (err) {
-      alert('Failed to delete event: ' + err.message);
+      alert('Failed to delete event: ' + getErrorMessage(err));
     }
   };
 

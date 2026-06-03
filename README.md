@@ -23,6 +23,7 @@ For detailed setup instructions, please refer to the documentation:
 
 -   [Supabase Database Setup](./docs/supabase_setup.md)
 -   [Email System Setup](./docs/email_setup.md)
+-   [AWS Deployment Guide](./docs/aws-deployment.md)
 
 ## 🚀 Getting Started
 
@@ -33,6 +34,16 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Production Check
+
+Before deploying, run:
+
+```bash
+npm run production-check
+```
+
+For AWS Docker/EC2 deployment, follow [docs/aws-deployment.md](./docs/aws-deployment.md).
 
 ## 📄 License
 
