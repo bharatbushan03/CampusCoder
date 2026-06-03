@@ -45,6 +45,7 @@ export const Button: React.FC<ButtonProps> = React.memo(function Button({
   isLoading = false,
   children,
   disabled,
+  type = 'button',
   form,
   formAction,
   name,
@@ -66,7 +67,7 @@ export const Button: React.FC<ButtonProps> = React.memo(function Button({
 
   return (
     <motion.button
-      type="button"
+      type={type}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={isLoading || disabled}
       whileHover={reducedMotion ? {} : { scale: 1.02 }}
