@@ -23,6 +23,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { getErrorMessage } from '@/lib/errors';
 import type { Database } from '@/types/database.types';
 import { Badge } from '@/components/ui/Badge';
 
@@ -36,6 +37,40 @@ type RegistrationWithEvent = RegistrationRow & {
 };
 type AnnouncementWithEvent = AnnouncementRow & {
   events: Pick<EventRow, 'title'> | null;
+};
+type EventType = EventRow['event_type'];
+type EventMode = EventRow['mode'];
+type EventStatus = EventRow['status'];
+type EventFormState = {
+  title: string;
+  slug: string;
+  short_description: string;
+  full_description: string;
+  event_type: EventType;
+  mode: EventMode;
+  date: string;
+  start_time: string;
+  end_time: string;
+  meeting_link: string;
+  registration_deadline: string;
+  banner_url: string;
+  status: EventStatus;
+};
+
+const initialEventForm: EventFormState = {
+  title: '',
+  slug: '',
+  short_description: '',
+  full_description: '',
+  event_type: 'workshop',
+  mode: 'online',
+  date: '',
+  start_time: '',
+  end_time: '',
+  meeting_link: '',
+  registration_deadline: '',
+  banner_url: '',
+  status: 'published',
 };
 
 export default function AdminDashboardPage() {
@@ -60,21 +95,7 @@ export default function AdminDashboardPage() {
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
 
-  const [eventForm, setEventForm] = useState({
-    title: '',
-    slug: '',
-    short_description: '',
-    full_description: '',
-    event_type: 'workshop',
-    mode: 'online',
-    date: '',
-    start_time: '',
-    end_time: '',
-    meeting_link: '',
-    registration_deadline: '',
-    banner_url: '',
-    status: 'published',
-  });
+  const [eventForm, setEventForm] = useState<EventFormState>(initialEventForm);
 
   const [announceForm, setAnnounceForm] = useState({
     title: '',
@@ -143,22 +164,23 @@ export default function AdminDashboardPage() {
       console.warn('Supabase queries failed, loading mock data:', err);
       setIsDbOffline(true);
 
-      const mockEvents = [
-        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', short_description: null, full_description: null, event_type: 'workshop' as const, mode: 'online' as const, date: '2026-06-05', start_time: '14:00', end_time: '16:00', meeting_link: 'https://meet.google.com/abc', registration_deadline: null, banner_url: null, status: 'published' as const, created_by: null, created_at: '', updated_at: '', meeting_link_sent_at: null, summary: null, recording_url: null },
+      const now = new Date().toISOString();
+      const mockEvents: EventRow[] = [
+        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', short_description: null, full_description: null, event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', meeting_link: 'https://meet.google.com/abc', registration_deadline: null, banner_url: null, status: 'published', created_by: null, created_at: now, updated_at: now, meeting_link_sent_at: null, summary: null, recording_url: null },
         { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', short_description: null, full_description: null, event_type: 'webinar' as const, mode: 'online' as const, date: '2026-06-12', start_time: '18:00', end_time: '19:30', meeting_link: 'https://meet.google.com/def', registration_deadline: null, banner_url: null, status: 'published' as const, created_by: null, created_at: '', updated_at: '', meeting_link_sent_at: null, summary: null, recording_url: null },
         { id: '3', title: 'Weekly Coding Sprint', slug: 'weekly-coding-sprint', short_description: null, full_description: null, event_type: 'coding_session' as const, mode: 'online' as const, date: '2026-05-20', start_time: '17:00', end_time: '19:00', meeting_link: null, registration_deadline: null, banner_url: null, status: 'completed' as const, created_by: null, created_at: '', updated_at: '', meeting_link_sent_at: null, summary: null, recording_url: null },
       ];
       setEvents(mockEvents);
 
-      const mockRegs = [
-        { id: 'reg-1', full_name: 'Aman Sharma', email: 'aman.sharma@college.edu', phone: null, college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-28T10:00:00Z', attendance_status: 'registered' as const, event_id: '1', events: { title: 'Hands-on React & Next.js Workshop' } },
+      const mockRegs: RegistrationWithEvent[] = [
+        { id: 'reg-1', full_name: 'Bharat Lashotra', email: '2024a6r009@mietjammu.in', phone: '6006788434', college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-28T10:00:00Z', attendance_status: 'registered', event_id: '1', events: { title: 'Hands-on React & Next.js Workshop' } },
         { id: 'reg-2', full_name: 'Priya Iyer', email: 'priya.iyer@college.edu', phone: null, college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-28T08:30:00Z', attendance_status: 'registered' as const, event_id: '2', events: { title: 'Cracking the Coding Interview: AMA' } },
-        { id: 'reg-3', full_name: 'Kabir Verma', email: 'kabir.v@college.edu', phone: null, college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-27T14:15:00Z', attendance_status: 'registered' as const, event_id: '3', events: { title: 'Weekly Coding Sprint' } },
+        { id: 'reg-3', full_name: 'Kabir Verma', email: 'kabir.v@college.edu', phone: null, college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-27T14:15:00Z', attendance_status: 'registered', event_id: '3', events: { title: 'Weekly Coding Sprint' } },
       ];
       setRegistrations(mockRegs);
 
-      const mockAnnouncements = [
-        { id: 'ann-1', title: 'Discord Server Active', message: 'Join our official Discord server for notifications.', event_id: null, is_active: true, publish_date: '2026-05-25T08:00:00Z', created_by: null, created_at: '2026-05-25T08:00:00Z' },
+      const mockAnnouncements: AnnouncementWithEvent[] = [
+        { id: 'ann-1', title: 'Discord Server Active', message: 'Join our official Discord server for notifications.', event_id: null, is_active: true, publish_date: '2026-05-25T08:00:00Z', created_by: null, created_at: '2026-05-25T08:00:00Z', events: null },
       ];
       setAnnouncements(mockAnnouncements);
 
@@ -210,10 +232,10 @@ export default function AdminDashboardPage() {
       });
       if (error) throw error;
       setShowEventModal(false);
-      setEventForm({ title: '', slug: '', short_description: '', full_description: '', event_type: 'workshop', mode: 'online', date: '', start_time: '', end_time: '', meeting_link: '', registration_deadline: '', banner_url: '', status: 'published' });
+      setEventForm(initialEventForm);
       await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to save event: ' + err.message);
+    } catch (err) {
+      alert('Failed to save event: ' + getErrorMessage(err));
     } finally {
       setIsSubmittingEvent(false);
     }
@@ -247,8 +269,8 @@ export default function AdminDashboardPage() {
       setAnnounceForm({ title: '', message: '', event_id: '', publish_date: '', is_active: true });
       setEditingAnnounceId(null);
       await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to save announcement: ' + err.message);
+    } catch (err) {
+      alert('Failed to save announcement: ' + getErrorMessage(err));
     } finally {
       setIsSubmittingAnnounce(false);
     }
@@ -277,8 +299,8 @@ export default function AdminDashboardPage() {
       setCustomPlatform('');
       setEditingLinkId(null);
       await loadDashboardData();
-    } catch (err: any) {
-      alert('Failed to save community link: ' + err.message);
+    } catch (err) {
+      alert('Failed to save community link: ' + getErrorMessage(err));
     } finally {
       setIsSubmittingLink(false);
     }
@@ -455,7 +477,7 @@ export default function AdminDashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="modal-event-type">Event Type</Label>
-                <select id="modal-event-type" value={eventForm.event_type} onChange={(e) => setEventForm({ ...eventForm, event_type: e.target.value })} className="input-field">
+                <select id="modal-event-type" value={eventForm.event_type} onChange={(e) => setEventForm({ ...eventForm, event_type: e.target.value as EventType })} className="input-field">
                   <option value="workshop">Workshop</option>
                   <option value="coding_session">Coding Session</option>
                   <option value="orientation">Orientation</option>
@@ -465,7 +487,7 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <Label htmlFor="modal-event-mode">Mode</Label>
-                <select id="modal-event-mode" value={eventForm.mode} onChange={(e) => setEventForm({ ...eventForm, mode: e.target.value })} className="input-field">
+                <select id="modal-event-mode" value={eventForm.mode} onChange={(e) => setEventForm({ ...eventForm, mode: e.target.value as EventMode })} className="input-field">
                   <option value="online">Online</option>
                   <option value="offline">Offline</option>
                   <option value="hybrid">Hybrid</option>
@@ -473,7 +495,7 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <Label htmlFor="modal-event-status">Status</Label>
-                <select id="modal-event-status" value={eventForm.status} onChange={(e) => setEventForm({ ...eventForm, status: e.target.value })} className="input-field">
+                <select id="modal-event-status" value={eventForm.status} onChange={(e) => setEventForm({ ...eventForm, status: e.target.value as EventStatus })} className="input-field">
                   <option value="published">Published</option>
                   <option value="draft">Draft</option>
                 </select>
