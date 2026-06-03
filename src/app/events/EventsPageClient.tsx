@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/Badge';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { createClient } from '@/utils/supabase/client';
+import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
@@ -44,20 +45,6 @@ const modeOptions = [
   { value: 'offline', label: 'Offline' },
   { value: 'hybrid', label: 'Hybrid' },
 ] as const;
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function formatTime(timeStr: string) {
-  if (!timeStr) return '';
-  const [h, m] = timeStr.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${m} ${ampm}`;
-}
 
 function getStatusVariant(status: string): 'accent' | 'success' | 'warning' | 'default' {
   switch (status) {
@@ -213,14 +200,14 @@ export default function EventsPage() {
                 <div className="md:w-2/5 bg-emerald-900/10 p-8 md:p-10 flex flex-col justify-center items-center md:items-start text-center md:text-left border-b md:border-b-0 md:border-r border-slate-800/60">
                   <Badge variant="accent" className="mb-4">Next event</Badge>
                   <div className="text-5xl md:text-6xl font-bold text-emerald-400 leading-none">
-                    {new Date(featuredEvent.date).getDate()}
+                    {EVENT_DATE_LABEL}
                   </div>
                   <div className="text-base text-slate-400 mt-1">
-                    {new Date(featuredEvent.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    {EVENT_TIME_LABEL}
                   </div>
                   <div className="flex items-center gap-2 mt-4 text-xs text-slate-500">
                     <Clock className="size-3.5" />
-                    {formatTime(featuredEvent.start_time)} – {formatTime(featuredEvent.end_time)}
+                    {EVENT_TIME_LABEL}
                   </div>
                 </div>
                 <div className="flex-1 p-8 md:p-10 flex flex-col justify-center">
@@ -242,12 +229,12 @@ export default function EventsPage() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
-                      {formatDate(featuredEvent.date)}
+                      {EVENT_DATE_LABEL}
                     </span>
                     {featuredEvent.registration_deadline && (
                       <span className="flex items-center gap-1.5">
                         <AlertCircle className="size-3.5" />
-                        Register by {formatDate(featuredEvent.registration_deadline)}
+                        Register by {EVENT_DEADLINE_LABEL}
                       </span>
                     )}
                   </div>
@@ -328,7 +315,7 @@ export default function EventsPage() {
                     {/* Date block */}
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                       <CalendarDays className="size-4 text-slate-600 shrink-0" />
-                      <span className="font-medium text-slate-300">{formatDate(ev.date)}</span>
+                      <span className="font-medium text-slate-300">{EVENT_DATE_LABEL}</span>
                     </div>
 
                     {/* Title + Description */}
@@ -347,7 +334,7 @@ export default function EventsPage() {
                     <div className="space-y-1.5 text-xs text-slate-500">
                       <div className="flex items-center gap-1.5">
                         <Clock className="size-3.5 text-slate-600" />
-                        {formatTime(ev.start_time)} – {formatTime(ev.end_time)}
+                        {EVENT_TIME_LABEL}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <MapPin className="size-3.5 text-slate-600" />
@@ -356,7 +343,7 @@ export default function EventsPage() {
                       {ev.registration_deadline && (
                         <div className="flex items-center gap-1.5">
                           <AlertCircle className="size-3.5 text-slate-600" />
-                          Register by {formatDate(ev.registration_deadline)}
+                          Register by {EVENT_DEADLINE_LABEL}
                         </div>
                       )}
                     </div>

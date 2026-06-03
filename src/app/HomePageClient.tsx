@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/Badge';
 import { createClient } from '@/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { placeholderEvents } from '@/lib/placeholderData';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 
@@ -416,15 +417,11 @@ export default function HomePage() {
                     <div className="flex flex-wrap gap-4 text-xs text-slate-500">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="size-3.5 text-slate-600" />
-                        {featuredEvent
-                          ? new Date(featuredEvent.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                          : fallbackEvent.date}
+                        {EVENT_DATE_LABEL}
                       </span>
                       <span className="flex items-center gap-1.5">
                         <Clock className="size-3.5 text-slate-600" />
-                        {featuredEvent
-                          ? `${featuredEvent.start_time?.slice(0, 5)} – ${featuredEvent.end_time?.slice(0, 5)}`
-                          : fallbackEvent.time}
+                        {EVENT_TIME_LABEL}
                       </span>
                     </div>
                     <Link
@@ -478,7 +475,7 @@ export default function HomePage() {
                       {ev.short_description || 'No description available.'}
                     </p>
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-900 text-xs text-slate-500">
-                      <span>{ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</span>
+                      <span>{ev.date ? EVENT_DATE_LABEL : ''}</span>
                       <Link href={`/events/${ev.slug}`} className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
                         Details <ArrowRight className="size-3" />
                       </Link>

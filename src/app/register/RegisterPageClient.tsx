@@ -10,6 +10,7 @@ import { placeholderEvents } from '@/lib/placeholderData';
 import Link from 'next/link';
 import { registerForEvent } from '@/app/actions/registrationActions';
 import { registrationSchema } from '@/lib/validation';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
@@ -141,7 +142,7 @@ function RegisterForm() {
               <p className="text-[10px] text-slate-500 uppercase tracking-widest font-mono">RSVP Event</p>
               <p className="text-sm font-bold text-white mt-1">{selectedEvent.title}</p>
               <p className="text-xs text-emerald-400 font-mono mt-1">
-                {selectedEvent.date} @ {selectedEvent.start_time ? `${selectedEvent.start_time.slice(0, 5)} - ${selectedEvent.end_time.slice(0, 5)}` : 'Schedule listed on Details'}
+                {EVENT_DATE_LABEL} @ {EVENT_TIME_LABEL}
               </p>
             </div>
           )}
@@ -298,7 +299,7 @@ function RegisterForm() {
             >
               {events.map((ev) => (
                 <option key={ev.id} value={ev.id}>
-                  {ev.title} ({new Date(ev.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})})
+                  {ev.title} ({EVENT_DATE_LABEL})
                 </option>
               ))}
             </select>
