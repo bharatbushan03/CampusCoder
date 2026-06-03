@@ -24,6 +24,7 @@ import { createClient } from '@/utils/supabase/client';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { registerForEvent } from '@/app/actions/registrationActions';
 import { registrationSchema } from '@/lib/validation';
+import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
@@ -43,20 +44,6 @@ function getSlug(title: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-function formatTime(timeStr: string) {
-  if (!timeStr) return '';
-  const [h, m] = timeStr.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${m} ${ampm}`;
 }
 
 export default function EventRegistrationPage() {
@@ -259,10 +246,8 @@ export default function EventRegistrationPage() {
 
   // ── SUCCESS PAGE ──
   if (isSuccess && event) {
-    const eventDateStr = formatDate(event.date);
-    const eventTimeStr = event.start_time
-      ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
-      : event.time;
+    const eventDateStr = EVENT_DATE_LABEL;
+    const eventTimeStr = EVENT_TIME_LABEL;
 
     return (
       <div className="min-h-screen py-16 flex items-center justify-center px-4">
@@ -400,17 +385,13 @@ export default function EventRegistrationPage() {
                 <div className="flex items-center gap-2.5">
                   <Calendar className="size-4 text-slate-600 shrink-0" />
                   <div>
-                    <p className="text-slate-400 font-medium">{formatDate(event.date)}</p>
+                    <p className="text-slate-400 font-medium">{EVENT_DATE_LABEL}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Clock className="size-4 text-slate-600 shrink-0" />
                   <div>
-                    <p className="text-slate-400 font-medium">
-                      {event.start_time
-                        ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
-                        : event.time}
-                    </p>
+                    <p className="text-slate-400 font-medium">{EVENT_TIME_LABEL}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -426,7 +407,7 @@ export default function EventRegistrationPage() {
               {event.registration_deadline && (
                 <div className="mt-5 pt-4 border-t border-slate-800">
                   <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-1">Registration deadline</p>
-                  <p className="text-xs text-amber-400">{formatDate(event.registration_deadline)}</p>
+                  <p className="text-xs text-amber-400">{EVENT_DEADLINE_LABEL}</p>
                 </div>
               )}
 

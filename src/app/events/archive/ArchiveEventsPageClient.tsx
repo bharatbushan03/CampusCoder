@@ -14,6 +14,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/utils/supabase/client';
+import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
@@ -127,7 +128,7 @@ export default function EventArchivePage() {
 
               <div className="p-5 gap-y-4 flex-1 flex flex-col">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-slate-500">{new Date(ev.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                  <p className="text-[10px] font-mono text-slate-500">{EVENT_DATE_LABEL}</p>
                   <h3 className="text-lg font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">{ev.title}</h3>
                 </div>
 

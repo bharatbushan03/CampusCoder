@@ -27,6 +27,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { createClient } from '@/utils/supabase/client';
+import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
@@ -45,20 +46,6 @@ function getSlug(title: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
-}
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
-function formatTime(timeStr: string) {
-  if (!timeStr) return '';
-  const [h, m] = timeStr.split(':');
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${m} ${ampm}`;
 }
 
 const learningByType: Record<string, string[]> = {
@@ -356,18 +343,14 @@ export default function EventDetailsPage() {
                   <Calendar className="size-4 text-emerald-400 shrink-0" />
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Date</p>
-                    <p className="text-slate-300">{formatDate(event.date)}</p>
+                    <p className="text-slate-300">{EVENT_DATE_LABEL}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Clock className="size-4 text-emerald-400 shrink-0" />
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Time</p>
-                    <p className="text-slate-300">
-                      {event.start_time
-                        ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
-                        : event.time}
-                    </p>
+                    <p className="text-slate-300">{EVENT_TIME_LABEL}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -437,7 +420,7 @@ export default function EventDetailsPage() {
                       {event.registration_deadline && (
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="size-3.5 text-amber-500" />
-                          <span>Register by {formatDate(event.registration_deadline)}</span>
+                          <span>Register by {EVENT_DEADLINE_LABEL}</span>
                         </div>
                       )}
                     </div>
@@ -488,15 +471,11 @@ export default function EventDetailsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm">
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Date</p>
-                    <p className="text-slate-300">{formatDate(event.date)}</p>
+                    <p className="text-slate-300">{EVENT_DATE_LABEL}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Time</p>
-                    <p className="text-slate-300">
-                      {event.start_time
-                        ? `${formatTime(event.start_time || '')} – ${formatTime(event.end_time || '')}`
-                        : event.time}
-                    </p>
+                    <p className="text-slate-300">{EVENT_TIME_LABEL}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Mode</p>
@@ -508,7 +487,7 @@ export default function EventDetailsPage() {
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Registration deadline</p>
-                    <p className="text-slate-300">{event.registration_deadline ? formatDate(event.registration_deadline) : '—'}</p>
+                    <p className="text-slate-300">{event.registration_deadline ? EVENT_DEADLINE_LABEL : '—'}</p>
                   </div>
                 </div>
               </Card>
@@ -641,7 +620,6 @@ export default function EventDetailsPage() {
               {relatedEvents.map((rel) => {
                 const relType = rel.event_type || rel.type || 'workshop';
                 const relSlug = rel.slug || getSlug(rel.title);
-                const relDate = rel.date ? formatDate(rel.date) : '';
                 return (
                   <Link key={rel.id} href={`/events/${relSlug}`} className="group block">
                     <Card hoverEffect className="p-5">
@@ -651,7 +629,7 @@ export default function EventDetailsPage() {
                           <h4 className="text-sm font-semibold text-slate-50 group-hover:text-emerald-400 transition-colors">
                             {rel.title}
                           </h4>
-                          {relDate && <p className="text-xs text-slate-500">{relDate}</p>}
+                          {rel.date && <p className="text-xs text-slate-500">{EVENT_DATE_LABEL}</p>}
                         </div>
                         <ChevronRight className="size-4 text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0 mt-1" />
                       </div>
