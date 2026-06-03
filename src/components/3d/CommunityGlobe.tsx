@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useReducedMotion, useAdaptiveDPR } from '@/utils/performance';
 
@@ -10,6 +10,70 @@ interface NetworkNode {
   pos: THREE.Vector3;
   label?: string;
 }
+
+function createLabelTexture(label: string) {
+  if (typeof document === 'undefined') return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.strokeStyle = 'rgba(16, 185, 129, 0.55)';
+  ctx.lineWidth = 3;
+
+  const radius = 26;
+  const x = 12;
+  const y = 18;
+  const width = canvas.width - 24;
+  const height = canvas.height - 36;
+
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = '700 34px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+  ctx.fillStyle = '#34d399';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2 + 1);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+
+  return texture;
+}
+
+const GlobeLabel = React.memo(function GlobeLabel({ label }: { label: string }) {
+  const texture = useMemo(() => createLabelTexture(label), [label]);
+
+  useEffect(() => {
+    return () => texture?.dispose();
+  }, [texture]);
+
+  if (!texture) return null;
+
+  return (
+    <sprite position={[0, 0.24, 0]} scale={[Math.max(0.62, label.length * 0.065), 0.16, 1]}>
+      <spriteMaterial map={texture} transparent depthWrite={false} />
+    </sprite>
+  );
+});
 
 const GlobeNetwork = React.memo(function GlobeNetwork() {
   const groupRef = useRef<THREE.Group>(null);
@@ -61,16 +125,7 @@ const GlobeNetwork = React.memo(function GlobeNetwork() {
       if (!node.label) return null;
       return (
         <group key={node.label} position={node.pos}>
-          <Text
-            position={[0, 0.2, 0]}
-            fontSize={0.14}
-            color="#34d399"
-            anchorX="center"
-            anchorY="middle"
-            fillOpacity={0.85}
-          >
-            {node.label}
-          </Text>
+          <GlobeLabel label={node.label} />
           <mesh position={[0, 0.05, 0]}>
             <sphereGeometry args={[0.02, 8, 8]} />
             <meshBasicMaterial color="#10b981" />
