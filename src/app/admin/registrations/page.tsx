@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
+import { getErrorMessage } from '@/lib/errors';
 import type { Database } from '@/types/database.types';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 
@@ -150,7 +151,7 @@ export default function AdminRegistrationsPage() {
         setSelectedReg({ ...selectedReg, attendance_status: newStatus });
       }
     } catch (err) {
-      alert('Failed to update attendance status: ' + err.message);
+      alert('Failed to update attendance status: ' + getErrorMessage(err));
     }
   };
 
@@ -171,7 +172,7 @@ export default function AdminRegistrationsPage() {
       setRegistrations(prev => prev.filter(reg => reg.id !== regId));
       setSelectedReg(null);
     } catch (err) {
-      alert('Failed to delete registration: ' + err.message);
+      alert('Failed to delete registration: ' + getErrorMessage(err));
     }
   };
 
@@ -361,7 +362,7 @@ export default function AdminRegistrationsPage() {
           <CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
           <select
             value={statusFilter}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value as AttendanceStatus | '')}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
           >
             <option value="">All Attendance Statuses</option>

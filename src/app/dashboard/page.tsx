@@ -66,6 +66,7 @@ export default function StudentDashboard() {
         return;
       }
       setUser(user);
+      const userEmail = user.email ?? '';
 
       const [profileRes, regRes] = await Promise.all([
         supabase
@@ -77,7 +78,7 @@ export default function StudentDashboard() {
         supabase
           .from('registrations')
           .select('*, events(*)')
-          .eq('email', user.email)
+          .eq('email', userEmail)
           .order('registered_at', { ascending: false })
           .returns<RegistrationType[]>(),
       ]);
@@ -246,16 +247,16 @@ export default function StudentDashboard() {
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="page-college" className="text-[10px] font-mono text-slate-600 uppercase font-bold">College</label>
-                    <input id="page-college" value={editForm.college} onChange={(e) => setEditForm({...editForm, college: e.target.value})} className="form-input" />
+                      <input id="page-college" value={editForm.college ?? ''} onChange={(e) => setEditForm({...editForm, college: e.target.value})} className="form-input" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label htmlFor="page-branch" className="text-[10px] font-mono text-slate-600 uppercase font-bold">Branch</label>
-                      <input id="page-branch" value={editForm.branch} onChange={(e) => setEditForm({...editForm, branch: e.target.value})} className="form-input" />
+                      <input id="page-branch" value={editForm.branch ?? ''} onChange={(e) => setEditForm({...editForm, branch: e.target.value})} className="form-input" />
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="page-batch-year" className="text-[10px] font-mono text-slate-600 uppercase font-bold">Batch Year</label>
-                      <input id="page-batch-year" value={editForm.year} onChange={(e) => setEditForm({...editForm, year: e.target.value})} className="form-input" />
+                      <input id="page-batch-year" value={editForm.year ?? ''} onChange={(e) => setEditForm({...editForm, year: e.target.value})} className="form-input" />
                     </div>
                   </div>
                   <Button type="submit" variant="primary" size="md" className="w-full" isLoading={isSavingProfile}>Save Changes</Button>

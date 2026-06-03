@@ -152,8 +152,8 @@ const communityChannels = [
 ];
 
 const snapshotDefaults = {
-  firstSession: 'April 2025',
-  studentsAttended: 180,
+  firstSession: 'May 2026',
+  studentsAttended: 30,
   upcomingWorkshops: 3,
   practiceCommunity: '12+ weekly participants',
 };

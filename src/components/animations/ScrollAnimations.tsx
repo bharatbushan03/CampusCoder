@@ -45,6 +45,8 @@ export const AnimatedSection: React.FC<AnimatedSectionProps> = React.memo(functi
   direction = 'up',
   duration = 0.5,
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: '-60px', amount: 0.1 });
   const reducedMotion = usePrefersReducedMotion();
 
   const getOffset = () => {
@@ -79,10 +81,10 @@ export const AnimatedSection: React.FC<AnimatedSectionProps> = React.memo(functi
 
   return (
     <motion.div
+      ref={ref}
       variants={variants}
       initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: '-60px' }}
+      animate={isInView ? "visible" : "hidden"}
       className={className}
     >
       {children}
@@ -194,13 +196,17 @@ export const CounterStat: React.FC<CounterStatProps> = React.memo(function Count
   }, [isInView, value, motionValue, reducedMotion, prefix, suffix]);
 
   useEffect(() => {
-    if (reducedMotion) return;
-    
-    return springValue.on('change', (latest) => {
-      if (ref.current) {
-        ref.current.textContent = `${prefix}${Math.floor(latest)}${suffix}`;
-      }
-    });
+    const unsubscribe = reducedMotion
+      ? undefined
+      : springValue.on('change', (latest) => {
+          if (ref.current) {
+            ref.current.textContent = `${prefix}${Math.floor(latest)}${suffix}`;
+          }
+        });
+
+    return () => {
+      unsubscribe?.();
+    };
   }, [springValue, prefix, suffix, reducedMotion]);
 
   return (
