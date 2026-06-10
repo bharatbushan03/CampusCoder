@@ -16,6 +16,8 @@ const navLinks = [
   { label: 'Sprints', href: '/events' },
   { label: 'Workshops', href: '/workshops' },
   { label: 'Resources', href: '/resources' },
+  { label: 'Showcase', href: '/showcase' },
+  { label: 'Leaderboard', href: '/leaderboard' },
   { label: 'About', href: '/about' },
   { label: 'Archive', href: '/events/archive' },
 ];

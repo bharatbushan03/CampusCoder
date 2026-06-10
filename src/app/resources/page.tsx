@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Search,
   BookOpen,
@@ -9,75 +9,51 @@ import {
   Briefcase,
   Sparkles,
   Map,
-  Database as DatabaseIcon
+  Database as DatabaseIcon,
+  Video,
+  Award,
+  TerminalSquare,
+  Users,
+  Server
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { SkeletonCard } from '@/components/ui/Skeleton';
-import { createClient } from '@/utils/supabase/client';
-import type { Database } from '@/types/database.types';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
-
-type ResourceRow = Database['public']['Tables']['resources']['Row'];
+import { resourcesData, ResourceCategory } from '@/data/resourcesData';
 
 export default function ResourcesPage() {
-  const [loading, setLoading] = useState(true);
-  const [resources, setResources] = useState<ResourceRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState<ResourceCategory | 'all'>('all');
 
-  const categories = [
-    { id: 'all', label: 'All Resources', icon: BookOpen },
+  const categories: { id: ResourceCategory | 'all', label: string, icon: any }[] = [
+    { id: 'all', label: 'All', icon: BookOpen },
+    { id: 'free-tools', label: 'Free Tools', icon: TerminalSquare },
+    { id: 'courses', label: 'Courses', icon: Video },
+    { id: 'certifications', label: 'Certifications', icon: Award },
+    { id: 'dsa', label: 'DSA & Practice', icon: DatabaseIcon },
     { id: 'roadmaps', label: 'Roadmaps', icon: Map },
-    { id: 'practice', label: 'Practice', icon: Code },
-    { id: 'dsa', label: 'DSA Kits', icon: DatabaseIcon },
-    { id: 'placement', label: 'Placements', icon: Briefcase },
+    { id: 'interview-prep', label: 'Interviews', icon: Briefcase },
+    { id: 'open-source', label: 'Open Source', icon: Users },
+    { id: 'hackathons', label: 'Hackathons', icon: Code },
+    { id: 'system-design', label: 'System Design', icon: Server },
   ];
 
-  useEffect(() => {
-    const loadResources = async () => {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('resources')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .returns<ResourceRow[]>();
+  const getCategoryIcon = (category: string) => {
+    const cat = categories.find(c => c.id === category);
+    if (cat && cat.icon) {
+      const Icon = cat.icon;
+      return <Icon className="h-5 w-5 text-emerald-400" />;
+    }
+    return <BookOpen className="h-5 w-5 text-emerald-400" />;
+  };
 
-        if (error) throw error;
-        setResources(data || []);
-      } catch (err) {
-        console.warn('Failed to load resources:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadResources();
-  }, []);
-
-  const filteredResources = resources.filter(res => {
+  const filteredResources = resourcesData.filter(res => {
     const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          res.description?.toLowerCase().includes(searchQuery.toLowerCase());
+                          res.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          res.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = activeCategory === 'all' ? true : res.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
-        <div className="space-y-4 text-center">
-          <div className="h-6 w-40 bg-slate-800/60 animate-pulse rounded-full mx-auto" />
-          <div className="h-8 w-52 bg-slate-800/60 animate-pulse rounded-lg mx-auto" />
-          <div className="h-4 w-80 bg-slate-800/60 animate-pulse rounded-lg mx-auto" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <SkeletonCard count={6} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
@@ -89,7 +65,7 @@ export default function ResourcesPage() {
           <span className="text-emerald-500">Resources</span>
         </h1>
         <p className="text-slate-400 text-sm md:text-base leading-relaxed">
-          Roadmaps, practice platforms, and placement prep resources shared by the community.
+          Curated guides, tools, practice platforms, and courses for developers.
         </p>
       </AnimatedSection>
 
@@ -106,7 +82,7 @@ export default function ResourcesPage() {
             }`}
           >
             <cat.icon className="h-3.5 w-3.5" />
-            {cat.label}
+            <span className="hidden sm:inline">{cat.label}</span>
           </button>
         ))}
       </AnimatedSection>
@@ -116,7 +92,7 @@ export default function ResourcesPage() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
         <input
           type="text"
-          placeholder="Search topics (e.g. React, Python, Mock Interviews)..."
+          placeholder="Search tools, courses, tags..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors shadow-2xl"
@@ -126,19 +102,22 @@ export default function ResourcesPage() {
       {filteredResources.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredResources.map((res, index) => (
-            <AnimatedCard key={res.id} className="flex flex-col h-full" delay={index * 0.08}>
+            <AnimatedCard key={res.id} className="flex flex-col h-full" delay={index * 0.05}>
               <Card className="group flex flex-col h-full border-slate-800 bg-slate-950/40 hover:border-emerald-500/20 transition-all p-6 space-y-4">
                 <div className="flex items-start justify-between">
                   <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                    {res.category === 'roadmaps' && <Map className="h-5 w-5 text-emerald-400" />}
-                    {res.category === 'practice' && <Code className="h-5 w-5 text-emerald-400" />}
-                    {res.category === 'dsa' && <DatabaseIcon className="h-5 w-5 text-emerald-400" />}
-                    {res.category === 'placement' && <Briefcase className="h-5 w-5 text-emerald-400" />}
-                    {(!['roadmaps', 'practice', 'dsa', 'placement'].includes(res.category)) && <BookOpen className="h-5 w-5 text-emerald-400" />}
+                    {getCategoryIcon(res.category)}
                   </div>
-                  <span className="text-[9px] font-mono text-slate-500 uppercase tracking-tighter border border-slate-900 px-2 py-0.5 rounded-full">
-                    {res.category}
-                  </span>
+                  <div className="flex gap-2">
+                    {res.isFree && (
+                      <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-tighter bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                        Free
+                      </span>
+                    )}
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-tighter border border-slate-800 px-2 py-0.5 rounded-full">
+                      {res.category.replace('-', ' ')}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-2 flex-1">
@@ -146,18 +125,28 @@ export default function ResourcesPage() {
                     {res.title}
                   </h3>
                   <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
-                    {res.description || "No description available."}
+                    {res.description}
                   </p>
+                  
+                  {res.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {res.tags.map(tag => (
+                        <span key={tag} className="text-[10px] text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded-md">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-slate-900 flex items-center justify-between">
                   <a 
-                    href={res.link} 
+                    href={res.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-between text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors group/link"
                   >
-                    Open resource
+                    Visit resource
                     <ExternalLink className="h-3.5 w-3.5 group-hover/link:translate-x-0.5 transition-transform" />
                   </a>
                 </div>
