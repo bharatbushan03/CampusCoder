@@ -9,19 +9,20 @@ export interface CountdownTimerProps {
 }
 
 export function CountdownTimer({ targetDate, className = '' }: CountdownTimerProps) {
+  const [isMounted, setIsMounted] = useState(false);
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
     minutes: 0,
     seconds: 0,
     hasStarted: false,
-    isMounted: false,
   });
 
   useEffect(() => {
-    // Prevent hydration mismatch by only rendering real time after mount
-    setTimeLeft(prev => ({ ...prev, isMounted: true }));
+    setIsMounted(true);
+  }, []);
 
+  useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date().getTime();
       const difference = targetDate.getTime() - now;
@@ -33,18 +34,15 @@ export function CountdownTimer({ targetDate, className = '' }: CountdownTimerPro
           minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
           seconds: Math.floor((difference % (1000 * 60)) / 1000),
           hasStarted: false,
-          isMounted: true,
         });
       } else {
-        setTimeLeft(prev => ({
-          ...prev,
+        setTimeLeft({
           days: 0,
           hours: 0,
           minutes: 0,
           seconds: 0,
           hasStarted: true,
-          isMounted: true,
-        }));
+        });
         clearInterval(timer);
       }
     }, 1000);
@@ -53,7 +51,7 @@ export function CountdownTimer({ targetDate, className = '' }: CountdownTimerPro
   }, [targetDate]);
 
   // Don't render until mounted to avoid hydration errors on server-rendered pages
-  if (!timeLeft.isMounted) {
+  if (!isMounted) {
     return <div className={`h-24 ${className}`} aria-hidden="true" />;
   }
 
