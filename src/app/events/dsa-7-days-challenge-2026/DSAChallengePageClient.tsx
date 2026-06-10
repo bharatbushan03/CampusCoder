@@ -13,6 +13,20 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CountdownTimer } from '@/components/ui/CountdownTimer';
+import dynamic from 'next/dynamic';
+
+const DSA3DShowcase = dynamic(() => import('@/components/3d/DSA3DShowcase'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[600px] md:h-[700px] bg-slate-950 flex items-center justify-center border-b border-slate-800/40">
+      <div className="animate-pulse flex flex-col items-center">
+        <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 mb-4" />
+        <div className="w-48 h-6 bg-slate-900 rounded mb-2" />
+        <div className="w-64 h-4 bg-slate-900 rounded" />
+      </div>
+    </div>
+  ),
+});
 
 // --- Hero using existing code principles but tailored ---
 function LandingHero() {
@@ -336,6 +350,7 @@ export default function DSAChallengePageClient() {
   return (
     <main className="min-h-screen bg-slate-950">
       <LandingHero />
+      <DSA3DShowcase />
       <AboutSection />
       <ScheduleSection />
       <PrizeSection />
