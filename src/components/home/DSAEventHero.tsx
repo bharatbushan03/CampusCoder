@@ -13,6 +13,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { CountdownTimer } from '@/components/ui/CountdownTimer';
 
 // Animation variants
 const containerVariants: any = {
@@ -204,6 +205,11 @@ export function DSAEventHero() {
                   <span className="text-sm font-semibold tracking-wide">{detail.text}</span>
                 </div>
               ))}
+            </motion.div>
+
+            {/* Countdown Timer */}
+            <motion.div variants={itemVariants} className="pt-2">
+              <CountdownTimer targetDate={new Date('2026-06-22T18:00:00+05:30')} />
             </motion.div>
 
             {/* CTAs */}
