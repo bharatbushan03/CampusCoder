@@ -76,11 +76,11 @@ function LandingHero() {
             <CountdownTimer targetDate={new Date('2026-06-22T18:00:00+05:30')} />
           </div>
 
-          <Link href="#register">
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLScpLyxlZfB2lX7KqDWRyNo7YHPJmUrRJxfFqJsNDKKJAW7c4g/viewform?usp=header" target="_blank" rel="noopener noreferrer">
             <Button variant="primary" size="lg" className="h-14 px-10 text-lg font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all">
               Register for Free <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-          </Link>
+          </a>
         </motion.div>
       </div>
     </section>
@@ -334,11 +334,11 @@ function CTASection() {
           <p className="text-lg text-slate-400 mb-10 max-w-2xl mx-auto">
             Spots are filling up fast. Register now to secure your place in the 7 Days DSA Challenge 2026.
           </p>
-          <Link href="/register">
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLScpLyxlZfB2lX7KqDWRyNo7YHPJmUrRJxfFqJsNDKKJAW7c4g/viewform?usp=header" target="_blank" rel="noopener noreferrer">
             <Button variant="primary" size="lg" className="h-14 px-12 text-lg font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all">
               Register Now
             </Button>
-          </Link>
+          </a>
           <p className="mt-6 text-sm text-slate-500 font-mono uppercase tracking-widest">Starts June 22, 2026</p>
         </AnimatedSection>
       </div>
