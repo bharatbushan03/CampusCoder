@@ -8,29 +8,47 @@ import { AnimatedSection, AnimatedCard, CounterStat } from '@/components/animati
 
 const teamMembers = [
   {
-    name: 'Bharat Bhushan',
+    name: 'Bharat Lashotra',
     role: 'Community Lead & Founder',
-    bio: 'Web Developer & UI/UX enthusiast passionate about building developer communities and peer mentorship networks.',
+    bio: 'AI ML and Web Developer passionate about building developer communities and peer mentorship networks.',
     icon: Shield,
   },
   {
-    name: 'Siddharth Sharma',
-    role: 'Technical Lead',
-    bio: 'Systems Engineer & algorithm designer focused on high-performance web systems and competitive programming platforms.',
+    name: 'Rajeev Sharma',
+    role: 'Core Team Member',
+    bio: 'passionate about Machine Learning and AI enthusiast passionate about building developer communities and peer mentorship networks.',
     icon: Code2,
   },
   {
-    name: 'Anjali Verma',
-    role: 'Operations & Event Coordinator',
-    bio: 'Creative organizer behind student workshops, placement prep sprints, and collaboration hackathons.',
+    name: 'Saloni Sharma',
+    role: 'Core Team Member',
+    bio: 'Organizing workshops, managing events, and ensuring everyone has a great learning experience.',
     icon: Users2,
+  },
+  {
+    name: 'Ishita Sethi',
+    role: 'Core Team Member',
+    bio: 'Focused on creating engaging learning materials and coordinating community outreach.',
+    icon: Target,
+  },
+  {
+    name: 'Zarik Rasool',
+    role: 'Core Team Member',
+    bio: 'Helping students bridge the gap between theoretical knowledge and practical application.',
+    icon: Users,
+  },
+  {
+    name: 'Aarush Bharti',
+    role: 'Core Team Member',
+    bio: 'Passionate about coding challenges and competitive programming platforms.',
+    icon: Trophy,
   }
 ];
 
 const stats = [
-  { value: 500, suffix: '+', label: 'Active Members', icon: Users },
-  { value: 32, suffix: '', label: 'Events Organized', icon: Trophy },
-  { value: 12, suffix: '+', label: 'Mentors', icon: GraduationCap },
+  { value: 30, suffix: '+', label: 'Active Members', icon: Users },
+  { value: 1, suffix: '', label: 'Events Organized', icon: Trophy },
+  { value: 5, suffix: '+', label: 'Mentors', icon: GraduationCap },
 ];
 
 export default function AboutPageClient() {

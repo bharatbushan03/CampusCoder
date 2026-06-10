@@ -30,6 +30,7 @@ import { placeholderEvents } from '@/lib/placeholderData';
 import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
+import { SpecialEventSection } from '@/components/home/SpecialEventSection';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 
@@ -286,6 +287,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ─── UPCOMING SPECIAL EVENT ─── */}
+      <SpecialEventSection />
 
       {/* ─── ABOUT ─── */}
       <section className="py-12 md:py-24 border-b border-slate-800/40">
