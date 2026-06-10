@@ -23,7 +23,7 @@ For detailed setup instructions, please refer to the documentation:
 
 -   [Supabase Database Setup](./docs/supabase_setup.md)
 -   [Email System Setup](./docs/email_setup.md)
--   [AWS Deployment Guide](./docs/aws-deployment.md)
+-   [Free-Tier AWS EC2 Deployment Guide](./docs/aws-deployment.md)
 
 ## 🚀 Getting Started
 
@@ -43,7 +43,7 @@ Before deploying, run:
 npm run production-check
 ```
 
-For AWS Docker/EC2 deployment, follow [docs/aws-deployment.md](./docs/aws-deployment.md).
+For a charge-conscious AWS EC2 deployment, follow [docs/aws-deployment.md](./docs/aws-deployment.md).
 
 ## 📄 License
 
