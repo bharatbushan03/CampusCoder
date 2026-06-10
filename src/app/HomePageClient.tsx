@@ -30,6 +30,7 @@ import { placeholderEvents } from '@/lib/placeholderData';
 import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
+import { DSAEventHero } from '@/components/home/DSAEventHero';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 
@@ -211,45 +212,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen">
       {/* ─── HERO ─── */}
-      <section className="relative overflow-hidden pt-16 pb-12 md:pt-28 md:pb-24 border-b border-slate-800/40">
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/30 to-transparent pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            <AnimatedSection className="lg:col-span-7 space-y-6" direction="left">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-slate-50 leading-[1.15]">
-                Practice coding with{' '}
-                <span className="text-emerald-400">students like you</span>
-              </h1>
-              <p className="text-base md:text-lg text-slate-400 max-w-xl leading-relaxed">
-                A student-run community for workshops, placement prep, coding challenges, and peer learning.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Link href="/events">
-                  <Button variant="primary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                    Explore Events <ArrowRight className="ml-2 size-4" />
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button variant="secondary" size="lg" className="w-full sm:w-auto h-12 px-8">
-                    Join Community
-                  </Button>
-                </Link>
-              </div>
-              <div className="flex flex-wrap gap-x-6 gap-y-2 pt-4">
-                {trustIndicators.map((item) => (
-                  <div key={item.label} className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <item.icon className="size-3.5 text-slate-500" />
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-            </AnimatedSection>
-            <AnimatedSection className="lg:col-span-5 w-full h-[220px] sm:h-[320px] md:h-[380px] lg:h-[440px]" direction="right">
-              <DynamicHeroCodeScene />
-            </AnimatedSection>
-          </div>
-        </div>
-      </section>
+      <DSAEventHero />
 
       {/* ─── COMMUNITY SNAPSHOT ─── */}
       <section className="py-12 md:py-16 border-b border-slate-800/40">
