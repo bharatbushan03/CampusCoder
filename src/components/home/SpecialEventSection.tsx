@@ -21,6 +21,24 @@ import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAni
 // Target date: June 22, 2026, 6:00 PM IST (UTC+5:30)
 const EVENT_DATE = new Date('2026-06-22T18:00:00+05:30');
 
+const benefits = [
+  'Daily DSA Challenges',
+  'Real Interview-Level Questions',
+  'Competitive Coding Practice',
+  'Performance Leaderboard',
+  'Networking with Peers',
+  'Resume Value',
+  'Certificates for Eligible Participants'
+];
+
+const prizes = [
+  'HackerRank Infinity Plan Access',
+  'Mock Interview Credits',
+  'Access to 1500+ AI Tools',
+  'Exclusive CampusCoder Merchandise & Goodies',
+  'Recognition on Community Platforms'
+];
+
 export function SpecialEventSection() {
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
@@ -48,24 +66,6 @@ export function SpecialEventSection() {
 
     return () => clearInterval(timer);
   }, []);
-
-  const benefits = [
-    'Daily DSA Challenges',
-    'Real Interview-Level Questions',
-    'Competitive Coding Practice',
-    'Performance Leaderboard',
-    'Networking with Peers',
-    'Resume Value',
-    'Certificates for Eligible Participants'
-  ];
-
-  const prizes = [
-    'HackerRank Infinity Plan Access',
-    'Mock Interview Credits',
-    'Access to 1500+ AI Tools',
-    'Exclusive CampusCoder Merchandise & Goodies',
-    'Recognition on Community Platforms'
-  ];
 
   return (
     <section className="py-12 md:py-24 border-b border-slate-800/40 relative overflow-hidden">
@@ -177,8 +177,8 @@ export function SpecialEventSection() {
                     <h4 className="text-base font-bold text-slate-100 font-mono tracking-tight">What You Get</h4>
                   </div>
                   <ul className="space-y-3">
-                    {benefits.map((benefit, i) => (
-                      <li key={i} className="flex items-start gap-2">
+                    {benefits.map((benefit) => (
+                      <li key={benefit} className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-emerald-500/70 shrink-0 mt-0.5" />
                         <span className="text-xs text-slate-300 leading-relaxed">{benefit}</span>
                       </li>
@@ -193,8 +193,8 @@ export function SpecialEventSection() {
                     <h4 className="text-base font-bold text-slate-100 font-mono tracking-tight">Prizes & Perks</h4>
                   </div>
                   <ul className="space-y-3">
-                    {prizes.map((prize, i) => (
-                      <li key={i} className="flex items-start gap-2">
+                    {prizes.map((prize) => (
+                      <li key={prize} className="flex items-start gap-2">
                         <Award className="h-4 w-4 text-emerald-500/70 shrink-0 mt-0.5" />
                         <span className="text-xs text-slate-300 leading-relaxed">{prize}</span>
                       </li>
