@@ -157,11 +157,11 @@ export function SpecialEventSection() {
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-slate-800/60">
-                  <Link href="/register">
+                  <a href="https://docs.google.com/forms/d/e/1FAIpQLScpLyxlZfB2lX7KqDWRyNo7YHPJmUrRJxfFqJsNDKKJAW7c4g/viewform?usp=header" target="_blank" rel="noopener noreferrer">
                     <Button variant="primary" size="lg" className="w-full md:w-auto px-8 py-6 text-sm font-bold tracking-widest uppercase shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all">
                       Register Now <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               </div>
 

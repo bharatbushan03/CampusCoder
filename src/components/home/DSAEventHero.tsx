@@ -214,7 +214,7 @@ export function DSAEventHero() {
 
             {/* CTAs */}
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 pt-4 w-full sm:w-auto">
-              <Link href="/register" className="w-full sm:w-auto">
+              <a href="https://docs.google.com/forms/d/e/1FAIpQLScpLyxlZfB2lX7KqDWRyNo7YHPJmUrRJxfFqJsNDKKJAW7c4g/viewform?usp=header" target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto">
                 <Button 
                   variant="primary" 
                   size="lg" 
@@ -222,7 +222,7 @@ export function DSAEventHero() {
                 >
                   Register Now <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-              </Link>
+              </a>
               <Link href="/events/dsa-challenge" className="w-full sm:w-auto">
                 <Button 
                   variant="outline" 
