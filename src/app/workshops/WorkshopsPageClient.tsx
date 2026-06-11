@@ -140,8 +140,8 @@ export default function WorkshopsPage() {
                       )}
                     </div>
                     <Link href={`/events/${ws.slug}`}>
-                      <Button variant="outline" size="sm" className="h-8 text-[11px] font-mono group/btn">
-                        View Workshop <ArrowRight className="size-3 ml-2 group-hover/btn:translate-x-0.5 transition-transform" />
+                      <Button variant="outline" size="sm" className="h-10 text-sm font-mono group/btn">
+                        Watch Recording <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
                   </div>
