@@ -4,6 +4,9 @@ import DSAChallengePageClient from './DSAChallengePageClient';
 export const metadata: Metadata = {
   title: '7 Days DSA Challenge 2026 | CampusCoder',
   description: 'Master Data Structures & Algorithms in 7 days. Join India\'s growing student developer community for an intensive HackerRank coding challenge. 22-28 June 2026.',
+  alternates: {
+    canonical: 'https://campuscoder.com/events/dsa-7-days-challenge-2026',
+  },
   openGraph: {
     title: '7 Days DSA Challenge 2026 | CampusCoder',
     description: 'Master Data Structures & Algorithms in 7 days. Join India\'s growing student developer community for an intensive HackerRank coding challenge.',
