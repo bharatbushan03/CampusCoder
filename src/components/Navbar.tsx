@@ -149,7 +149,7 @@ export const Navbar: React.FC = React.memo(function Navbar() {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900/40 p-1 rounded-2xl border border-slate-800/40 backdrop-blur-sm">
+          <nav className="hidden md:flex items-center gap-0.5 md:gap-1 bg-slate-900/40 p-1 rounded-2xl border border-slate-800/40 backdrop-blur-sm overflow-x-auto max-w-[50vw] lg:max-w-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -256,7 +256,7 @@ export const Navbar: React.FC = React.memo(function Navbar() {
               whileTap={{ scale: 0.9 }}
               aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
               onClick={() => setIsOpen(!isOpen)}
-              className="flex md:hidden size-10 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all cursor-pointer"
+              className="flex md:hidden size-11 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-all cursor-pointer"
             >
               <AnimatePresence mode="wait">
                 <motion.div

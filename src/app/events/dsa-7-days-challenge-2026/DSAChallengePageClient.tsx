@@ -18,7 +18,7 @@ import dynamic from 'next/dynamic';
 const DSA3DShowcase = dynamic(() => import('@/components/3d/DSA3DShowcase'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[600px] md:h-[700px] bg-slate-950 flex items-center justify-center border-b border-slate-800/40">
+    <div className="w-full h-[400px] md:h-[500px] bg-slate-950 flex items-center justify-center border-b border-slate-800/40">
       <div className="animate-pulse flex flex-col items-center">
         <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 mb-4" />
         <div className="w-48 h-6 bg-slate-900 rounded mb-2" />
@@ -52,11 +52,11 @@ function LandingHero() {
             <span className="text-emerald-300 text-xs font-mono font-bold tracking-widest uppercase">7 Days Intensive Challenge</span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1] mb-6">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.1] mb-6">
             Master DSA in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">7 Days</span>
           </h1>
           
-          <p className="text-lg md:text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto mb-10">
+          <p className="text-base md:text-lg text-slate-400 leading-relaxed max-w-2xl mx-auto mb-8">
             Join India's growing student developer community for an intensive HackerRank coding challenge. Improve your problem-solving skills, coding efficiency, and interview preparation.
           </p>
           
@@ -77,7 +77,7 @@ function LandingHero() {
           </div>
 
           <a href="https://docs.google.com/forms/d/e/1FAIpQLScpLyxlZfB2lX7KqDWRyNo7YHPJmUrRJxfFqJsNDKKJAW7c4g/viewform?usp=header" target="_blank" rel="noopener noreferrer">
-            <Button variant="primary" size="lg" className="h-14 px-10 text-lg font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all">
+            <Button variant="primary" size="lg" className="h-14 px-10 text-base md:text-lg font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all min-h-[44px] min-w-[44px]">
               Register for Free <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </a>
@@ -91,7 +91,7 @@ function LandingHero() {
 function AboutSection() {
   return (
     <section className="py-20 border-b border-slate-800/40 relative">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection direction="up" className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Why participate?</h2>
@@ -167,7 +167,7 @@ function ScheduleSection() {
 function PrizeSection() {
   return (
     <section className="py-20 border-b border-slate-800/40">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <AnimatedSection direction="up" className="mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Prize Pool & Rewards</h2>
           <p className="text-slate-400 max-w-2xl mx-auto">Top performers on the HackerRank leaderboard will receive exclusive rewards.</p>
@@ -232,7 +232,7 @@ function BenefitsSection() {
 
   return (
     <section className="py-20 border-b border-slate-800/40 bg-slate-900/20">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection direction="up" className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">More than just coding</h2>
@@ -252,8 +252,12 @@ function BenefitsSection() {
             <div className="aspect-square bg-gradient-to-tr from-emerald-500/20 to-slate-800/50 rounded-full blur-3xl absolute inset-0" />
             <img 
               src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-              alt="Students collaborating" 
-              className="rounded-2xl border border-slate-800 relative z-10 opacity-80 mix-blend-luminosity hover:mix-blend-normal transition-all duration-500"
+              alt="Students collaborating on coding challenge" 
+              loading="lazy"
+              decoding="async"
+              width="800"
+              height="600"
+              className="w-full h-auto object-cover rounded-2xl border border-slate-800 relative z-10 opacity-80 mix-blend-luminosity hover:mix-blend-normal transition-all duration-500"
             />
           </div>
         </AnimatedSection>
@@ -307,12 +311,12 @@ function ContactSection() {
           <p className="text-slate-400 mb-8">Reach out to the organizing team or ask the community.</p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <a href="mailto:admin@campuscoder.com">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto text-slate-300">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto text-slate-300 min-h-[44px] min-w-[44px] text-sm sm:text-base">
                 <Mail className="w-5 h-5 mr-2" /> Email Us
               </Button>
             </a>
             <a href="https://discord.gg/VdsX64E5E" target="_blank" rel="noopener noreferrer">
-              <Button variant="secondary" size="lg" className="w-full sm:w-auto">
+              <Button variant="secondary" size="lg" className="w-full sm:w-auto min-h-[44px] min-w-[44px] text-sm sm:text-base">
                 <MessageSquare className="w-5 h-5 mr-2" /> Ask on Discord
               </Button>
             </a>
@@ -335,8 +339,8 @@ function CTASection() {
             Spots are filling up fast. Register now to secure your place in the 7 Days DSA Challenge 2026.
           </p>
           <a href="https://docs.google.com/forms/d/e/1FAIpQLScpLyxlZfB2lX7KqDWRyNo7YHPJmUrRJxfFqJsNDKKJAW7c4g/viewform?usp=header" target="_blank" rel="noopener noreferrer">
-            <Button variant="primary" size="lg" className="h-14 px-12 text-lg font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all">
-              Register Now
+            <Button variant="primary" size="lg" className="h-14 px-12 text-lg font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all min-h-[44px] min-w-[44px]">
+              Register Now <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </a>
           <p className="mt-6 text-sm text-slate-500 font-mono uppercase tracking-widest">Starts June 22, 2026</p>

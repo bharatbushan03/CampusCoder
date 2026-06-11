@@ -136,7 +136,7 @@ export const Footer: React.FC = React.memo(function Footer() {
                 </p>
                 <div className="pt-2">
                   <Link href="/register">
-                    <Button variant="primary" size="sm" className="w-full text-[10px] h-9">Join Community</Button>
+                    <Button variant="primary" size="sm" className="w-full text-sm h-11">Join Community</Button>
                   </Link>
                 </div>
               </div>
