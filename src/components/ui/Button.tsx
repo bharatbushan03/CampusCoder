@@ -33,9 +33,9 @@ const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
 };
 
 const sizes: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-5 py-2.5 text-sm',
-  lg: 'px-8 py-3 text-base',
+  sm: 'px-3 py-2 text-sm max-md:min-h-[44px] max-md:min-w-[44px]',
+  md: 'px-5 py-2.5 text-sm max-md:min-h-[44px] max-md:min-w-[44px]',
+  lg: 'px-8 py-3 text-base max-md:min-h-[44px] max-md:min-w-[44px]',
 };
 
 export const Button: React.FC<ButtonProps> = React.memo(function Button({
