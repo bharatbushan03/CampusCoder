@@ -29,7 +29,7 @@ async function runLighthouseAudit() {
   
   try {
     console.log(`Auditing ${url}...`);
-    const runnerResult = await lighthouse.default(url, options);
+    const runnerResult = await lighthouse(url, options);
     
     // Save HTML report
     const reportHtml = runnerResult.report;
