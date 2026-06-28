@@ -242,7 +242,13 @@ export const Navbar: React.FC = React.memo(function Navbar() {
             ) : (
               <div className="flex items-center gap-2">
                 <Link href="/login" className="hidden sm:block">
-                  <Button variant="ghost" size="sm">Login</Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="border-slate-600/80 text-slate-100 shadow-sm hover:border-emerald-400/70 hover:text-emerald-300"
+                  >
+                    Login
+                  </Button>
                 </Link>
                 <Link href="/signup">
                   <Button variant="primary" size="sm">Join Community</Button>
