@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CountdownTimer } from './CountdownTimer';
@@ -5,10 +6,10 @@ import { CountdownTimer } from './CountdownTimer';
 // Mock framer-motion to avoid animation issues in jsdom
 vi.mock('framer-motion', () => ({
   motion: {
-    div: require('react').forwardRef(({ children, ...props }: any, ref: any) => (
+    div: React.forwardRef(({ children, ...props }: any, ref: any) => (
       <div ref={ref} {...props}>{children}</div>
     )),
-    span: require('react').forwardRef(({ children, ...props }: any, ref: any) => (
+    span: React.forwardRef(({ children, ...props }: any, ref: any) => (
       <span ref={ref} {...props}>{children}</span>
     )),
   },
