@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -27,7 +27,6 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { createClient } from '@/utils/supabase/client';
-import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
@@ -112,45 +111,53 @@ const whoShouldAttend: Record<string, { icon: React.ComponentType<{ className?: 
   ],
 };
 
-export default function EventDetailsPage() {
-  const params = useParams<{ slug: string }>();
-  const slug = params?.slug;
+export default function EventDetailsPage({ initialEvent }: { initialEvent: EventData | null }) {
+  // Helper to format date
+  const formatEventDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
 
-  const [event, setEvent] = useState<EventData | null>(null);
-  const [relatedEvents, setRelatedEvents] = useState<RelatedEvent[]>([]);
+  // Helper to format time
+  const formatEventTime = (start: string, end: string) => {
+    try {
+      const [startH, startM] = start.split(':').map(Number);
+      const [endH, endM] = end.split(':').map(Number);
+      const formatTime = (h: number, m: number) => {
+        const period = h >= 12 ? 'PM' : 'AM';
+        const hour12 = h % 12 || 12;
+        return `${hour12}:${m.toString().padStart(2, '0')} ${period}`;
+      };
+      return `${formatTime(startH, startM)} – ${formatTime(endH, endM)} IST`;
+    } catch {
+      return `${start} – ${end}`;
+    }
+  };
+
+  // Helper to format deadline
+  const formatDeadline = (deadlineStr: string) => {
+    try {
+      const date = new Date(deadlineStr);
+      return date.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return deadlineStr;
+    }
+  };
+
+  const event = initialEvent;
+
   const [communityLinks, setCommunityLinks] = useState<CommunityLinkItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<'not_found' | 'unauthorized' | null>(null);
+  const [relatedEvents, setRelatedEvents] = useState<RelatedEvent[]>([]);
 
   useEffect(() => {
-    async function fetchEventDetails() {
-      if (!slug) return;
+    async function fetchAdditionalData() {
+      if (!event) return;
       try {
         const supabase = createClient();
-
-        const { data: eventData, error: eventError } = await supabase
-          .from('events')
-          .select('*, event_owners (*)')
-          .eq('slug', slug)
-          .in('status', ['published', 'completed', 'cancelled'])
-          .single()
-          .returns<SupabaseEvent>();
-
-        if (eventError) throw eventError;
-
-        setEvent(eventData);
-
-        const { data: relatedData } = await supabase
-          .from('events')
-          .select('*')
-          .eq('status', 'published')
-          .neq('slug', slug)
-          .limit(2)
-          .returns<EventRow[]>();
-
-        if (relatedData) {
-          setRelatedEvents(relatedData);
-        }
 
         const { data: linksData } = await supabase
           .from('community_links')
@@ -161,42 +168,25 @@ export default function EventDetailsPage() {
         if (linksData) {
           setCommunityLinks(linksData);
         }
+
+        const { data: relatedData } = await supabase
+          .from('events')
+          .select('*')
+          .eq('status', 'published')
+          .neq('slug', event?.slug ?? '')
+          .limit(2)
+          .returns<EventRow[]>();
+
+        if (relatedData) {
+          setRelatedEvents(relatedData);
+        }
       } catch (err) {
-        const errorCode =
-          err && typeof err === 'object' && 'code' in err
-            ? (err as { code?: string }).code
-            : undefined;
-        if (errorCode === 'PGRST116') {
-          setError('not_found');
-          setLoading(false);
-          return;
-        }
-
-        console.warn('Supabase fetch failed, looking up in local placeholders:', err);
-
-        const localMatch = placeholderEvents.find((ev) => getSlug(ev.title) === slug);
-
-        if (localMatch) {
-          setEvent(localMatch);
-          const localRelated = placeholderEvents
-            .filter((ev) => getSlug(ev.title) !== slug)
-            .slice(0, 2);
-          setRelatedEvents(localRelated);
-        } else {
-          setError('not_found');
-        }
-
-        setCommunityLinks([
-          { platform: 'Discord', url: 'https://discord.gg/VdsX64E5E', is_active: true },
-          { platform: 'WhatsApp', url: 'https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2', is_active: true },
-        ]);
-      } finally {
-        setLoading(false);
+        console.warn('Failed to fetch additional data:', err);
       }
     }
 
-    void fetchEventDetails();
-  }, [slug]);
+    fetchAdditionalData();
+  }, [event]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -229,51 +219,7 @@ export default function EventDetailsPage() {
   const learningItems = learningByType[eventType] || learningByType.workshop;
   const attendeeGroups = whoShouldAttend[eventType] || whoShouldAttend.workshop;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen py-12 md:py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 md:space-y-10">
-          <div className="h-4 w-24 bg-slate-800/60 animate-pulse rounded-lg" />
-          <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
-            <div className="flex-1 space-y-5">
-              <div className="h-6 w-32 bg-slate-800/60 animate-pulse rounded-lg" />
-              <div className="h-10 w-3/4 bg-slate-800/60 animate-pulse rounded-lg" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3">
-                <div className="h-16 bg-slate-800/60 animate-pulse rounded-lg" />
-                <div className="h-16 bg-slate-800/60 animate-pulse rounded-lg" />
-                <div className="h-16 bg-slate-800/60 animate-pulse rounded-lg" />
-              </div>
-              <div className="h-12 w-40 bg-slate-800/60 animate-pulse rounded-lg" />
-            </div>
-            <div className="lg:w-80 shrink-0">
-              <div className="h-64 bg-slate-800/60 animate-pulse rounded-2xl" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error === 'unauthorized') {
-    return (
-      <div className="min-h-screen flex items-center justify-center py-20 px-4">
-        <Card glass={false} className="text-center max-w-md p-8">
-          <div className="flex size-12 items-center justify-center rounded-lg bg-amber-500/10 border border-amber-500/20 mx-auto mb-4">
-            <AlertOctagon className="size-6 text-amber-500" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-50 mb-2">Access Denied</h2>
-          <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-            This event has not been published yet. Check back later.
-          </p>
-          <Link href="/events">
-            <Button variant="primary" size="sm">Return to Events</Button>
-          </Link>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error === 'not_found' || !event) {
+  if (!event) {
     return (
       <div className="min-h-screen flex items-center justify-center py-20 px-4">
         <Card glass={false} className="text-center max-w-md p-8">
@@ -343,27 +289,27 @@ export default function EventDetailsPage() {
                   <Calendar className="size-4 text-emerald-400 shrink-0" />
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Date</p>
-                    <p className="text-slate-300">{EVENT_DATE_LABEL}</p>
+                    <p className="text-slate-300">{event?.date ? formatEventDate(event.date) : 'TBC'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Clock className="size-4 text-emerald-400 shrink-0" />
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Time</p>
-                    <p className="text-slate-300">{EVENT_TIME_LABEL}</p>
+                    <p className="text-slate-300">{event?.start_time && event?.end_time ? formatEventTime(event.start_time, event.end_time) : 'Coming soon'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <MapPin className="size-4 text-emerald-400 shrink-0" />
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Mode</p>
-                    <p className="text-slate-300 capitalize">{event.mode || event.location || 'Online'}</p>
+                    <p className="text-slate-300 capitalize">{event?.mode || event?.location || 'Online'}</p>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Link href={isRegistrationDisabled ? '#' : `/events/${slug}/register`}>
+                <Link href={isRegistrationDisabled ? '#' : `/events/${event.slug}/register`}>
                   <Button
                     variant="primary"
                     size="lg"
@@ -420,7 +366,7 @@ export default function EventDetailsPage() {
                       {event.registration_deadline && (
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="size-3.5 text-amber-500" />
-                          <span>Register by {EVENT_DEADLINE_LABEL}</span>
+                          <span>Register by {formatDeadline(event.registration_deadline)}</span>
                         </div>
                       )}
                     </div>
@@ -443,7 +389,7 @@ export default function EventDetailsPage() {
                   </div>
                 )}
 
-                <Link href={isRegistrationDisabled ? '#' : `/events/${slug}/register`} className="block">
+                <Link href={isRegistrationDisabled ? '#' : `/events/${event.slug}/register`} className="block">
                   <Button
                     variant={isRegistrationDisabled ? 'outline' : 'primary'}
                     size="md"
@@ -471,23 +417,23 @@ export default function EventDetailsPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 text-sm">
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Date</p>
-                    <p className="text-slate-300">{EVENT_DATE_LABEL}</p>
+                    <p className="text-slate-300">{event?.date ? formatEventDate(event.date) : 'TBC'}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Time</p>
-                    <p className="text-slate-300">{EVENT_TIME_LABEL}</p>
+                    <p className="text-slate-300">{event?.start_time && event?.end_time ? formatEventTime(event.start_time, event.end_time) : 'Coming soon'}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Mode</p>
-                    <p className="text-slate-300 capitalize">{event.mode || event.location || 'Online'}</p>
+                    <p className="text-slate-300 capitalize">{event?.mode || event?.location || 'Online'}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Platform</p>
-                    <p className="text-slate-300 capitalize">{event.meeting_link ? 'Online meeting link' : event.location || event.mode || '—'}</p>
+                    <p className="text-slate-300 capitalize">{event?.meeting_link ? 'HackerRank' : event?.location || event?.mode || '—'}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium mb-0.5">Registration deadline</p>
-                    <p className="text-slate-300">{event.registration_deadline ? EVENT_DEADLINE_LABEL : '—'}</p>
+                    <p className="text-slate-300">{event?.registration_deadline ? formatDeadline(event.registration_deadline) : 'Expired'}</p>
                   </div>
                 </div>
               </Card>
@@ -629,7 +575,7 @@ export default function EventDetailsPage() {
                           <h4 className="text-sm font-semibold text-slate-50 group-hover:text-emerald-400 transition-colors">
                             {rel.title}
                           </h4>
-                          {rel.date && <p className="text-xs text-slate-500">{EVENT_DATE_LABEL}</p>}
+                          {rel.date && <p className="text-xs text-slate-500">{formatEventDate(rel.date)}</p>}
                         </div>
                         <ChevronRight className="size-4 text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0 mt-1" />
                       </div>

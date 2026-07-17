@@ -24,6 +24,19 @@ type EventWithRegistrations = EventRow & {
   registrations: Pick<RegistrationRow, 'id'>[] | null;
 };
 
+const generateEventSlug = (title: string | undefined | null, id: string | undefined | null): string => {
+  // If we have a title, try to create a slug from it
+  if (title && typeof title === 'string') {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      || `event-${id || 'unknown'}`;
+  }
+  // Fallback to ID-based slug
+  return `event-${id || 'unknown'}`;
+};
+
 export default function EventArchivePage() {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventWithRegistrations[]>([]);
@@ -121,7 +134,7 @@ export default function EventArchivePage() {
                 )}
                 <div className="absolute top-3 left-3">
                   <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-950/80 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest">
-                    {ev.event_type.replace('_', ' ')}
+                    {(ev.event_type || 'unknown').replace('_', ' ')}
                   </span>
                 </div>
               </div>
@@ -129,7 +142,7 @@ export default function EventArchivePage() {
               <div className="p-5 gap-y-4 flex-1 flex flex-col">
                 <div className="space-y-1">
                   <p className="text-[10px] font-mono text-slate-500">{EVENT_DATE_LABEL}</p>
-                  <h3 className="text-lg font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">{ev.title}</h3>
+                  <h3 className="text-lg font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">{ev.title || 'Untitled Event'}</h3>
                 </div>
 
                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed flex-1">
@@ -148,7 +161,7 @@ export default function EventArchivePage() {
                         <Video className="size-3.5" />
                       </a>
                     )}
-                    <Link href={`/events/${ev.slug}`}>
+                    <Link href={`/events/${ev.slug || generateEventSlug(ev.title, ev.id)}`}>
                       <button type="button" className="text-[10px] font-mono font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 group/btn">
                         Details <ArrowRight className="size-3 group-hover/btn:translate-x-0.5 transition-transform" />
                       </button>
