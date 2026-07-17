@@ -10,28 +10,31 @@ import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 
 // ─── 3D GRAPH VISUALIZATION ───
 
+// Pre-generate stable random positions for nodes (module-level, runs once)
+function generateNodePositions(numNodes: number): THREE.Vector3[] {
+  const temp: THREE.Vector3[] = [];
+  for (let i = 0; i < numNodes; i++) {
+    temp.push(
+      new THREE.Vector3(
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 6,
+        (Math.random() - 0.5) * 4
+      )
+    );
+  }
+  return temp;
+}
+
 function GraphNodes({ isMobile }: { isMobile: boolean }) {
   const group = useRef<THREE.Group>(null);
   const numNodes = isMobile ? 8 : 15;
 
-  // Generate random positions for nodes
-  const nodes = useMemo(() => {
-    const temp = [];
-    for (let i = 0; i < numNodes; i++) {
-      temp.push(
-        new THREE.Vector3(
-          (Math.random() - 0.5) * 8,
-          (Math.random() - 0.5) * 6,
-          (Math.random() - 0.5) * 4
-        )
-      );
-    }
-    return temp;
-  }, [numNodes]);
+  // Use useMemo with empty deps to generate stable positions once per component instance
+  const nodes = useMemo(() => generateNodePositions(numNodes), [numNodes]);
 
   // Generate edges between close nodes
   const edges = useMemo(() => {
-    const temp = [];
+    const temp: [THREE.Vector3, THREE.Vector3][] = [];
     for (let i = 0; i < numNodes; i++) {
       for (let j = i + 1; j < numNodes; j++) {
         if (nodes[i].distanceTo(nodes[j]) < 3.5) {

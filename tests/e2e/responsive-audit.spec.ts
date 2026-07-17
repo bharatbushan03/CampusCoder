@@ -118,7 +118,7 @@ test.describe('DSA Event Responsive Design Audit', () => {
       const layoutShiftScore = await page.evaluate(() => {
         // Simple layout shift detection
         const elements = document.querySelectorAll('*');
-        let shiftDetected = false;
+        const shiftDetected = false;
         
         elements.forEach(el => {
           const rect = el.getBoundingClientRect();
