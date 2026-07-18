@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, Line, Sphere, PresentationControls } from '@react-three/drei';
+import { Float, Line, PresentationControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Terminal, Code2, Trophy } from 'lucide-react';
@@ -69,7 +69,8 @@ function GraphNodes({ isMobile }: { isMobile: boolean }) {
       {/* Nodes */}
       {nodes.map((pos, i) => (
         <Float key={`node-${i}`} speed={2} rotationIntensity={0.5} floatIntensity={1}>
-          <Sphere position={pos} args={[0.08, 16, 16]}>
+          <mesh position={pos}>
+            <sphereGeometry args={[0.08, 16, 16]} />
             <meshStandardMaterial 
               color={i % 3 === 0 ? "#10b981" : "#34d399"} 
               emissive="#10b981"
@@ -77,7 +78,7 @@ function GraphNodes({ isMobile }: { isMobile: boolean }) {
               roughness={0.2}
               metalness={0.8}
             />
-          </Sphere>
+          </mesh>
         </Float>
       ))}
     </group>

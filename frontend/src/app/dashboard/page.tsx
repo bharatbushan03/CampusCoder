@@ -21,8 +21,8 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { createClient } from '@/utils/supabase/client';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
+import { createClient } from '@backend/utils/supabase/client';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
 import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
 import type { User } from '@supabase/supabase-js';

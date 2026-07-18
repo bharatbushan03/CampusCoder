@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Terminal, KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 import { TechBackground } from '@/components/animations/TechBackground';
 
@@ -184,3 +184,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

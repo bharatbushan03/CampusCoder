@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Terminal, Globe, Code, MessageSquare, Users, Trophy, Phone } from 'lucide-react';
-import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
+import { createClient, isSupabaseConfigured } from '@backend/utils/supabase/client';
 import { Button } from './ui/Button';
 import type { Database } from '@/types/database.types';
 
@@ -168,3 +168,4 @@ export const Footer: React.FC = React.memo(function Footer() {
     </footer>
   );
 });
+

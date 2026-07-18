@@ -20,11 +20,11 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { createClient } from '@/utils/supabase/client';
-import { placeholderEvents } from '@/lib/placeholderData';
+import { createClient } from '@backend/utils/supabase/client';
+import { placeholderEvents } from '@backend/lib/placeholderData';
 import { registerForEvent } from '@/app/actions/registrationActions';
-import { registrationSchema } from '@/lib/validation';
-import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
+import { registrationSchema } from '@backend/lib/validation';
+import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
 import { toast } from 'sonner';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';

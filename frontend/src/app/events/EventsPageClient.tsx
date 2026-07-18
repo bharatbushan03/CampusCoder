@@ -17,8 +17,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
-import { createClient } from '@/utils/supabase/client';
-import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
+import { createClient } from '@backend/utils/supabase/client';
+import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
@@ -431,3 +431,4 @@ export default function EventsPage() {
     </div>
   );
 }
+

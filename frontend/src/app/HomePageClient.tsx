@@ -24,10 +24,10 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 import type { Database } from '@/types/database.types';
-import { placeholderEvents } from '@/lib/placeholderData';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
+import { placeholderEvents } from '@backend/lib/placeholderData';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
 import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CommunityHero } from '@/components/home/CommunityHero';
@@ -546,3 +546,4 @@ export default function HomePage() {
     </div>
   );
 }
+

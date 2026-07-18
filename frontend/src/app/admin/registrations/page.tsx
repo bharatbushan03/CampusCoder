@@ -9,8 +9,8 @@ import {
   School, GraduationCap, Code2, MessageSquare, Clock
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
-import { getErrorMessage } from '@/lib/errors';
+import { createClient } from '@backend/utils/supabase/client';
+import { getErrorMessage } from '@backend/lib/errors';
 import type { Database } from '@/types/database.types';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 
@@ -606,3 +606,4 @@ export default function AdminRegistrationsPage() {
     </div>
   );
 }
+

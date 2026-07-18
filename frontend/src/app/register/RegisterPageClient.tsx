@@ -5,12 +5,12 @@ import { useSearchParams } from 'next/navigation';
 import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/utils/supabase/client';
-import { placeholderEvents } from '@/lib/placeholderData';
+import { createClient } from '@backend/utils/supabase/client';
+import { placeholderEvents } from '@backend/lib/placeholderData';
 import Link from 'next/link';
 import { registerForEvent } from '@/app/actions/registrationActions';
-import { registrationSchema } from '@/lib/validation';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
+import { registrationSchema } from '@backend/lib/validation';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
@@ -416,3 +416,4 @@ export default function RegistrationPage() {
     </div>
   );
 }
+

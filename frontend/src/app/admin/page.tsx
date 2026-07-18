@@ -22,8 +22,8 @@ import {
   Clock,
   ExternalLink,
 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
-import { getErrorMessage } from '@/lib/errors';
+import { createClient } from '@backend/utils/supabase/client';
+import { getErrorMessage } from '@backend/lib/errors';
 import type { Database } from '@/types/database.types';
 import { Badge } from '@/components/ui/Badge';
 
@@ -693,3 +693,4 @@ function Label({ htmlFor, children }: { htmlFor: string; children: React.ReactNo
     </label>
   );
 }
+
