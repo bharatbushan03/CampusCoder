@@ -28,6 +28,9 @@
       ],
       "@backend/*": [
         "../backend/src/*"
+      ],
+      "@campuscoder/backend/*": [
+        "../backend/src/*"
       ]
     }
   },
@@ -36,11 +39,11 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
+    "../backend",
     "src/**/*.test.tsx",
     "src/**/*.test.ts"
   ]
