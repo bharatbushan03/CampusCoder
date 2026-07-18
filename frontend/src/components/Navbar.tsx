@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Menu, X, LogOut, LayoutDashboard, ShieldAlert, ChevronDown } from 'lucide-react';
 import { Button } from './ui/Button';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 import type { Database } from '@/types/database.types';
 
@@ -322,3 +322,4 @@ export const Navbar: React.FC = React.memo(function Navbar() {
     </motion.header>
   );
 });
+

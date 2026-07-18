@@ -14,7 +14,7 @@ import {
   Power
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
@@ -202,3 +202,4 @@ export default function AdminResourcesPage() {
     </div>
   );
 }
+

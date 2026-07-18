@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Terminal, KeyRound, Mail, ArrowRight, Loader2, User, School, BookOpen, CalendarCheck } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -265,3 +265,4 @@ export default function SignupPage() {
     </div>
   );
 }
+

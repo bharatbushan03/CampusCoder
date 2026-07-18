@@ -14,8 +14,8 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { createClient } from '@/utils/supabase/client';
-import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
+import { createClient } from '@backend/utils/supabase/client';
+import { EVENT_DATE_LABEL } from '@backend/lib/eventSchedule';
 import type { Database } from '@/types/database.types';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
 
@@ -162,3 +162,4 @@ export default function WorkshopsPage() {
     </div>
   );
 }
+

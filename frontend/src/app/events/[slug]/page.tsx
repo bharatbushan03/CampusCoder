@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@backend/utils/supabase/server';
 import EventDetailsPageClient from './EventDetailsPageClient';
 
 export const metadata: Metadata = {

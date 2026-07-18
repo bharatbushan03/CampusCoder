@@ -7,7 +7,7 @@ import {
   PlusCircle, Trash2, Loader2, Edit, Search, ArrowLeft, Link2, ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 
 export default function AdminCommunityLinksPage() {
   const [loading, setLoading] = useState(true);
@@ -179,3 +179,4 @@ export default function AdminCommunityLinksPage() {
     </div>
   );
 }
+

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Terminal, Mail, ArrowRight, Loader2, KeyRound } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -160,3 +160,4 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
+

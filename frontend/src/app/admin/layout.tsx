@@ -1,6 +1,6 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@backend/utils/supabase/server';
 import AdminSidebar from './AdminSidebar';
 
 export default async function AdminLayout({
@@ -41,3 +41,4 @@ export default async function AdminLayout({
     </div>
   );
 }
+

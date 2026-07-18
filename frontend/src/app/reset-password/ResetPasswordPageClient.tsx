@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Terminal, KeyRound, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -169,3 +169,4 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
+

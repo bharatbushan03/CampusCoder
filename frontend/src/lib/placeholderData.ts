@@ -1,0 +1,72 @@
+import { CodingEvent } from '@/types';
+
+export const placeholderEvents: CodingEvent[] = [
+  {
+    id: 'ev-1',
+    title: 'Hands-on React & Next.js Workshop',
+    description: 'Build and deploy a modern web application using React, Next.js, and Tailwind CSS from scratch.',
+    longDescription: 'Get ready to code! In this interactive workshop, we will build a real-world project from absolute scratch using Next.js and Tailwind CSS. You will learn about server components, routing, handling state, connecting databases, and deploying your web app to Vercel. Recommended for beginners and intermediate developers looking to learn modern web architecture.',
+    date: '2026-06-12',
+    time: '14:00 - 17:00',
+    location: 'Discord Developer Voice Channel',
+    type: 'workshop',
+    speaker: {
+      name: 'Sneha Patel',
+      role: 'Full Stack Developer & Community Lead',
+    },
+    seatsTotal: 100,
+    seatsRegistered: 64,
+    tags: ['React', 'Next.js', 'Web Dev', 'TailwindCSS'],
+  },
+  {
+    id: 'ev-2',
+    title: 'Node.js Backend Workshop',
+    description: 'Learn to build REST APIs and real-time apps with Node.js, Express, and MongoDB.',
+    longDescription: 'Dive into backend development! We will cover REST API design, authentication with JWT, WebSockets for real-time communication, and MongoDB integration. By the end, you will have a fully functional backend service deployed on Railway. Open to all skill levels.',
+    date: '2026-06-19',
+    time: '15:00 - 18:00',
+    location: 'Google Meet',
+    type: 'workshop',
+    speaker: {
+      name: 'Rahul Verma',
+      role: 'Backend Developer & Community Mentor',
+    },
+    seatsTotal: 80,
+    seatsRegistered: 52,
+    tags: ['Node.js', 'Express', 'MongoDB', 'API'],
+  },
+  {
+    id: 'ev-3',
+    title: 'Weekly Coding Contest',
+    description: 'Compete in algorithmic challenges covering arrays, strings, and dynamic programming.',
+    longDescription: 'Sharpen your problem-solving skills! Join our weekly coding contest where we solve curated problem sets on HackerRank. We will walk through alternative solutions, optimizing space and time complexity, and how to write clean code under pressure. Perfect for anyone looking to build consistency in coding.',
+    date: '2026-06-26',
+    time: '19:00 - 21:00',
+    location: 'HackerRank Platform & Discord',
+    type: 'coding_session',
+    speaker: {
+      name: 'CampusCoder Team',
+      role: 'Competitive Programming Leads',
+    },
+    seatsTotal: 150,
+    seatsRegistered: 88,
+    tags: ['Competitive Programming', 'Algorithms', 'DSA', 'Contest'],
+  },
+  {
+    id: 'ev-4',
+    title: 'Campus Coding Sprint: Build a Project in 2 Days',
+    description: 'Form teams and build a working prototype for a campus problem. Prizes and certificates for top teams.',
+    longDescription: 'Unleash your creativity at our coding sprint! Collaborate with designers and developers to build prototypes addressing real-world campus problems. Mentors will be available throughout to guide you through project scopes, tech architecture, and implementation. Exciting goodies, cash prizes, and participation certificates await!',
+    date: '2026-07-10',
+    time: '09:00 (Sat) - 17:00 (Sun)',
+    location: 'College Seminar Hall & GitHub',
+    type: 'workshop',
+    speaker: {
+      name: 'CampusCoder Tech Panel',
+      role: 'Industry Mentors & Organizers',
+    },
+    seatsTotal: 60,
+    seatsRegistered: 31,
+    tags: ['Hackathon', 'Team Building', 'Prototyping', 'Coding Sprint'],
+  }
+];

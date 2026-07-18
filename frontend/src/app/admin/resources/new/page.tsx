@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, Globe, FileText, Link2, Info } from 'lucide-react';
 import Link from 'next/link';
 import { createResource } from '@/app/actions/adminActions';
-import { resourceSchema } from '@/lib/validation';
+import { resourceSchema } from '@backend/lib/validation';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 import type { Database } from '@/types/database.types';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
@@ -189,3 +189,4 @@ export default function NewResourcePage() {
     </div>
   );
 }
+

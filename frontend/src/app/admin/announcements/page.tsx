@@ -7,7 +7,7 @@ import {
   PlusCircle, Trash2, Edit, Search, ArrowLeft, Bell, Calendar
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 export default function AdminAnnouncementsPage() {
@@ -176,3 +176,4 @@ export default function AdminAnnouncementsPage() {
     </div>
   );
 }
+

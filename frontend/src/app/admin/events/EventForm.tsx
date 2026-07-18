@@ -8,8 +8,8 @@ import {
   Terminal, Lock, Unlock, Upload, X, Plus, Trash2, Mail, User, Users,
   Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock, Link2, Info
 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
-import { eventSchema } from '@/lib/validation';
+import { createClient } from '@backend/utils/supabase/client';
+import { eventSchema } from '@backend/lib/validation';
 import { toast } from 'sonner';
 
 interface Speaker {
@@ -672,3 +672,4 @@ export default function EventForm({
     </form>
   );
 }
+

@@ -15,7 +15,7 @@ import {
   BookOpen,
   ChevronRight,
 } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient } from '@backend/utils/supabase/client';
 
 interface AdminSidebarProps {
   email: string;
@@ -162,3 +162,4 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
     </>
   );
 }
+
