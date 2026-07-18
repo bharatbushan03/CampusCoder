@@ -14,6 +14,11 @@ import {
   Link2,
   BookOpen,
   ChevronRight,
+  BarChart2,
+  Server,
+  GraduationCap,
+  Activity,
+  UserCheck,
 } from 'lucide-react';
 import { createClient } from '@backend/utils/supabase/client';
 
@@ -27,12 +32,20 @@ const navGroups = [
     label: 'Main',
     links: [
       { label: 'Overview', href: '/admin', icon: LayoutDashboard },
-      { label: 'Events', href: '/admin/events', icon: Calendar },
-      { label: 'Registrations', href: '/admin/registrations', icon: Users },
+      { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
+      { label: 'System', href: '/admin/system', icon: Activity },
     ],
   },
   {
     label: 'Content',
+    links: [
+      { label: 'Events', href: '/admin/events', icon: Calendar },
+      { label: 'Registrations', href: '/admin/registrations', icon: Users },
+      { label: 'Students', href: '/admin/students', icon: UserCheck },
+    ],
+  },
+  {
+    label: 'Community',
     links: [
       { label: 'Announcements', href: '/admin/announcements', icon: Bell },
       { label: 'Community Links', href: '/admin/community-links', icon: Link2 },
