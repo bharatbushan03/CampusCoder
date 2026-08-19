@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Edit, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { api } from '@/lib/api';
 import CommunityLinkForm from '../../CommunityLinkForm';
 
 export default function EditCommunityLinkPage() {
@@ -19,15 +19,8 @@ export default function EditCommunityLinkPage() {
   useEffect(() => {
     const loadLink = async () => {
       try {
-        const supabase = createClient() as any;
-        const { data, error } = await supabase
-          .from('community_links')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (error) throw error;
-        setInitialData(data);
+        const data = await api<{ ok: boolean; link: any }>(`/admin/community-links/${id}`);
+        setInitialData(data.link);
       } catch (err: any) {
         alert('Error loading link: ' + err.message);
         router.push('/admin/community-links');
@@ -42,13 +35,10 @@ export default function EditCommunityLinkPage() {
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('community_links')
-        .update(data)
-        .eq('id', id);
-
-      if (error) throw error;
+      await api(`/admin/community-links/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
       
       router.push('/admin/community-links');
       router.refresh();

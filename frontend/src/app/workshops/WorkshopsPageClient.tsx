@@ -14,12 +14,22 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { createClient } from '@backend/utils/supabase/client';
-import { EVENT_DATE_LABEL } from '@backend/lib/eventSchedule';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
 import { AnimatedSection, AnimatedCard } from '@/components/animations/ScrollAnimations';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
+type EventRow = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description?: string | null;
+  summary?: string | null;
+  event_type: string;
+  status: string;
+  date: string;
+  banner_url?: string | null;
+  recording_url?: string | null;
+};
 
 export default function WorkshopsPage() {
   const [loading, setLoading] = useState(true);
@@ -28,24 +38,15 @@ export default function WorkshopsPage() {
   useEffect(() => {
     const loadWorkshops = async () => {
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('event_type', 'workshop')
-          .in('status', ['published', 'completed'])
-          .order('date', { ascending: false })
-          .returns<EventRow[]>();
-
-        if (error) throw error;
-        setWorkshops(data || []);
+        const data = await api<{ ok: boolean; workshops: EventRow[] }>('/events/workshops');
+        setWorkshops(data.workshops || []);
       } catch (err) {
         console.warn('Failed to load workshops:', err);
       } finally {
         setLoading(false);
       }
     };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void loadWorkshops();
   }, []);
 

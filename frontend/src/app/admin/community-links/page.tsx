@@ -7,23 +7,24 @@ import {
   PlusCircle, Trash2, Loader2, Edit, Search, ArrowLeft, Link2, ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@backend/utils/supabase/client';
+import { api } from '@/lib/api';
+
+type CommunityLinkRow = {
+  id: string;
+  platform: string;
+  url: string;
+  is_active: boolean;
+};
 
 export default function AdminCommunityLinksPage() {
   const [loading, setLoading] = useState(true);
-  const [links, setLinks] = useState<any[]>([]);
+  const [links, setLinks] = useState<CommunityLinkRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadLinks = async () => {
     try {
-      const supabase = createClient() as any;
-      const { data, error } = await supabase
-        .from('community_links')
-        .select('*')
-        .order('platform', { ascending: true });
-
-      if (error) throw error;
-      setLinks(data || []);
+      const data = await api<{ ok: boolean; links: CommunityLinkRow[] }>('/admin/community-links');
+      setLinks(data.links || []);
     } catch (err: any) {
       console.warn('Error loading links:', err);
     } finally {
@@ -38,28 +39,16 @@ export default function AdminCommunityLinksPage() {
   const handleDeleteLink = async (id: string) => {
     if (!confirm('Are you sure you want to delete this community link?')) return;
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('community_links')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await api(`/admin/community-links/${id}`, { method: 'DELETE' });
       await loadLinks();
     } catch (err: any) {
       alert('Failed to delete link: ' + err.message);
     }
   };
 
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+  const handleToggleActive = async (id: string) => {
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('community_links')
-        .update({ is_active: !currentStatus })
-        .eq('id', id);
-
-      if (error) throw error;
+      await api(`/admin/community-links/${id}/toggle`, { method: 'PATCH' });
       await loadLinks();
     } catch (err: any) {
       alert('Failed to update link status: ' + err.message);
@@ -142,7 +131,7 @@ export default function AdminCommunityLinksPage() {
                     </td>
                     <td className="py-4 px-6">
                       <button type="button" 
-                        onClick={() => handleToggleActive(link.id, link.is_active)}
+                        onClick={() => handleToggleActive(link.id)}
                         className={`inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-[10px] font-mono font-medium border capitalize cursor-pointer ${
                           link.is_active ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-400'
                         }`}

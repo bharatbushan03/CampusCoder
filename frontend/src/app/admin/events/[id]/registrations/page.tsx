@@ -9,7 +9,7 @@ import {
   School, GraduationCap, Code2, MessageSquare, Clock
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { api } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,31 +32,19 @@ export default function SingleEventRegistrationsPage({ params }: PageProps) {
   // Fetch registrations & event info
   const loadRegistrationsData = async () => {
     try {
-      const supabase = createClient() as any;
+      const [eventData, regsData] = await Promise.all([
+        api<{ ok: boolean; event: { title: string } }>(`/admin/events/${id}`),
+        api<{ ok: boolean; registrations: any[] }>(`/admin/events/${id}/registrations`),
+      ]);
 
-      // Fetch event details
-      const { data: eventData } = await supabase
-        .from('events')
-        .select('title')
-        .eq('id', id)
-        .single();
-
-      if (eventData) {
-        setEventTitle(eventData.title);
+      if (eventData.event?.title) {
+        setEventTitle(eventData.event.title);
       }
 
-      // Fetch registrations for this event
-      const { data: regsData, error } = await supabase
-        .from('registrations')
-        .select('*, events(title)')
-        .eq('event_id', id)
-        .order('registered_at', { ascending: false });
-
-      if (error) throw error;
-      setRegistrations(regsData || []);
+      setRegistrations(regsData.registrations || []);
       setIsDbOffline(false);
     } catch (err: any) {
-      console.warn('Database offline, using mock registrations data for event:', err);
+      console.warn('Backend offline, using mock registrations data for event:', err);
       setIsDbOffline(true);
       setEventTitle('Hands-on React & Next.js Workshop');
       setRegistrations([
@@ -89,13 +77,10 @@ export default function SingleEventRegistrationsPage({ params }: PageProps) {
   // Update attendance status
   const handleUpdateAttendance = async (regId: string, newStatus: 'registered' | 'attended' | 'absent') => {
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('registrations')
-        .update({ attendance_status: newStatus })
-        .eq('id', regId);
-
-      if (error) throw error;
+      await api(`/admin/registrations/${regId}/attendance`, {
+        method: 'PATCH',
+        body: JSON.stringify({ attendance_status: newStatus }),
+      });
 
       // Update local state list
       setRegistrations(prev =>
@@ -116,13 +101,9 @@ export default function SingleEventRegistrationsPage({ params }: PageProps) {
     if (!confirm('Are you sure you want to delete this registration? This action is irreversible.')) return;
 
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('registrations')
-        .delete()
-        .eq('id', regId);
-
-      if (error) throw error;
+      await api(`/admin/registrations/${regId}`, {
+        method: 'DELETE',
+      });
 
       // Update local state list
       setRegistrations(prev => prev.filter(reg => reg.id !== regId));

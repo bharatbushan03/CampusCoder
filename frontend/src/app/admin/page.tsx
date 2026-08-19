@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -18,29 +18,80 @@ import {
   X,
   Plus,
   ArrowUpRight,
-  CheckCircle2,
   Clock,
   ExternalLink,
+  GraduationCap,
+  Mail,
+  Activity,
+  TrendingUp,
+  Eye,
 } from 'lucide-react';
-import { createClient } from '@backend/utils/supabase/client';
-import { getErrorMessage } from '@backend/lib/errors';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { Badge } from '@/components/ui/Badge';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
-type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
-type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
-type StudentProfile = Pick<Database['public']['Tables']['profiles']['Row'], 'id'>;
+type EventRow = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description: string | null;
+  full_description: string | null;
+  event_type: string;
+  mode: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  meeting_link: string | null;
+  registration_deadline: string | null;
+  banner_url: string | null;
+  status: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  meeting_link_sent_at: string | null;
+  summary: string | null;
+  recording_url: string | null;
+};
+type RegistrationRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  college: string | null;
+  branch: string | null;
+  year: string | null;
+  coding_level: string | null;
+  preferred_language: string | null;
+  reason_to_join: string | null;
+  registered_at: string;
+  attendance_status: string;
+  event_id: string;
+};
+type AnnouncementRow = {
+  id: string;
+  title: string;
+  message: string;
+  event_id: string | null;
+  is_active: boolean;
+  publish_date: string;
+  created_by: string | null;
+  created_at: string;
+};
+type CommunityLinkRow = {
+  id: string;
+  platform: string;
+  url: string;
+  is_active: boolean;
+};
 type RegistrationWithEvent = RegistrationRow & {
   events: Pick<EventRow, 'title'> | null;
 };
 type AnnouncementWithEvent = AnnouncementRow & {
   events: Pick<EventRow, 'title'> | null;
 };
-type EventType = EventRow['event_type'];
-type EventMode = EventRow['mode'];
-type EventStatus = EventRow['status'];
+type EventType = 'workshop' | 'coding_session' | 'orientation' | 'challenge' | 'webinar';
+type EventMode = 'online' | 'offline' | 'hybrid';
+type EventStatus = 'draft' | 'published' | 'completed' | 'cancelled';
 type EventFormState = {
   title: string;
   slug: string;
@@ -89,7 +140,6 @@ export default function AdminDashboardPage() {
   const [announcements, setAnnouncements] = useState<AnnouncementWithEvent[]>([]);
   const [communityLinks, setCommunityLinks] = useState<CommunityLinkRow[]>([]);
   const [isDbOffline, setIsDbOffline] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const [showEventModal, setShowEventModal] = useState(false);
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
@@ -121,60 +171,47 @@ export default function AdminDashboardPage() {
 
   const loadDashboardData = async () => {
     try {
-      const supabase = createClient();
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-      }
+      const data = await api<{
+        ok: boolean;
+        events: EventRow[];
+        registrations: RegistrationWithEvent[];
+        studentCount: number;
+        announcements: AnnouncementWithEvent[];
+        communityLinks: CommunityLinkRow[];
+      }>('/admin/overview');
 
       const todayStr = new Date().toISOString().split('T')[0];
 
-      const [eventsRes, regsRes, membersRes, announcementsRes, linksRes] = await Promise.all([
-        supabase.from('events').select('*').order('date', { ascending: false }).returns<EventRow[]>(),
-        supabase.from('registrations').select('*, events(title)').order('registered_at', { ascending: false }).returns<RegistrationWithEvent[]>(),
-        supabase.from('profiles').select('id').eq('role', 'student').returns<StudentProfile[]>(),
-        supabase.from('announcements').select('*, events(title)').order('created_at', { ascending: false }).returns<AnnouncementWithEvent[]>(),
-        supabase.from('community_links').select('*').returns<CommunityLinkRow[]>(),
-      ]);
+      setEvents(data.events || []);
+      setRegistrations(data.registrations || []);
+      setAnnouncements(data.announcements || []);
+      setCommunityLinks(data.communityLinks || []);
 
-      if (eventsRes.error) throw eventsRes.error;
-      if (regsRes.error) throw regsRes.error;
-
-      const eventsList = eventsRes.data || [];
-      const regsList = regsRes.data || [];
-      const membersList = membersRes.data || [];
-      const announceList = announcementsRes.data || [];
-      const linksList = linksRes.data || [];
-
-      setEvents(eventsList);
-      setRegistrations(regsList);
-      setAnnouncements(announceList);
-      setCommunityLinks(linksList);
-
+      const eventsList = data.events || [];
+      const regsList = data.registrations || [];
       const totalEvents = eventsList.length;
       const upcomingEvents = eventsList.filter((event) => event.status === 'published' && event.date >= todayStr).length;
       const completedEvents = eventsList.filter((event) => event.status === 'completed').length;
       const totalRegistrations = regsList.length;
-      const activeStudents = membersList.length;
+      const activeStudents = data.studentCount || 0;
 
       setStats({ totalEvents, upcomingEvents, totalRegistrations, activeStudents, completedEvents });
       setIsDbOffline(false);
     } catch (err) {
-      console.warn('Supabase queries failed, loading mock data:', err);
+      console.warn('Backend queries failed, loading mock data:', err);
       setIsDbOffline(true);
 
       const now = new Date().toISOString();
       const mockEvents: EventRow[] = [
         { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', short_description: null, full_description: null, event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', meeting_link: 'https://meet.google.com/abc', registration_deadline: null, banner_url: null, status: 'published', created_by: null, created_at: now, updated_at: now, meeting_link_sent_at: null, summary: null, recording_url: null },
-        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', short_description: null, full_description: null, event_type: 'webinar' as const, mode: 'online' as const, date: '2026-06-12', start_time: '18:00', end_time: '19:30', meeting_link: 'https://meet.google.com/def', registration_deadline: null, banner_url: null, status: 'published' as const, created_by: null, created_at: '', updated_at: '', meeting_link_sent_at: null, summary: null, recording_url: null },
-        { id: '3', title: 'Weekly Coding Sprint', slug: 'weekly-coding-sprint', short_description: null, full_description: null, event_type: 'coding_session' as const, mode: 'online' as const, date: '2026-05-20', start_time: '17:00', end_time: '19:00', meeting_link: null, registration_deadline: null, banner_url: null, status: 'completed' as const, created_by: null, created_at: '', updated_at: '', meeting_link_sent_at: null, summary: null, recording_url: null },
+        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', short_description: null, full_description: null, event_type: 'webinar', mode: 'online', date: '2026-06-12', start_time: '18:00', end_time: '19:30', meeting_link: 'https://meet.google.com/def', registration_deadline: null, banner_url: null, status: 'published', created_by: null, created_at: '', updated_at: '', meeting_link_sent_at: null, summary: null, recording_url: null },
+        { id: '3', title: 'Weekly Coding Sprint', slug: 'weekly-coding-sprint', short_description: null, full_description: null, event_type: 'coding_session', mode: 'online', date: '2026-05-20', start_time: '17:00', end_time: '19:00', meeting_link: null, registration_deadline: null, banner_url: null, status: 'completed', created_by: null, created_at: '', updated_at: '', meeting_link_sent_at: null, summary: null, recording_url: null },
       ];
       setEvents(mockEvents);
 
       const mockRegs: RegistrationWithEvent[] = [
         { id: 'reg-1', full_name: 'Bharat Lashotra', email: '2024a6r009@mietjammu.in', phone: '6006788434', college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-28T10:00:00Z', attendance_status: 'registered', event_id: '1', events: { title: 'Hands-on React & Next.js Workshop' } },
-        { id: 'reg-2', full_name: 'Priya Iyer', email: 'priya.iyer@college.edu', phone: null, college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-28T08:30:00Z', attendance_status: 'registered' as const, event_id: '2', events: { title: 'Cracking the Coding Interview: AMA' } },
+        { id: 'reg-2', full_name: 'Priya Iyer', email: 'priya.iyer@college.edu', phone: null, college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-28T08:30:00Z', attendance_status: 'registered', event_id: '2', events: { title: 'Cracking the Coding Interview: AMA' } },
         { id: 'reg-3', full_name: 'Kabir Verma', email: 'kabir.v@college.edu', phone: null, college: null, branch: null, year: null, coding_level: null, preferred_language: null, reason_to_join: null, registered_at: '2026-05-27T14:15:00Z', attendance_status: 'registered', event_id: '3', events: { title: 'Weekly Coding Sprint' } },
       ];
       setRegistrations(mockRegs);
@@ -213,24 +250,27 @@ export default function AdminDashboardPage() {
     }
     setIsSubmittingEvent(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('events').insert({
-        title: eventForm.title,
-        slug: eventForm.slug,
-        short_description: eventForm.short_description || null,
-        full_description: eventForm.full_description || null,
-        event_type: eventForm.event_type,
-        mode: eventForm.mode,
-        date: eventForm.date,
-        start_time: eventForm.start_time,
-        end_time: eventForm.end_time,
-        meeting_link: eventForm.meeting_link || null,
-        registration_deadline: eventForm.registration_deadline ? new Date(eventForm.registration_deadline).toISOString() : null,
-        banner_url: eventForm.banner_url || null,
-        status: eventForm.status,
-        created_by: currentUserId,
+      await api('/admin/events', {
+        method: 'POST',
+        body: JSON.stringify({
+          payload: {
+            title: eventForm.title,
+            slug: eventForm.slug,
+            short_description: eventForm.short_description || null,
+            full_description: eventForm.full_description || null,
+            event_type: eventForm.event_type,
+            mode: eventForm.mode,
+            date: eventForm.date,
+            start_time: eventForm.start_time,
+            end_time: eventForm.end_time,
+            meeting_link: eventForm.meeting_link || null,
+            registration_deadline: eventForm.registration_deadline ? new Date(eventForm.registration_deadline).toISOString() : null,
+            banner_url: eventForm.banner_url || null,
+            status: eventForm.status,
+          },
+          speakers: [],
+        }),
       });
-      if (error) throw error;
       setShowEventModal(false);
       setEventForm(initialEventForm);
       await loadDashboardData();
@@ -249,21 +289,23 @@ export default function AdminDashboardPage() {
     }
     setIsSubmittingAnnounce(true);
     try {
-      const supabase = createClient();
       const announcementData = {
         title: announceForm.title,
         message: announceForm.message,
         event_id: announceForm.event_id || null,
         publish_date: announceForm.publish_date ? new Date(announceForm.publish_date).toISOString() : new Date().toISOString(),
         is_active: announceForm.is_active,
-        created_by: currentUserId,
       };
       if (editingAnnounceId) {
-        const { error } = await supabase.from('announcements').update(announcementData).eq('id', editingAnnounceId);
-        if (error) throw error;
+        await api(`/admin/announcements/${editingAnnounceId}`, {
+          method: 'PUT',
+          body: JSON.stringify(announcementData),
+        });
       } else {
-        const { error } = await supabase.from('announcements').insert(announcementData);
-        if (error) throw error;
+        await api('/admin/announcements', {
+          method: 'POST',
+          body: JSON.stringify(announcementData),
+        });
       }
       setShowAnnounceModal(false);
       setAnnounceForm({ title: '', message: '', event_id: '', publish_date: '', is_active: true });
@@ -285,14 +327,17 @@ export default function AdminDashboardPage() {
     }
     setIsSubmittingLink(true);
     try {
-      const supabase = createClient();
       const linkData = { platform: finalPlatform, url: linkForm.url, is_active: linkForm.is_active };
       if (editingLinkId) {
-        const { error } = await supabase.from('community_links').update(linkData).eq('id', editingLinkId);
-        if (error) throw error;
+        await api(`/admin/community-links/${editingLinkId}`, {
+          method: 'PUT',
+          body: JSON.stringify(linkData),
+        });
       } else {
-        const { error } = await supabase.from('community_links').insert(linkData);
-        if (error) throw error;
+        await api('/admin/community-links', {
+          method: 'POST',
+          body: JSON.stringify(linkData),
+        });
       }
       setShowLinkModal(false);
       setLinkForm({ platform: 'Discord', url: '', is_active: true });

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, Terminal, AlertTriangle, Loader2 } from 'lucide-react';
 import EventForm from '../../EventForm';
 import { updateEvent } from '@/app/actions/adminActions';
-import { createClient } from '@/utils/supabase/client';
+import { api } from '@/lib/api';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -22,34 +22,16 @@ export default function EditEventPage({ params }: PageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Fetch current event and speakers (Read-only, so client side is okay)
+  // Fetch current event and speakers from the backend
   useEffect(() => {
     const fetchEventData = async () => {
       try {
-        const supabase = createClient() as any;
-
-        // Fetch event details
-        const { data: event, error: eventError } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (eventError) throw eventError;
-        setEventData(event);
-
-        // Fetch event owners/speakers
-        const { data: owners, error: ownersError } = await supabase
-          .from('event_owners')
-          .select('*')
-          .eq('event_id', id);
-
-        if (ownersError) throw ownersError;
-        setSpeakers(owners || []);
-
+        const data = await api<{ ok: boolean; event: any; owners: any[] }>(`/admin/events/${id}`);
+        setEventData(data.event);
+        setSpeakers(data.owners || []);
       } catch (err: any) {
         console.error('Failed to load event for edit:', err);
-        setErrorMsg('Could not fetch event data. Please verify database connectivity.');
+        setErrorMsg('Could not fetch event data. Please verify backend connectivity.');
       } finally {
         setLoading(false);
       }

@@ -1,0 +1,15 @@
+
+> campuscoder@0.1.0 start
+> npm --prefix frontend run start
+
+
+> campuscoder-frontend@0.1.0 start
+> node .next/standalone/server.js
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
+
+ ✓ Starting...
+ ✓ Ready in 465ms
+^C^C^C

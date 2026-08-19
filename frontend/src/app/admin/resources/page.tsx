@@ -14,11 +14,19 @@ import {
   Power
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@backend/utils/supabase/client';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type ResourceRow = Database['public']['Tables']['resources']['Row'];
+type EventRow = { title: string };
+type ResourceRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  link: string;
+  category: string;
+  event_id: string | null;
+  is_active: boolean;
+  created_at: string;
+};
 type ResourceWithEvent = ResourceRow & {
   events: Pick<EventRow, 'title'> | null;
 };
@@ -31,16 +39,8 @@ export default function AdminResourcesPage() {
 
   const loadData = async () => {
     try {
-      const supabase = createClient();
-
-      const { data, error } = await supabase
-        .from('resources')
-        .select('*, events(title)')
-        .order('created_at', { ascending: false })
-        .returns<ResourceWithEvent[]>();
-
-      if (error) throw error;
-      setResources(data || []);
+      const data = await api<{ ok: boolean; resources: ResourceWithEvent[] }>('/admin/resources');
+      setResources(data.resources || []);
     } catch (err) {
       console.warn('Error loading admin resources:', err);
     } finally {
@@ -49,16 +49,14 @@ export default function AdminResourcesPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void loadData();
   }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this resource forever?')) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('resources').delete().eq('id', id);
-      if (error) throw error;
+      await api(`/admin/resources/${id}`, { method: 'DELETE' });
       await loadData();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -66,10 +64,9 @@ export default function AdminResourcesPage() {
     }
   };
 
-  const handleToggleActive = async (id: string, current: boolean) => {
+  const handleToggleActive = async (id: string) => {
     try {
-      const supabase = createClient();
-      await supabase.from('resources').update({ is_active: !current }).eq('id', id);
+      await api(`/admin/resources/${id}/toggle`, { method: 'PATCH' });
       await loadData();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -163,7 +160,7 @@ export default function AdminResourcesPage() {
                     </td>
                     <td className="py-4 px-6">
                       <button type="button" 
-                        onClick={() => handleToggleActive(res.id, res.is_active)}
+                        onClick={() => handleToggleActive(res.id)}
                         className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[9px] font-mono font-medium border uppercase cursor-pointer ${
                           res.is_active ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-400'
                         }`}

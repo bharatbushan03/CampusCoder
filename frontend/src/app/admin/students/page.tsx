@@ -11,13 +11,28 @@ import {
   Shield, UserCheck, UserX, MoreVertical, Edit
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@backend/utils/supabase/client';
-import { getErrorMessage } from '@backend/lib/errors';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 
-type ProfileRow = Database['public']['Tables']['profiles']['Row'];
-type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
-type EventRow = Database['public']['Tables']['events']['Row'];
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string;
+  college: string | null;
+  branch: string | null;
+  year: string | null;
+  created_at: string;
+};
+type RegistrationRow = {
+  full_name: string | null;
+  email: string | null;
+  event_id: string;
+  attendance_status: string;
+  registered_at: string;
+  events: Pick<{ title: string }, 'title'> | null;
+};
+type EventRow = { title: string };
 
 type StudentWithStats = ProfileRow & {
   registrationCount: number;
@@ -39,29 +54,14 @@ export default function AdminStudentsPage() {
   // Selected student for details modal
   const [selectedStudent, setSelectedStudent] = useState<StudentWithStats | null>(null);
 
-  // Fetch students from Supabase
+  // Fetch students from backend
   const loadStudentsData = useCallback(async () => {
     try {
-      const supabase = createClient();
-
-      // Fetch all profiles (students, admins, organizers)
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .returns<ProfileRow[]>();
-
-      if (profilesError) throw profilesError;
-
-      // Fetch registrations for stats
-      const { data: regsData } = await supabase
-        .from('registrations')
-        .select('full_name, email, event_id, attendance_status, registered_at, events(title)')
-        .returns<(RegistrationRow & { events: Pick<EventRow, 'title'> | null })[]>();
+      const data = await api<{ ok: boolean; profiles: ProfileRow[]; registrations: RegistrationRow[] }>('/admin/students');
 
       // Calculate stats per student
-      const studentsWithStats: StudentWithStats[] = (profilesData || []).map(profile => {
-        const studentRegs = (regsData || []).filter(r => r.email === profile.email);
+      const studentsWithStats: StudentWithStats[] = (data.profiles || []).map(profile => {
+        const studentRegs = (data.registrations || []).filter(r => r.email === profile.email);
         const attended = studentRegs.filter(r => r.attendance_status === 'attended').length;
         const lastReg = studentRegs.sort((a, b) => new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime())[0];
         const events = studentRegs.map(r => r.events?.title).filter(Boolean) as string[];
@@ -127,13 +127,10 @@ export default function AdminStudentsPage() {
   // Update student role
   const handleUpdateRole = async (studentId: string, newRole: 'student' | 'admin' | 'organizer') => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', studentId);
-
-      if (error) throw error;
+      await api(`/admin/students/${studentId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role: newRole }),
+      });
 
       setStudents(prev =>
         prev.map(s => s.id === studentId ? { ...s, role: newRole } : s)
@@ -152,13 +149,7 @@ export default function AdminStudentsPage() {
     if (!confirm('Are you sure you want to delete this student? This will also remove their registrations.')) return;
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', studentId);
-
-      if (error) throw error;
+      await api(`/admin/students/${studentId}`, { method: 'DELETE' });
 
       setStudents(prev => prev.filter(s => s.id !== studentId));
       setSelectedStudent(null);

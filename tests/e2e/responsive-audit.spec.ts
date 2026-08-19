@@ -45,12 +45,12 @@ test.describe('DSA Event Responsive Design Audit', () => {
       // 3. Check hero section renders
       await expect(page.locator('h1').first()).toBeVisible();
       
-      // 4. Check countdown timer is visible
-      const timerContainer = page.locator('[role="timer"], .countdown-timer, :has-text("Days")').first();
-      await expect(timerContainer).toBeVisible();
+      // 4. Check registration card is visible
+      const registrationCard = page.locator('h3:has-text("Registration")').first();
+      await expect(registrationCard).toBeVisible();
       
-      // 5. Check registration button is visible and clickable
-      const registerButton = page.locator('a:has-text("Register for Free")').first();
+      // 5. Check registration CTA is visible (internal /register link or disabled anchor)
+      const registerButton = page.locator('a[href*="/register"], a[href="#"]:has(button)').first();
       await expect(registerButton).toBeVisible();
       
       // 6. Check no text is cut off (basic check)
@@ -194,13 +194,13 @@ test.describe('DSA Event Responsive Design Audit', () => {
       await page.setViewportSize({ width, height: 800 });
       await page.goto(dsaEventUrl, { waitUntil: 'domcontentloaded' });
       
-      // Test registration button
-      const registerButton = page.locator('a:has-text("Register for Free")').first();
+      // Test registration CTA
+      const registerButton = page.locator('a[href*="/register"], a[href="#"]:has(button)').first();
       await expect(registerButton).toBeVisible();
       
-      // Test countdown timer
-      const timerContainer = page.locator('[role="timer"], .countdown-timer, :has-text("Days")').first();
-      await expect(timerContainer).toBeVisible();
+      // Test registration card
+      const registrationCard = page.locator('h3:has-text("Registration")').first();
+      await expect(registrationCard).toBeVisible();
       
       // Test navigation (if applicable)
       if (width >= 768) {

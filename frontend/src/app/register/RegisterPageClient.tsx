@@ -5,19 +5,23 @@ import { useSearchParams } from 'next/navigation';
 import { Terminal, CheckCircle2, ArrowRight, ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
-import { placeholderEvents } from '@backend/lib/placeholderData';
+import { api } from '@/lib/api';
+import { placeholderEvents } from '@/lib/placeholderData';
 import Link from 'next/link';
 import { registerForEvent } from '@/app/actions/registrationActions';
-import { registrationSchema } from '@backend/lib/validation';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
-import type { Database } from '@/types/database.types';
+import { registrationSchema } from '@/lib/validation';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type EventOption = Pick<EventRow, 'id' | 'title' | 'date' | 'start_time' | 'end_time'>;
+type EventOption = {
+  id: string;
+  title: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+};
 
 const codingLevels = ['Beginner', 'Intermediate', 'Advanced'];
 const programmingLanguages = ['JavaScript/TypeScript', 'Python', 'C/C++', 'Java', 'Go/Rust'];
@@ -61,32 +65,22 @@ function RegisterForm() {
   useEffect(() => {
     async function loadEvents() {
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('events')
-          .select('id, title, date, start_time, end_time')
-          .eq('status', 'published')
-          .returns<EventOption[]>();
+        const data = await api<{ ok: boolean; events: EventOption[] }>('/events/options');
 
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          setEvents(data);
+        if (data.events && data.events.length > 0) {
+          setEvents(data.events);
           if (!initialEventId) {
-            setFormData(prev => prev.eventId ? prev : ({ ...prev, eventId: data[0].id }));
+            setFormData(prev => prev.eventId ? prev : ({ ...prev, eventId: data.events[0].id }));
           }
         } else {
-          // If query succeeds but returns empty
-          if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-supabase-project')) {
-            const fallbackEvents = placeholderEvents.map(toEventOption);
-            setEvents(fallbackEvents);
-            if (!initialEventId) {
-              setFormData(prev => prev.eventId ? prev : ({ ...prev, eventId: fallbackEvents[0].id }));
-            }
+          const fallbackEvents = placeholderEvents.map(toEventOption);
+          setEvents(fallbackEvents);
+          if (!initialEventId) {
+            setFormData(prev => prev.eventId ? prev : ({ ...prev, eventId: fallbackEvents[0].id }));
           }
         }
       } catch (err) {
-        console.warn('Database offline, using static options for registration dropdown');
+        console.warn('Backend offline, using static options for registration dropdown');
         setIsDbOffline(true);
         const fallbackEvents = placeholderEvents.map(toEventOption);
         setEvents(fallbackEvents);
@@ -96,7 +90,7 @@ function RegisterForm() {
       }
     }
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void loadEvents();
   }, [initialEventId]);
 

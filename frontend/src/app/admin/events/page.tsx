@@ -8,13 +8,33 @@ import {
   Search, Filter, ArrowLeft, ArrowUpRight, Eye
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@backend/utils/supabase/client';
-import { getErrorMessage } from '@backend/lib/errors';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type EventStatus = EventRow['status'];
+type EventRow = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description: string | null;
+  full_description: string | null;
+  event_type: string;
+  mode: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  meeting_link: string | null;
+  registration_deadline: string | null;
+  banner_url: string | null;
+  meeting_link_sent_at: string | null;
+  summary: string | null;
+  recording_url: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+type EventStatus = 'draft' | 'published' | 'completed' | 'cancelled';
 
 export default function AdminEventsListingPage() {
   const [loading, setLoading] = useState(true);
@@ -27,15 +47,8 @@ export default function AdminEventsListingPage() {
 
   const loadEvents = async () => {
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('date', { ascending: false })
-        .returns<EventRow[]>();
-
-      if (error) throw error;
-      setEvents(data || []);
+      const data = await api<{ ok: boolean; events: EventRow[] }>('/admin/events');
+      setEvents(data.events || []);
       setIsDbOffline(false);
     } catch (err) {
       console.warn('Database offline, using mock data for events table:', err);
@@ -52,19 +65,16 @@ export default function AdminEventsListingPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void loadEvents();
   }, []);
 
   const handleUpdateStatus = async (eventId: string, status: EventStatus) => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('events')
-        .update({ status })
-        .eq('id', eventId);
-
-      if (error) throw error;
+      await api(`/admin/events/${eventId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
       await loadEvents();
     } catch (err) {
       alert('Failed to update event: ' + getErrorMessage(err));
@@ -74,13 +84,7 @@ export default function AdminEventsListingPage() {
   const handleDeleteEvent = async (eventId: string) => {
     if (!confirm('Are you sure you want to delete this event? This will also remove associated speaker records and registrations.')) return;
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
-
-      if (error) throw error;
+      await api(`/admin/events/${eventId}`, { method: 'DELETE' });
       await loadEvents();
     } catch (err) {
       alert('Failed to delete event: ' + getErrorMessage(err));

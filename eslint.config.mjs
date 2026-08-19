@@ -2,9 +2,11 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+const toArray = (config) => (Array.isArray(config) ? config : [config]);
+
 const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
+  ...toArray(nextVitals),
+  ...toArray(nextTs),
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
@@ -26,6 +28,10 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "playwright-report/**",
     "next-env.d.ts",
+    "**/next-env.d.ts",
+    // Ignore generated types
+    ".next/types/**",
+    "frontend/.next/**",
   ]),
 ]);
 

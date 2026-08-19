@@ -84,7 +84,7 @@ export function CommunityHero() {
                   Explore Events <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/community" className="w-full sm:w-auto">
+              <Link href="/about" className="w-full sm:w-auto">
                 <Button
                   variant="outline"
                   size="lg"

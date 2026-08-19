@@ -1,9 +1,19 @@
 /** @type {import('next').NextConfig} */
+const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://localhost:4000';
+
 const nextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   allowedDevOrigins: ['*.trycloudflare.com'],
-  transpilePackages: ['@campuscoder/backend'],
+  outputFileTracingRoot: __dirname,
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

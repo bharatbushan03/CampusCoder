@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Terminal, Mail, ArrowRight, Loader2, KeyRound } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
+import { api } from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -24,20 +24,10 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-      
-      // Determine the reset password redirect link
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+      await api('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
       });
-
-      if (error) {
-        setErrorMsg(error.message);
-        setIsSubmitting(false);
-        return;
-      }
 
       setSuccessMsg('A password reset link has been sent to your email address.');
       setIsSubmitting(false);

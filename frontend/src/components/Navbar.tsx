@@ -6,11 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Menu, X, LogOut, LayoutDashboard, ShieldAlert, ChevronDown } from 'lucide-react';
 import { Button } from './ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
-import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
-import type { Database } from '@/types/database.types';
-
-type ProfileSummary = Pick<Database['public']['Tables']['profiles']['Row'], 'role' | 'full_name' | 'email'>;
+import { useAuth } from '@/lib/auth';
 
 const navLinks = [
   { label: 'Sprints', href: '/events' },
@@ -25,11 +21,10 @@ const navLinks = [
 export const Navbar: React.FC = React.memo(function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<ProfileSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [scrolled, setScrolled] = useState(false);
-  
+
+  const { user, profile, loading, logout } = useAuth();
+
   const pathname = usePathname();
   const router = useRouter();
 
@@ -41,63 +36,9 @@ export const Navbar: React.FC = React.memo(function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => {
-    const supabase = createClient();
-
-    const fetchSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser(session.user);
-          const { data: userProfile } = await supabase
-            .from('profiles')
-            .select('role, full_name, email')
-            .eq('id', session.user.id)
-            .returns<ProfileSummary>()
-            .single();
-          setProfile(userProfile);
-        }
-      } catch (err) {
-        console.warn('Auth session unavailable:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event: AuthChangeEvent, session: Session | null) => {
-      if (session?.user) {
-        setUser(session.user);
-        try {
-          const { data: userProfile } = await supabase
-            .from('profiles')
-            .select('role, full_name, email')
-            .eq('id', session.user.id)
-            .returns<ProfileSummary>()
-            .single();
-          setProfile(userProfile);
-        } catch (err) {
-          console.warn('User profile unavailable:', err);
-        }
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-      setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const handleLogout = async () => {
     try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
+      await logout();
       setDropdownOpen(false);
       router.push('/login');
       router.refresh();
@@ -322,4 +263,3 @@ export const Navbar: React.FC = React.memo(function Navbar() {
     </motion.header>
   );
 });
-

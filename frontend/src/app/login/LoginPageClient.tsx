@@ -6,14 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Terminal, KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
-import type { Database } from '@/types/database.types';
+import { useAuth } from '@/lib/auth';
 import { TechBackground } from '@/components/animations/TechBackground';
-
-type ProfileRole = Pick<Database['public']['Tables']['profiles']['Row'], 'role'>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,41 +27,13 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        setErrorMsg(error.message);
-        setIsSubmitting(false);
-        return;
+      const profile = await login(email, password);
+      if (profile?.role === 'admin' || profile?.role === 'organizer') {
+        router.push('/admin');
+      } else {
+        router.push('/');
       }
-
-      if (data?.user) {
-        // Fetch role from profile
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single()
-          .returns<ProfileRole>();
-
-        if (profileError || !profile) {
-          // If no profile exists yet, redirect to home
-          router.push('/');
-          router.refresh();
-          return;
-        }
-
-        if (profile.role === 'admin' || profile.role === 'organizer') {
-          router.push('/admin');
-        } else {
-          router.push('/');
-        }
-        router.refresh();
-      }
+      router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setErrorMsg(message);

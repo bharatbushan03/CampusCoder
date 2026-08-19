@@ -1,12 +1,10 @@
-import 'server-only';
-
-import { AdminNotificationEmail } from '@/components/emails/AdminNotification';
-import { RegistrationConfirmationEmail } from '@/components/emails/RegistrationConfirmation';
-import { ADMIN_EMAIL, FROM_EMAIL, resend } from '@/lib/email';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
-import { getErrorMessage } from '@/lib/errors';
-import type { Database } from '@/types/database.types';
-import { createClient } from '@/utils/supabase/server';
+import { AdminNotificationEmail } from '../components/emails/AdminNotification';
+import { RegistrationConfirmationEmail } from '../components/emails/RegistrationConfirmation';
+import { ADMIN_EMAIL, FROM_EMAIL, resend } from '../lib/email';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '../lib/eventSchedule';
+import { getErrorMessage } from '../lib/errors';
+import type { Database } from '../types/database.types';
+import { createAnonClient } from '../middleware/auth';
 
 type RegistrationEmailData = {
   full_name: string;
@@ -37,7 +35,7 @@ export async function sendRegistrationEmails(
   }
 
   try {
-    const supabase = await createClient();
+    const supabase = createAnonClient();
 
     const { data: communityLinks } = await supabase
       .from('community_links')
