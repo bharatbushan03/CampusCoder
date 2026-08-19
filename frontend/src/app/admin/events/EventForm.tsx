@@ -8,8 +8,7 @@ import {
   Terminal, Lock, Unlock, Upload, X, Plus, Trash2, Mail, User, Users,
   Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock, Link2, Info
 } from 'lucide-react';
-import { createClient } from '@backend/utils/supabase/client';
-import { eventSchema } from '@backend/lib/validation';
+import { eventSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 
 interface Speaker {
@@ -139,30 +138,23 @@ export default function EventForm({
 
   const uploadBanner = async (file: File): Promise<string | null> => {
     try {
-      const supabase = createClient() as any;
-      const fileExt = file.name.split('.').pop();
-      const fileName = `banners/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const formData = new FormData();
+      formData.append('file', file);
 
-      const { data, error } = await supabase.storage
-        .from('banners')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      const res = await fetch('/api/admin/upload/banner', {
+        method: 'POST',
+        body: formData,
+      });
 
-      if (error) {
-        console.warn('Storage bucket upload failed, check if public "banners" bucket is configured:', error);
-        throw error;
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error || `Upload failed (${res.status})`);
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('banners')
-        .getPublicUrl(fileName);
-
-      return publicUrl;
+      return body.url as string;
     } catch (err: any) {
-      console.warn('Error uploading banner to Supabase:', err);
-      setUploadError('Could not upload to Supabase storage. Check the banners bucket and try again.');
+      console.warn('Error uploading banner:', err);
+      setUploadError('Could not upload banner. Check the banners storage bucket and try again.');
       return null;
     }
   };

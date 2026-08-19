@@ -3,16 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Terminal, Globe, Code, MessageSquare, Users, Trophy, Phone } from 'lucide-react';
-import { createClient, isSupabaseConfigured } from '@backend/utils/supabase/client';
+import { api } from '@/lib/api';
 import { Button } from './ui/Button';
-import type { Database } from '@/types/database.types';
 
-type CommunityLink = Pick<Database['public']['Tables']['community_links']['Row'], 'platform' | 'url'>;
+type CommunityLink = {
+  platform: string;
+  url: string;
+};
 
 const fallbackLinks: CommunityLink[] = [
   { platform: 'Discord', url: ' https://discord.gg/VdsX64E5E' },
   { platform: 'WhatsApp', url: 'https://chat.whatsapp.com/KLOHfAjbu91IP5C9SqPnP2' },
-  { platform: 'GitHub', url: 'https://github.com/' },
+  { platform: 'GitHub', url: 'https://github.com/bharatbushan03/campuscoder' },
 ];
 
 const copyrightYear = new Date().getFullYear();
@@ -32,23 +34,11 @@ export const Footer: React.FC = React.memo(function Footer() {
 
   useEffect(() => {
     const fetchLinks = async () => {
-      if (!isSupabaseConfigured()) {
-        return;
-      }
-
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('community_links')
-          .select('platform, url')
-          .eq('is_active', true)
-          .returns<CommunityLink[]>();
-        
-        if (error) throw error;
-        
-        setLinks(data && data.length > 0 ? data : fallbackLinks);
+        const data = await api<{ ok: boolean; links: CommunityLink[] }>('/events/community-links');
+        setLinks(data.links && data.links.length > 0 ? data.links : fallbackLinks);
       } catch (err) {
-        console.warn('Footer links fetch bypassed or offline:', err);
+        console.warn('Footer links fetch failed:', err);
         setLinks(fallbackLinks);
       }
     };

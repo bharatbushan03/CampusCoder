@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, Globe, FileText, Link2, Info } from 'lucide-react';
 import Link from 'next/link';
 import { createResource } from '@/app/actions/adminActions';
-import { resourceSchema } from '@backend/lib/validation';
+import { resourceSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type EventOption = Pick<EventRow, 'id' | 'title'>;
+type EventOption = { id: string; title: string };
+
+type ResourceCategory = 'roadmaps' | 'practice' | 'dsa' | 'placement' | 'general';
 
 export default function NewResourcePage() {
   const router = useRouter();
@@ -24,22 +24,21 @@ export default function NewResourcePage() {
     title: '',
     description: '',
     link: '',
-    category: 'roadmaps',
+    category: 'roadmaps' as ResourceCategory,
     event_id: '',
     is_active: true
   });
 
   useEffect(() => {
     const loadEvents = async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('events')
-        .select('id, title')
-        .order('date', { ascending: false })
-        .returns<EventOption[]>();
-      setEvents(data || []);
+      try {
+        const data = await api<{ ok: boolean; events: EventOption[] }>('/admin/events/options');
+        setEvents(data.events || []);
+      } catch (err) {
+        console.error('Error loading events:', err);
+      }
     };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void loadEvents();
   }, []);
 
@@ -119,7 +118,7 @@ export default function NewResourcePage() {
               </label>
               <select id="page-category"
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => setForm({ ...form, category: e.target.value as ResourceCategory })}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50"
               >
                 <option value="roadmaps">Roadmaps</option>

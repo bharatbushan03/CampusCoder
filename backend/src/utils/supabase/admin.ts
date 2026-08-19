@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
-import { Database } from '@campuscoder/backend/types/database.types';
-import { getSupabaseUrl } from './config';
+import type { Database } from '../../types/database.types';
+import { getSupabaseSecretKey, getSupabaseUrl } from './config';
 
 export function createAdminClient() {
   const supabaseUrl = getSupabaseUrl();
-  const serviceRoleKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const serviceRoleKey = getSupabaseSecretKey();
 
   if (!serviceRoleKey) {
-    console.warn('Warning: SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY is missing. Admin queries requiring bypass will fail.');
+    console.warn('Warning: SUPABASE_SECRET_KEY is missing. Admin queries requiring bypass will fail.');
   }
 
   return createClient<Database>(supabaseUrl, serviceRoleKey, {

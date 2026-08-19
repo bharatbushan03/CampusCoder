@@ -21,15 +21,28 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { createClient } from '@backend/utils/supabase/client';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import { toast } from 'sonner';
-import type { Database } from '@/types/database.types';
-import type { User } from '@supabase/supabase-js';
 
-type ProfileType = Database['public']['Tables']['profiles']['Row'];
-type EventRow = Database['public']['Tables']['events']['Row'];
-type RegistrationType = Database['public']['Tables']['registrations']['Row'] & {
+type ProfileType = {
+  id: string;
+  full_name: string | null;
+  college: string | null;
+  branch: string | null;
+  year: string | null;
+};
+type EventRow = {
+  id: string;
+  title: string;
+  slug: string;
+  mode: string;
+  date: string;
+  meeting_link: string | null;
+};
+type RegistrationType = {
+  id: string;
   events: EventRow;
 };
 
@@ -113,8 +126,8 @@ function RegistrationCard({ reg, isUpcoming, currentDate, handleCancelRegistrati
 
 export default function StudentDashboard() {
   const router = useRouter();
+  const { user, logout } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationType[]>([]);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
@@ -161,44 +174,19 @@ export default function StudentDashboard() {
     year: null
   });
 
-  const loadDashboardData = async () => {
+const loadDashboardData = async () => {
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      setUser(user);
-      const userEmail = user.email ?? '';
-
-      const [profileRes, regRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single()
-          .returns<ProfileType>(),
-        supabase
-          .from('registrations')
-          .select('*, events(*)')
-          .eq('email', userEmail)
-          .order('registered_at', { ascending: false })
-          .returns<RegistrationType[]>(),
-      ]);
-
-      if (profileRes.data) {
-        setProfile(profileRes.data);
+      const data = await api<{ ok: boolean; profile: ProfileType | null; registrations: RegistrationType[] }>('/me');
+      if (data.profile) {
+        setProfile(data.profile);
         setEditForm({
-          full_name: profileRes.data.full_name || '',
-          college: profileRes.data.college,
-          branch: profileRes.data.branch,
-          year: profileRes.data.year
+          full_name: data.profile.full_name || '',
+          college: data.profile.college,
+          branch: data.profile.branch,
+          year: data.profile.year
         });
       }
-      if (regRes.data) setRegistrations(regRes.data);
-
+      setRegistrations(data.registrations || []);
     } catch (err) {
       console.error('Error loading dashboard data:', err);
       toast.error('Failed to load dashboard data');
@@ -208,13 +196,22 @@ export default function StudentDashboard() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (loading) return;
+    if (!user) {
+      router.replace('/login');
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     void loadDashboardData();
-  }, []);
+  }, [user]);
 
   const handleSignOut = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await logout();
     router.push('/login');
     toast.success('Logged out successfully');
   };
@@ -224,9 +221,10 @@ export default function StudentDashboard() {
     setIsSavingProfile(true);
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('profiles').update(editForm).eq('id', user?.id || '');
-      if (error) throw error;
+      await api('/me', {
+        method: 'PUT',
+        body: JSON.stringify(editForm),
+      });
 
       setProfile(prev => prev ? { ...prev, ...editForm } : null);
       setIsEditingProfile(false);
@@ -246,8 +244,7 @@ export default function StudentDashboard() {
         <div className="flex gap-2">
           <Button variant="danger" size="sm" className="flex-1" onClick={async () => {
             try {
-              const supabase = createClient();
-              await supabase.from('registrations').delete().eq('id', regId);
+              await api(`/me/registrations/${regId}`, { method: 'DELETE' });
               setRegistrations(prev => prev.filter(r => r.id !== regId));
               toast.dismiss(t);
               toast.success('RSVP Cancelled');

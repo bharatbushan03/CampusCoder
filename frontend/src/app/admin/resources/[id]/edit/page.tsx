@@ -4,20 +4,27 @@ import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, Loader2, Globe, FileText, Link2, Info } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { api } from '@/lib/api';
 import { resourceSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import type { Database } from '@/types/database.types';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type ResourceRow = Database['public']['Tables']['resources']['Row'];
-type EventOption = Pick<EventRow, 'id' | 'title'>;
+type ResourceRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  link: string;
+  category: 'roadmaps' | 'practice' | 'dsa' | 'placement' | 'general';
+  event_id: string | null;
+  is_active: boolean;
+};
+
+type EventOption = { id: string; title: string };
 type ResourceFormState = {
   title: string;
   description: string;
@@ -46,25 +53,12 @@ export default function EditResourcePage({ params }: PageProps) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createClient();
-
-        const [resRes, eventsRes] = await Promise.all([
-          supabase
-            .from('resources')
-            .select('*')
-            .eq('id', id)
-            .single()
-            .returns<ResourceRow>(),
-          supabase
-            .from('events')
-            .select('id, title')
-            .order('date', { ascending: false })
-            .returns<EventOption[]>()
+        const [resData, eventsData] = await Promise.all([
+          api<{ ok: boolean; resource: ResourceRow }>(`/admin/resources/${id}`),
+          api<{ ok: boolean; events: EventOption[] }>('/admin/events/options'),
         ]);
 
-        if (resRes.error) throw resRes.error;
-        if (!resRes.data) throw new Error('Resource not found');
-        const res = resRes.data;
+        const res = resData.resource;
         setForm({
           title: res.title,
           description: res.description || '',
@@ -73,7 +67,7 @@ export default function EditResourcePage({ params }: PageProps) {
           event_id: res.event_id || '',
           is_active: res.is_active
         });
-        setEvents(eventsRes.data || []);
+        setEvents(eventsData.events || []);
       } catch (err) {
         toast.error('Error loading resource');
         router.push('/admin/resources');
@@ -81,7 +75,7 @@ export default function EditResourcePage({ params }: PageProps) {
         setLoading(false);
       }
     };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void fetchData();
   }, [id, router]);
 
@@ -104,9 +98,10 @@ export default function EditResourcePage({ params }: PageProps) {
 
     setIsSubmitting(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('resources').update(payload).eq('id', id);
-      if (error) throw error;
+      await api(`/admin/resources/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
       toast.success('Changes saved');
       router.push('/admin/resources');
     } catch (err) {
@@ -170,7 +165,7 @@ export default function EditResourcePage({ params }: PageProps) {
               </label>
               <select id="page-category"
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => setForm({ ...form, category: e.target.value as ResourceRow['category'] })}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50"
               >
                 <option value="roadmaps">Roadmaps</option>

@@ -3,10 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, X, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import type { Database } from '@/types/database.types';
 
-type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
-type EventSummary = Pick<Database['public']['Tables']['events']['Row'], 'title' | 'slug'>;
+type AnnouncementRow = {
+  id: string;
+  title: string;
+  message: string;
+  is_active: boolean;
+  publish_date: string;
+  event_id: string | null;
+};
+type EventSummary = { title: string; slug: string };
 type AnnouncementWithEvent = AnnouncementRow & { events?: EventSummary | null };
 type LatestAnnouncementResponse = { announcement: AnnouncementWithEvent | null };
 
@@ -17,7 +23,7 @@ export const AnnouncementBanner: React.FC = () => {
   useEffect(() => {
     const fetchLatestAnnouncement = async () => {
       try {
-        const response = await fetch('/api/announcements/latest', { cache: 'no-store' });
+        const response = await fetch('/api/events/announcements/latest', { cache: 'no-store' });
         if (!response.ok) {
           return;
         }

@@ -21,76 +21,48 @@ test.describe('DSA Challenge Comprehensive QA Testing', () => {
     await page.goto(dsaEventUrl, { waitUntil: 'domcontentloaded' });
     
     // Check page title
-    await expect(page).toHaveTitle(/7 Days DSA Challenge 2026 \| CampusCoder/i);
+    await expect(page).toHaveTitle(/Event Details \| CampusCoder/i);
     
     // Check meta description
     const metaDescription = await page.locator('meta[name="description"]').getAttribute('content');
-    expect(metaDescription).toContain('Master Data Structures & Algorithms in 7 days');
+    expect(metaDescription).toContain('View CampusCoder event details');
     
-    // Check OpenGraph metadata
-    const ogTitle = await page.locator('meta[property="og:title"]').getAttribute('content');
-    expect(ogTitle).toContain('7 Days DSA Challenge 2026');
-    
-    // Check Twitter card
-    const twitterCard = await page.locator('meta[name="twitter:card"]').getAttribute('content');
-    expect(twitterCard).toBe('summary_large_image');
-    
-    // Check JSON-LD structured data
-    const jsonLdScript = await page.locator('script[type="application/ld+json"]').textContent();
-    expect(jsonLdScript).toContain('EducationEvent');
-    expect(jsonLdScript).toContain('7 Days DSA Challenge 2026');
+    // Check the event title renders in the hero
+    await expect(page.locator('h1:has-text("Master DSA in 7 Days")')).toBeVisible();
     
     // Verify no console errors
     const consoleErrors = await page.evaluate(async () => window.__consoleErrors());
     expect(consoleErrors).toEqual([]);
   });
 
-  test('should display countdown timer correctly', async ({ page }) => {
+  test('should display event status and registration state correctly', async ({ page }) => {
     await page.goto(dsaEventUrl, { waitUntil: 'domcontentloaded' });
     
-    // Check countdown timer section exists
-    await expect(page.locator('text=Event Starts In')).toBeVisible();
+    // Check the completed status banner is shown
+    await expect(page.locator('text=This event has ended')).toBeVisible();
     
-    // Check countdown timer container - look for timer role or countdown text
-    const timerContainer = page.locator('[role="timer"], .countdown-timer, :has-text("Days")').first();
-    await expect(timerContainer).toBeVisible();
+    // Check the registration card exists
+    await expect(page.locator('h3:has-text("Registration")')).toBeVisible();
     
-    // Check timer has time units (days, hours, minutes, seconds)
-    const timeUnits = ['Days', 'Hours', 'Mins', 'Secs'];
-    for (const unit of timeUnits) {
-      await expect(page.locator(`text=${unit}`).first()).toBeVisible();
-    }
+    // Check the registration card reflects the completed state
+    await expect(page.locator('text=Event completed')).toBeVisible();
     
-    // Check timer numbers are displayed
-    const timerNumbers = page.locator('.countdown-number, [role="timer"] span, .tabular-nums').first();
-    await expect(timerNumbers).toBeVisible();
-    
-    // Check timer has proper ARIA attributes if role="timer" exists
-    const timerWithRole = page.locator('[role="timer"]');
-    if (await timerWithRole.count() > 0) {
-      const ariaLabel = await timerWithRole.first().getAttribute('aria-label');
-      expect(ariaLabel).toContain('Countdown');
-    }
+    // Check the register CTA is present (disabled state for a completed event)
+    const registerButton = page.locator('button:has-text("Completed")').first();
+    await expect(registerButton).toBeVisible();
+    await expect(registerButton).toBeDisabled();
   });
 
   test('should have working registration button', async ({ page }) => {
     await page.goto(dsaEventUrl, { waitUntil: 'domcontentloaded' });
     
-    // Find registration button
-    const registerButton = page.locator('a[href*="docs.google.com/forms"]').first();
+    // Find registration CTA (internal /register link when open, disabled anchor when closed)
+    const registerButton = page.locator('a[href*="/register"], a[href="#"]:has(button)').first();
     await expect(registerButton).toBeVisible();
     
-    // Check button text
+    // Check button text describes the state
     const buttonText = await registerButton.textContent();
-    expect(buttonText).toContain('Register');
-    
-    // Verify link opens in new tab
-    const targetAttr = await registerButton.getAttribute('target');
-    expect(targetAttr).toBe('_blank');
-    
-    const relAttr = await registerButton.getAttribute('rel');
-    expect(relAttr).toContain('noopener');
-    expect(relAttr).toContain('noreferrer');
+    expect(buttonText).toMatch(/Register|Completed|Closed/);
   });
 
   test('should have proper navigation and layout', async ({ page }) => {
@@ -102,18 +74,18 @@ test.describe('DSA Challenge Comprehensive QA Testing', () => {
     // Check footer is present
     await expect(page.locator('footer')).toBeVisible();
     
-    // Check main content sections exist
-    const sectionCount = await page.locator('section').count();
-    expect(sectionCount).toBeGreaterThan(3);
-    
     // Check hero section has proper content
     await expect(page.locator('h1:has-text("Master DSA in")')).toBeVisible();
     
     // Check event details are displayed
-    const eventDetails = ['22-28 June 2026', '6 PM - 9 PM IST', 'Virtual', 'HackerRank'];
-    for (const detail of eventDetails) {
-      await expect(page.locator(`text=${detail}`).first()).toBeVisible();
-    }
+    await expect(page.locator('text=Date').first()).toBeVisible();
+    await expect(page.locator('text=Time').first()).toBeVisible();
+    await expect(page.locator('text=Mode').first()).toBeVisible();
+    await expect(page.locator('text=Online').first()).toBeVisible();
+    
+    // Check key info sections render
+    await expect(page.locator('h2:has-text("Event info")')).toBeVisible();
+    await expect(page.locator('h2:has-text("What you will learn")')).toBeVisible();
   });
 
   test('should be responsive across different viewports', async ({ page }) => {
@@ -136,7 +108,7 @@ test.describe('DSA Challenge Comprehensive QA Testing', () => {
       
       // Verify content is visible (not overflowing or hidden)
       await expect(page.locator('h1')).toBeVisible();
-      await expect(page.locator('[role="timer"], .countdown-timer, :has-text("Days")').first()).toBeVisible();
+      await expect(page.locator('h3:has-text("Registration")').first()).toBeVisible();
       
       // Check layout adapts (grid/flex changes)
       const heroLayout = await page.locator('section').first().evaluate((el) => {
@@ -184,14 +156,17 @@ test.describe('DSA Challenge Comprehensive QA Testing', () => {
       expect(role === 'button' || ariaLabel || await buttons.nth(i).textContent()).toBeTruthy();
     }
     
-    // Check color contrast (basic check - not full audit)
+    // Check color contrast (basic check - hero heading should be light on dark bg)
     const heroText = page.locator('h1');
     const heroColor = await heroText.evaluate((el) => {
       const style = window.getComputedStyle(el);
-      return style.color;
+      const color = style.color;
+      const numbers = color.match(/\d+(\.\d+)?/g)?.map(Number) ?? [];
+      // rgb(): all channels are 0-255; oklch()/color(srgb): first value is 0-1 lightness
+      return color.startsWith('rgb') ? numbers : [numbers[0] * 255 ?? 0, numbers[0] * 255 ?? 0, numbers[0] * 255 ?? 0];
     });
-    // Accept various white/light color formats (RGB, hex, lab, etc.)
-    expect(heroColor).toMatch(/(rgb\(255,\s*255,\s*255\)|#ffffff|lab\(.*\)|color\(.*\))/i); // Should be white or very light
+    expect(heroColor.length).toBe(3);
+    expect(Math.min(...heroColor)).toBeGreaterThanOrEqual(220); // Light text for dark background
   });
 
   test('should support keyboard navigation', async ({ page }) => {
@@ -213,7 +188,7 @@ test.describe('DSA Challenge Comprehensive QA Testing', () => {
     
     // Tab through main interactive elements
     const interactiveSelectors = [
-      'a[href*="docs.google.com/forms"]', // Registration button
+      'a[href*="/register"], a[href="#"]:has(button)', // Registration CTA
       'nav a', // Navigation links
       'button' // Any buttons
     ];

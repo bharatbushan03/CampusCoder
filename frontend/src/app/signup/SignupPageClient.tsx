@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import { Terminal, KeyRound, Mail, ArrowRight, Loader2, User, School, BookOpen, CalendarCheck } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
+import { useAuth } from '@/lib/auth';
 
 export default function SignupPage() {
   const router = useRouter();
+  const { signup } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -32,39 +33,24 @@ export default function SignupPage() {
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signUp({
+      const { requiresEmailConfirmation } = await signup({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-            college: college,
-            branch: branch,
-            year: year,
-            role: 'student', // Default role
-          },
-        },
+        fullName,
+        college,
+        branch,
+        year,
       });
 
-      if (error) {
-        setErrorMsg(error.message);
+      if (requiresEmailConfirmation) {
+        setSuccessMsg('Registration successful! Please check your email for a confirmation link.');
         setIsSubmitting(false);
-        return;
-      }
-
-      if (data?.user) {
-        // If email confirmation is enabled, user session might be null initially
-        if (data.session) {
-          setSuccessMsg('Account created successfully! Redirecting&hellip;');
-          setTimeout(() => {
-            router.push('/');
-            router.refresh();
-          }, 1500);
-        } else {
-          setSuccessMsg('Registration successful! Please check your email for a confirmation link.');
-          setIsSubmitting(false);
-        }
+      } else {
+        setSuccessMsg('Account created successfully! Redirecting&hellip;');
+        setTimeout(() => {
+          router.push('/');
+          router.refresh();
+        }, 1500);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';

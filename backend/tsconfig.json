@@ -13,9 +13,11 @@
     "declarationMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
     "paths": {
       "@/*": ["./src/*"],
-      "@frontend/*": ["../frontend/src/*"]
+      "@campuscoder/backend/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

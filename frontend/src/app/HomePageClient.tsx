@@ -24,15 +24,23 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { createClient } from '@backend/utils/supabase/client';
-import type { Database } from '@/types/database.types';
-import { placeholderEvents } from '@backend/lib/placeholderData';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
+import { api } from '@/lib/api';
+import { placeholderEvents } from '@/lib/placeholderData';
+import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CommunityHero } from '@/components/home/CommunityHero';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
+type EventRow = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description?: string | null;
+  event_type: string;
+  status: string;
+  mode: string;
+  date: string;
+};
 
 const programs = [
   {
@@ -173,31 +181,13 @@ export default function HomePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createClient();
+        const data = await api<{ ok: boolean; featured: EventRow[]; pastEvents: EventRow[] }>('/events/featured');
 
-        const [featuredRes, completedRes] = await Promise.all([
-          supabase
-            .from('events')
-            .select('*')
-            .eq('status', 'published')
-            .gte('date', new Date().toISOString().split('T')[0])
-            .order('date', { ascending: true })
-            .limit(1)
-            .returns<EventRow[]>(),
-          supabase
-            .from('events')
-            .select('*')
-            .eq('status', 'completed')
-            .order('date', { ascending: false })
-            .limit(3)
-            .returns<EventRow[]>(),
-        ]);
-
-        if (featuredRes.data && featuredRes.data.length > 0) {
-          setFeaturedEvent(featuredRes.data[0]);
+        if (data.featured && data.featured.length > 0) {
+          setFeaturedEvent(data.featured[0]);
         }
-        if (completedRes.data && completedRes.data.length > 0) {
-          setCompletedEvents(completedRes.data);
+        if (data.pastEvents && data.pastEvents.length > 0) {
+          setCompletedEvents(data.pastEvents);
         }
       } catch {
         // Use placeholder fallbacks

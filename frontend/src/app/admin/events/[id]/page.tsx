@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@/utils/supabase/client';
+import { api } from '@/lib/api';
 import { sendMeetingLinkToAll } from '@/app/actions/emailActions';
 import { MeetingLinkEmail } from '@/components/emails/MeetingLinkAnnouncement';
 
@@ -35,32 +35,18 @@ export default function EventManagementPage({ params }: PageProps) {
 
   const loadData = async () => {
     try {
-      const supabase = createClient() as any;
-      
-      // Fetch Event
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const [eventRes, regsRes] = await Promise.all([
+        api<{ ok: boolean; event: any }>(`/admin/events/${id}`),
+        api<{ ok: boolean; registrations: any[] }>(`/admin/events/${id}/registrations`),
+      ]);
 
-      if (eventError) throw eventError;
-      setEvent(eventData);
-      setMeetingLink(eventData.meeting_link || '');
-
-      // Fetch Registrations
-      const { data: regData, error: regError } = await supabase
-        .from('registrations')
-        .select('*')
-        .eq('event_id', id)
-        .order('registered_at', { ascending: false });
-
-      if (regError) throw regError;
-      setRegistrations(regData || []);
+      setEvent(eventRes.event);
+      setMeetingLink(eventRes.event.meeting_link || '');
+      setRegistrations(regsRes.registrations || []);
 
     } catch (err: any) {
       console.error('Failed to load event data:', err);
-      setErrorMsg('Error loading management console. Please check database connection.');
+      setErrorMsg('Error loading management console. Please check backend connection.');
     } finally {
       setLoading(false);
     }
@@ -75,13 +61,10 @@ export default function EventManagementPage({ params }: PageProps) {
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('events')
-        .update({ meeting_link: meetingLink })
-        .eq('id', id);
-
-      if (error) throw error;
+      await api(`/admin/events/${id}/meeting-link`, {
+        method: 'PATCH',
+        body: JSON.stringify({ meeting_link: meetingLink }),
+      });
       setSuccessMsg('Meeting link saved successfully.');
       await loadData();
     } catch (err: any) {
@@ -99,7 +82,7 @@ export default function EventManagementPage({ params }: PageProps) {
     
     try {
       const res = await sendMeetingLinkToAll(id, force);
-      setSuccessMsg(`Successfully sent meeting link to ${res.count} students.`);
+      setSuccessMsg(`Successfully sent meeting link to ${res.sent} students.`);
       await loadData();
     } catch (err: any) {
       setErrorMsg('Error during email blast: ' + err.message);
@@ -263,9 +246,11 @@ export default function EventManagementPage({ params }: PageProps) {
                       value={event.recording_url || ''}
                       onChange={async (e) => {
                         const val = e.target.value;
-                        const supabase = createClient() as any;
-                        await supabase.from('events').update({ recording_url: val }).eq('id', id);
                         setEvent({...event, recording_url: val});
+                        await api(`/admin/events/${id}/archive`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({ recording_url: val }),
+                        }).catch(() => {});
                       }}
                       placeholder="https://..."
                       className="w-full bg-slate-950 border border-slate-900 rounded px-3 py-1.5 text-xs text-slate-300 font-mono focus:border-emerald-500/30"
@@ -277,9 +262,11 @@ export default function EventManagementPage({ params }: PageProps) {
                       value={event.summary || ''}
                       onChange={async (e) => {
                         const val = e.target.value;
-                        const supabase = createClient() as any;
-                        await supabase.from('events').update({ summary: val }).eq('id', id);
                         setEvent({...event, summary: val});
+                        await api(`/admin/events/${id}/archive`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({ summary: val }),
+                        }).catch(() => {});
                       }}
                       placeholder="Relive the session highlights&hellip;"
                       rows={3}

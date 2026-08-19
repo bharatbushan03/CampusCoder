@@ -17,11 +17,20 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
-import { createClient } from '@backend/utils/supabase/client';
-import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
+type EventRow = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description?: string | null;
+  event_type: string;
+  status: string;
+  mode: string;
+  date: string;
+  registration_deadline?: string | null;
+};
 
 const eventTypeOptions = [
   { value: 'all', label: 'All types' },
@@ -100,16 +109,8 @@ export default function EventsPage() {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .in('status', ['published', 'completed', 'cancelled'])
-          .order('date', { ascending: true })
-          .returns<EventRow[]>();
-
-        if (error) throw error;
-        setEvents(data || []);
+        const data = await api<{ ok: boolean; events: EventRow[] }>('/events');
+        setEvents(data.events || []);
       } catch (err) {
         console.warn('Failed to load events:', err);
       } finally {

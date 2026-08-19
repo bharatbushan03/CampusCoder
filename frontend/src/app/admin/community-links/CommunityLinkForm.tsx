@@ -7,7 +7,7 @@ import {
   Link2, Globe, Loader2, Save
 } from 'lucide-react';
 
-import { communityLinkSchema } from '@backend/lib/validation';
+import { communityLinkSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 
 interface CommunityLinkFormProps {

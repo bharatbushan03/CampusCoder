@@ -13,15 +13,22 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
-import { EVENT_DATE_LABEL } from '@backend/lib/eventSchedule';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
-type EventWithRegistrations = EventRow & {
-  registrations: Pick<RegistrationRow, 'id'>[] | null;
+type EventRow = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description?: string | null;
+  summary?: string | null;
+  event_type: string;
+  status: string;
+  date: string;
+  banner_url?: string | null;
+  recording_url?: string | null;
+  registrations_count?: number;
 };
 
 const generateEventSlug = (title: string | undefined | null, id: string | undefined | null): string => {
@@ -39,33 +46,22 @@ const generateEventSlug = (title: string | undefined | null, id: string | undefi
 
 export default function EventArchivePage() {
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<EventWithRegistrations[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
 
   useEffect(() => {
     const loadArchive = async () => {
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('events')
-          .select(`
-            *,
-            registrations (id)
-          `)
-          .eq('status', 'completed')
-          .order('date', { ascending: false })
-          .returns<EventWithRegistrations[]>();
-
-        if (error) throw error;
-        setEvents(data || []);
+        const data = await api<{ ok: boolean; events: EventRow[] }>('/events/archive');
+        setEvents(data.events || []);
       } catch (err) {
         console.warn('Failed to load archive:', err);
       } finally {
         setLoading(false);
       }
     };
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void loadArchive();
   }, []);
 
@@ -152,7 +148,7 @@ export default function EventArchivePage() {
                 <div className="flex items-center justify-between pt-4 border-t border-slate-900">
                   <div className="flex items-center gap-4">
                     <span className="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
-                      <Users className="size-3 text-emerald-500/50" /> {ev.registrations?.length || 0} RSVPs
+                      <Users className="size-3 text-emerald-500/50" /> {ev.registrations_count || 0} RSVPs
                     </span>
                   </div>
                   <div className="flex gap-2">

@@ -9,14 +9,30 @@ import {
   School, GraduationCap, Code2, MessageSquare, Clock
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@backend/utils/supabase/client';
-import { getErrorMessage } from '@backend/lib/errors';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
-type AttendanceStatus = RegistrationRow['attendance_status'];
+type EventRow = {
+  id: string;
+  title: string;
+};
+type RegistrationRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  college: string | null;
+  branch: string | null;
+  year: string | null;
+  coding_level: string | null;
+  preferred_language: string | null;
+  reason_to_join: string | null;
+  registered_at: string;
+  attendance_status: string;
+  event_id: string;
+};
+type AttendanceStatus = 'registered' | 'attended' | 'absent';
 type RegistrationType = RegistrationRow & {
   events: Pick<EventRow, 'title'> | null;
 };
@@ -36,29 +52,16 @@ export default function AdminRegistrationsPage() {
   // Selected registration for details modal
   const [selectedReg, setSelectedReg] = useState<RegistrationType | null>(null);
 
-  // Fetch registrations & events from Supabase
+  // Fetch registrations & events from backend
   const loadRegistrationsData = async () => {
     try {
-      const supabase = createClient();
+      const [eventsData, regsData] = await Promise.all([
+        api<{ ok: boolean; events: EventFilterOption[] }>('/admin/events/options'),
+        api<{ ok: boolean; registrations: RegistrationType[] }>('/admin/registrations'),
+      ]);
 
-      // Fetch events for filter dropdown
-      const { data: eventsData } = await supabase
-        .from('events')
-        .select('id, title')
-        .order('date', { ascending: false })
-        .returns<EventFilterOption[]>();
-
-      if (eventsData) setEvents(eventsData);
-
-      // Fetch registrations with event details
-      const { data: regsData, error } = await supabase
-        .from('registrations')
-        .select('*, events(title)')
-        .order('registered_at', { ascending: false })
-        .returns<RegistrationType[]>();
-
-      if (error) throw error;
-      setRegistrations(regsData || []);
+      if (eventsData.events) setEvents(eventsData.events);
+      setRegistrations(regsData.registrations || []);
       setIsDbOffline(false);
     } catch (err) {
       console.warn('Database offline, using mock registrations data:', err);
@@ -126,20 +129,17 @@ export default function AdminRegistrationsPage() {
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void loadRegistrationsData();
   }, []);
 
   // Update attendance status
   const handleUpdateAttendance = async (regId: string, newStatus: AttendanceStatus) => {
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('registrations')
-        .update({ attendance_status: newStatus })
-        .eq('id', regId);
-
-      if (error) throw error;
+      await api(`/admin/registrations/${regId}/attendance`, {
+        method: 'PATCH',
+        body: JSON.stringify({ attendance_status: newStatus }),
+      });
 
       // Update local state list
       setRegistrations(prev =>
@@ -160,13 +160,7 @@ export default function AdminRegistrationsPage() {
     if (!confirm('Are you sure you want to delete this registration? This action is irreversible.')) return;
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('registrations')
-        .delete()
-        .eq('id', regId);
-
-      if (error) throw error;
+      await api(`/admin/registrations/${regId}`, { method: 'DELETE' });
 
       // Update local state list
       setRegistrations(prev => prev.filter(reg => reg.id !== regId));

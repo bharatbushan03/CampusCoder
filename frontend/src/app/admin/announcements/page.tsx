@@ -7,27 +7,30 @@ import {
   PlusCircle, Trash2, Edit, Search, ArrowLeft, Bell, Calendar
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@backend/utils/supabase/client';
+import { api } from '@/lib/api';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+
+type AnnouncementRow = {
+  id: string;
+  title: string;
+  message: string;
+  event_id: string | null;
+  is_active: boolean;
+  publish_date: string;
+  created_by: string | null;
+  created_at: string;
+  events: { title: string } | null;
+};
 
 export default function AdminAnnouncementsPage() {
   const [loading, setLoading] = useState(true);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<AnnouncementRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   const loadAnnouncements = async () => {
     try {
-      const supabase = createClient() as any;
-      const { data, error } = await supabase
-        .from('announcements')
-        .select(`
-          *,
-          events (title)
-        `)
-        .order('publish_date', { ascending: false });
-
-      if (error) throw error;
-      setAnnouncements(data || []);
+      const data = await api<{ ok: boolean; announcements: AnnouncementRow[] }>('/admin/announcements');
+      setAnnouncements(data.announcements || []);
     } catch (err: any) {
       console.warn('Error loading announcements:', err);
     } finally {
@@ -42,28 +45,16 @@ export default function AdminAnnouncementsPage() {
   const handleDeleteAnnouncement = async (id: string) => {
     if (!confirm('Are you sure you want to delete this announcement?')) return;
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('announcements')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await api(`/admin/announcements/${id}`, { method: 'DELETE' });
       await loadAnnouncements();
     } catch (err: any) {
       alert('Failed to delete announcement: ' + err.message);
     }
   };
 
-  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+  const handleToggleActive = async (id: string) => {
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('announcements')
-        .update({ is_active: !currentStatus })
-        .eq('id', id);
-
-      if (error) throw error;
+      await api(`/admin/announcements/${id}/toggle`, { method: 'PATCH' });
       await loadAnnouncements();
     } catch (err: any) {
       alert('Failed to update announcement status: ' + err.message);
@@ -135,11 +126,11 @@ export default function AdminAnnouncementsPage() {
                       )}
                     </td>
                     <td className="py-4 px-6 font-mono text-xs text-slate-400">
-                      {new Date(ann.publish_date).toLocaleString()}
+                      {new Date(ann.publish_date || ann.created_at).toLocaleString()}
                     </td>
                     <td className="py-4 px-6">
                       <button type="button" 
-                        onClick={() => handleToggleActive(ann.id, ann.is_active)}
+                        onClick={() => handleToggleActive(ann.id)}
                         className={`inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-[10px] font-mono font-medium border capitalize cursor-pointer ${
                           ann.is_active ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-400'
                         }`}

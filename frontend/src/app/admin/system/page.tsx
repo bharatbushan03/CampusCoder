@@ -11,7 +11,6 @@ import {
   ExternalLink, Settings, Activity, TrendingUp, Zap, Cylinder
 } from 'lucide-react';
 import Link from 'next/link';
-import type { Database } from '@/types/database.types';
 
 interface SystemHealth {
   database: { status: 'healthy' | 'degraded' | 'down'; latency: number; connections: number; maxConnections: number };
@@ -173,7 +172,7 @@ const mockLogs = [
   { time: '14:28:55', level: 'info' as const, message: 'Database connection pool scaled: 18 -> 24 connections', source: 'database/pooler' },
   { time: '14:27:12', level: 'error' as const, message: 'Failed to send webhook to Discord: timeout after 5000ms', source: 'functions/discord-webhook' },
   { time: '14:25:40', level: 'info' as const, message: 'New event created: System Design Basics', source: 'api/events' },
-  { time: '14:24:18', level: 'info' as const, message: 'Realtime channel joined: event:react-workshop', source: 'realtime/supabase' },
+  { time: '14:24:18', level: 'info' as const, message: 'Realtime channel joined: event:react-workshop', source: 'realtime/backend' },
   { time: '14:22:05', level: 'warn' as const, message: 'Storage usage at 78% - consider cleanup', source: 'storage/monitor' },
   { time: '14:20:33', level: 'info' as const, message: 'Edge function deployed: v2.1.4', source: 'deployment/vercel' },
   { time: '14:18:50', level: 'info' as const, message: 'Health check passed: all services operational', source: 'monitor/health' },

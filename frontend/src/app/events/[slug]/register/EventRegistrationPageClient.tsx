@@ -20,21 +20,32 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { createClient } from '@backend/utils/supabase/client';
-import { placeholderEvents } from '@backend/lib/placeholderData';
+import { api } from '@/lib/api';
+import { placeholderEvents } from '@/lib/placeholderData';
 import { registerForEvent } from '@/app/actions/registrationActions';
-import { registrationSchema } from '@backend/lib/validation';
-import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@backend/lib/eventSchedule';
+import { registrationSchema } from '@/lib/validation';
+import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import { toast } from 'sonner';
-import type { Database } from '@/types/database.types';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { RegistrationSuccessVisual } from '@/components/animations/RegistrationSuccessVisual';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
-type EventData = (EventRow & Partial<CodingEvent>) | (CodingEvent & Partial<EventRow>);
-type CommunityLinkItem = Pick<CommunityLinkRow, 'platform' | 'url' | 'is_active'> & { id?: string };
+type EventData = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description?: string | null;
+  event_type?: string | null;
+  type?: string | null;
+  mode?: string | null;
+  location?: string | null;
+  date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  registration_deadline?: string | null;
+  status?: string | null;
+} & Partial<CodingEvent>;
+type CommunityLinkItem = { id?: string; platform: string; url: string; is_active?: boolean };
 
 const codingLevels = ['Beginner', 'Intermediate', 'Advanced', 'Not started yet'];
 const languages = ['C', 'C++', 'Java', 'Python', 'JavaScript', 'Not sure yet', 'Other'];
@@ -77,43 +88,23 @@ export default function EventRegistrationPage() {
     async function loadEvent() {
       if (!slug) return;
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('slug', slug)
-          .eq('status', 'published')
-          .single()
-          .returns<EventRow>();
+        const data = await api<{ ok: boolean; event: EventData | null; communityLinks: CommunityLinkItem[] }>(
+          `/events/slug/${slug}`
+        );
 
-        if (error) throw error;
-
-        if (data) {
-          setEvent(data);
-        }
-
-        const { data: linksData } = await supabase
-          .from('community_links')
-          .select('*')
-          .eq('is_active', true)
-          .returns<CommunityLinkRow[]>();
-
-        if (linksData) setCommunityLinks(linksData);
-      } catch (err) {
-        const errorCode =
-          err && typeof err === 'object' && 'code' in err
-            ? (err as { code?: string }).code
-            : undefined;
-        if (errorCode === 'PGRST116') {
+        if (data.event) {
+          setEvent(data.event);
+        } else {
           setErrorMsg('This event is not open for registration.');
-          return;
         }
 
-        console.warn('Database offline, looking up registration target in local static events');
+        if (data.communityLinks) setCommunityLinks(data.communityLinks);
+      } catch (err) {
+        console.warn('Backend offline, looking up registration target in local static events');
         setIsDbOffline(true);
         const match = placeholderEvents.find((ev) => getSlug(ev.title) === slug);
         if (match) {
-          setEvent(match);
+          setEvent(match as EventData);
         } else {
           setErrorMsg('This event does not exist.');
         }

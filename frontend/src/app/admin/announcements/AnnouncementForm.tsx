@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { 
   Bell, Calendar, Loader2, Save, AlignLeft, Type, Info
 } from 'lucide-react';
-import { createClient } from '@backend/utils/supabase/client';
-import { announcementSchema } from '@backend/lib/validation';
+import { api } from '@/lib/api';
+import { announcementSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 
 interface AnnouncementFormProps {
@@ -28,8 +28,8 @@ export default function AnnouncementForm({
   const [eventId, setEventId] = useState(initialData?.event_id || '');
   const [isActive, setIsActive] = useState(initialData?.is_active ?? true);
   const [publishDate, setPublishDate] = useState(
-    initialData?.publish_date 
-      ? new Date(initialData.publish_date).toISOString().slice(0, 16) 
+    initialData?.publish_date || initialData?.created_at
+      ? new Date(initialData.publish_date || initialData.created_at).toISOString().slice(0, 16) 
       : new Date().toISOString().slice(0, 16)
   );
 
@@ -39,14 +39,8 @@ export default function AnnouncementForm({
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        const supabase = createClient() as any;
-        const { data, error } = await supabase
-          .from('events')
-          .select('id, title')
-          .order('date', { ascending: false });
-
-        if (error) throw error;
-        setEvents(data || []);
+        const data = await api<{ ok: boolean; events: any[] }>('/admin/events/options');
+        setEvents(data.events || []);
       } catch (err) {
         console.error('Error loading events:', err);
       } finally {

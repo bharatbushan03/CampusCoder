@@ -1,38 +1,46 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
-import { createClient } from '@backend/utils/supabase/server';
+import { serverApi } from '@/lib/serverApi';
 import AdminSidebar from './AdminSidebar';
+
+type MeResponse = {
+  ok: boolean;
+  user: { id: string; email?: string };
+  profile: {
+    id: string;
+    email?: string | null;
+    role: string;
+    full_name?: string | null;
+  } | null;
+};
+
+export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  
-  // 1. Get authenticated user session
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+  let me: MeResponse | null = null;
+  try {
+    me = await serverApi<MeResponse>('/auth/me');
+  } catch {
     redirect('/login');
   }
 
-  // 2. Fetch role from public.profiles using uuid
-  const { data: profile, error: dbError } = await supabase
-    .from('profiles')
-    .select('role, email')
-    .eq('id', user.id)
-    .single();
+  if (!me?.user) {
+    redirect('/login');
+  }
 
-  // If no profile found or the role is student, redirect to home page safely
-  if (dbError || !profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
+  const profile = me.profile;
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'organizer')) {
     redirect('/');
   }
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] bg-slate-950/20">
       {/* Sidebar Navigation */}
-      <AdminSidebar email={user.email || profile.email || ''} role={profile.role} />
+      <AdminSidebar email={me.user.email || profile.email || ''} role={profile.role} />
 
       {/* Main Panel Content Area */}
       <div className="flex-1 p-6 md:p-10 overflow-y-auto">
@@ -41,4 +49,3 @@ export default async function AdminLayout({
     </div>
   );
 }
-

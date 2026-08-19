@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Edit, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client';
+import { api } from '@/lib/api';
 import AnnouncementForm from '../../AnnouncementForm';
+import { updateAnnouncement } from '@/app/actions/adminActions';
 
 export default function EditAnnouncementPage() {
   const router = useRouter();
@@ -19,15 +20,8 @@ export default function EditAnnouncementPage() {
   useEffect(() => {
     const loadAnnouncement = async () => {
       try {
-        const supabase = createClient() as any;
-        const { data, error } = await supabase
-          .from('announcements')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (error) throw error;
-        setInitialData(data);
+        const data = await api<{ ok: boolean; announcement: any }>(`/admin/announcements/${id}`);
+        setInitialData(data.announcement);
       } catch (err: any) {
         alert('Error loading announcement: ' + err.message);
         router.push('/admin/announcements');
@@ -42,13 +36,7 @@ export default function EditAnnouncementPage() {
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
     try {
-      const supabase = createClient() as any;
-      const { error } = await supabase
-        .from('announcements')
-        .update(data)
-        .eq('id', id);
-
-      if (error) throw error;
+      await updateAnnouncement(id, data);
       
       router.push('/admin/announcements');
       router.refresh();

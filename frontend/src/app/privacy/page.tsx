@@ -12,7 +12,7 @@ const sections: LegalSection[] = [
     bullets: [
       'Account and profile details, such as name, email address, college, branch, graduation year, and role.',
       'Event registration details, such as selected event, phone number, coding level, preferred programming language, reason for joining, attendance status, and registration time.',
-      'Authentication data handled by Supabase Auth, including session information. We do not store plain-text passwords.',
+      'Authentication data handled by the backend authentication service, including session information. We do not store plain-text passwords.',
       'Messages and operational records needed to send confirmations, reminders, meeting links, announcements, and admin notifications.',
       'Basic technical information from your browser and device, including cookies, local storage, logs, and similar data used to keep the site working.',
     ],
@@ -33,7 +33,7 @@ const sections: LegalSection[] = [
   {
     title: 'Cookies and Local Storage',
     paragraphs: [
-      'The site may use cookies, browser storage, and Supabase session storage to keep you signed in, remember interface choices, and support security. For example, announcement dismissal can be stored locally in your browser.',
+      'The site may use cookies, browser storage, and session storage to keep you signed in, remember interface choices, and support security. For example, announcement dismissal can be stored locally in your browser.',
       'You can control cookies through your browser settings. Some login, dashboard, and registration features may not work correctly if required storage is disabled.',
     ],
   },
@@ -44,7 +44,7 @@ const sections: LegalSection[] = [
     ],
     bullets: [
       'With CampusCoder administrators and event organizers who need access to manage events, registrations, attendance, and communications.',
-      'With service providers that help operate the site, such as Supabase for authentication and database services, and Resend or similar providers for email delivery.',
+      'With service providers that help operate the site, such as the backend hosting provider for authentication and database services, and email delivery providers for transactional mail.',
       'With third-party community platforms, such as Discord, WhatsApp, GitHub, or LinkedIn, only when you choose to follow external links or join those services.',
       'When required to comply with law, protect rights and safety, investigate abuse, or enforce community rules.',
     ],

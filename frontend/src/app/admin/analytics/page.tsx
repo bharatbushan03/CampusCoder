@@ -11,12 +11,6 @@ import {
   Search, Filter, Loader2
 } from 'lucide-react';
 import Link from 'next/link';
-import { createClient } from '@backend/utils/supabase/client';
-import type { Database } from '@/types/database.types';
-
-type EventRow = Database['public']['Tables']['events']['Row'];
-type RegistrationRow = Database['public']['Tables']['registrations']['Row'];
-type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 interface AnalyticsData {
   registrationsOverTime: { date: string; count: number }[];
@@ -467,9 +461,7 @@ export default function AdminAnalyticsPage() {
 
   const loadAnalytics = async () => {
     try {
-      const supabase = createClient();
-      // In production, fetch real analytics from database
-      // For now, use mock data
+      // Mock analytics until a dedicated backend endpoint exists
       setAnalytics(mockAnalytics);
       setIsDbOffline(true);
     } catch (err) {
@@ -542,7 +534,7 @@ export default function AdminAnalyticsPage() {
       {isDbOffline && (
         <div className="flex items-center gap-3 p-4 bg-slate-900 border border-emerald-500/10 rounded-xl text-xs text-slate-400 font-mono">
           <AlertTriangle className="size-4 text-amber-500 flex-shrink-0" />
-          <span>Demo Mode: Charts display simulated data. Connect Supabase for live analytics.</span>
+          <span>Demo Mode: Charts display simulated data. Connect the backend for live analytics.</span>
         </div>
       )}
 

@@ -6,7 +6,15 @@ import { useRouter } from 'next/navigation';
 import { Terminal, KeyRound, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createClient } from '@backend/utils/supabase/client';
+import { api } from '@/lib/api';
+
+function getRecoveryAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const hash = window.location.hash;
+  if (!hash) return null;
+  const params = new URLSearchParams(hash.slice(1));
+  return params.get('access_token') || params.get('token');
+}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -31,28 +39,25 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    const accessToken = getRecoveryAccessToken();
+    if (!accessToken) {
+      setErrorMsg('This password reset link is invalid or expired. Please request a new one.');
+      return;
+    }
+
     setErrorMsg('');
     setSuccessMsg('');
     setIsSubmitting(true);
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.updateUser({
-        password: password,
+      await api('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ password, accessToken }),
       });
-
-      if (error) {
-        setErrorMsg(error.message);
-        setIsSubmitting(false);
-        return;
-      }
 
       setSuccessMsg('Your password has been successfully updated.');
       setIsSubmitting(false);
 
-      // Sign out current recovery session and route to login
-      await supabase.auth.signOut();
-      
       setTimeout(() => {
         router.push('/login');
       }, 2000);

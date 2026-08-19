@@ -20,7 +20,7 @@ import {
   Activity,
   UserCheck,
 } from 'lucide-react';
-import { createClient } from '@backend/utils/supabase/client';
+import { useAuth } from '@/lib/auth';
 
 interface AdminSidebarProps {
   email: string;
@@ -57,6 +57,7 @@ const navGroups = [
 export default function AdminSidebar({ email, role }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isLinkActive = (href: string) => {
@@ -66,8 +67,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
 
   const handleSignOut = async () => {
     try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
+      await logout();
       router.push('/');
       router.refresh();
     } catch (error) {

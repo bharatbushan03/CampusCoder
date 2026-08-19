@@ -26,19 +26,45 @@ import { placeholderEvents } from '@/lib/placeholderData';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { createClient } from '@/utils/supabase/client';
-import type { Database } from '@/types/database.types';
+import { api } from '@/lib/api';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 
-type EventRow = Database['public']['Tables']['events']['Row'];
-type EventOwnerRow = Database['public']['Tables']['event_owners']['Row'];
-type CommunityLinkRow = Database['public']['Tables']['community_links']['Row'];
-type SupabaseEvent = EventRow & Partial<CodingEvent> & { event_owners: EventOwnerRow[] | null };
-type PlaceholderEvent = CodingEvent & Partial<EventRow> & { event_owners?: EventOwnerRow[] | null };
-type EventData = SupabaseEvent | PlaceholderEvent;
-type RelatedEvent = (EventRow & Partial<CodingEvent>) | PlaceholderEvent;
-type CommunityLinkItem = Pick<CommunityLinkRow, 'platform' | 'url' | 'is_active'> & { id?: string };
+type EventOwnerRow = {
+  id: string;
+  event_id: string;
+  name: string;
+  role: string | null;
+  email: string | null;
+  bio: string | null;
+  profile_image_url: string | null;
+};
+type EventData = {
+  id: string;
+  title: string;
+  slug: string;
+  short_description?: string | null;
+  full_description?: string | null;
+  summary?: string | null;
+  description?: string | null;
+  longDescription?: string | null;
+  event_type?: string | null;
+  type?: string | null;
+  mode?: string | null;
+  location?: string | null;
+  date?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  meeting_link?: string | null;
+  registration_deadline?: string | null;
+  status?: string | null;
+  seatsTotal?: number | null;
+  seatsRegistered?: number | null;
+  event_owners?: EventOwnerRow[] | null;
+  speaker?: { name: string; role?: string; bio?: string } | null;
+} & Partial<CodingEvent>;
+type RelatedEvent = EventData;
+type CommunityLinkItem = { id?: string; platform: string; url: string; is_active?: boolean };
 
 function getSlug(title: string) {
   return title
@@ -157,28 +183,16 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
     async function fetchAdditionalData() {
       if (!event) return;
       try {
-        const supabase = createClient();
+        const data = await api<{ ok: boolean; communityLinks: CommunityLinkItem[]; relatedEvents: RelatedEvent[] }>(
+          `/events/slug/${event.slug}/related`
+        );
 
-        const { data: linksData } = await supabase
-          .from('community_links')
-          .select('*')
-          .eq('is_active', true)
-          .returns<CommunityLinkRow[]>();
-
-        if (linksData) {
-          setCommunityLinks(linksData);
+        if (data.communityLinks) {
+          setCommunityLinks(data.communityLinks);
         }
 
-        const { data: relatedData } = await supabase
-          .from('events')
-          .select('*')
-          .eq('status', 'published')
-          .neq('slug', event?.slug ?? '')
-          .limit(2)
-          .returns<EventRow[]>();
-
-        if (relatedData) {
-          setRelatedEvents(relatedData);
+        if (data.relatedEvents) {
+          setRelatedEvents(data.relatedEvents);
         }
       } catch (err) {
         console.warn('Failed to fetch additional data:', err);
@@ -194,7 +208,7 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
     return d;
   }, []);
 
-  const eventDate = event ? new Date(event.date) : null;
+  const eventDate = event?.date ? new Date(event.date) : null;
 
   const isCompleted = event?.status === 'completed' || (eventDate !== null && eventDate < today);
   const isCancelled = event?.status === 'cancelled';
@@ -208,7 +222,7 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
 
   const isRegistrationDisabled = isDeadlinePassed || isCompleted || isCancelled;
 
-  const speaker = event?.event_owners?.[0] || (event as PlaceholderEvent)?.speaker || {
+  const speaker = event?.event_owners?.[0] || event?.speaker || {
     name: 'CampusCoder Tech Panel',
     role: 'Industry Mentors',
     bio: 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.',
