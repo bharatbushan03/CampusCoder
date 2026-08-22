@@ -1,5 +1,4 @@
 {
-  "files": [],
   "compilerOptions": {
     "target": "ES2017",
     "lib": [
@@ -14,23 +13,29 @@
     "incremental": false,
     "module": "esnext",
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./frontend/src/*"
+      ]
+    }
   },
   "include": [
-    "next-env.d.ts",
-    ".next/types/**/*.ts",
-    "**/*.ts",
-    "**/*.tsx"
+    "*.ts",
+    "*.d.ts",
+    "tests/**/*.ts",
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.tsx",
+    "backend/src/**/*.ts",
+    "backend/src/**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "frontend/.next",
+    "backend/dist"
   ]
 }
