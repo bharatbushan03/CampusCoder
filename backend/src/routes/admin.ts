@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
+import type { Database } from '../types/database.types';
 import {
   announcementSchema,
   communityLinkSchema,
@@ -15,12 +16,7 @@ router.use(requireAuth, requireRole('admin', 'organizer'));
 
 function sanitizeText(text: string) {
   if (!text) return text;
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+  return text.trim();
 }
 
 type SpeakerPayload = {
@@ -40,6 +36,14 @@ const speakerSchema = z.object({
 });
 
 const idSchema = z.uuid('Invalid id');
+
+const studentProfileUpdateSchema = z.object({
+  full_name: z.string().min(2, 'Name must be at least 2 characters').max(100).optional(),
+  college: z.string().max(150).optional().nullable(),
+  branch: z.string().max(100).optional().nullable(),
+  year: z.string().max(20).optional().nullable(),
+  role: z.enum(['student', 'admin', 'organizer']).optional(),
+});
 
 // ---------- Dashboard overview ----------
 
@@ -443,6 +447,98 @@ router.get('/students', async (_req: Request, res: Response) => {
     profiles: profilesResult.data,
     registrations: registrationsResult.error ? [] : registrationsResult.data,
   });
+});
+
+router.get('/students/:id', async (req: Request, res: Response) => {
+  const parsed = idSchema.safeParse(req.params.id);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid student id' });
+  }
+
+  const supabase = createAdminClient();
+  const [profileResult, registrationsResult] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', parsed.data).single(),
+    supabase
+      .from('registrations')
+      .select('id, full_name, email, event_id, attendance_status, registered_at, events(title)')
+      .eq('email', '')
+      .order('registered_at', { ascending: false }),
+  ]);
+
+  if (profileResult.error || !profileResult.data) {
+    return res.status(404).json({ ok: false, error: 'Student not found' });
+  }
+
+  // Fetch registrations by email of the profile (the profiles table is the
+  // single source of truth — registrations are linked by email not profile id).
+  const studentEmail = (profileResult.data as { email?: string | null }).email;
+  let studentRegistrations: unknown[] = [];
+  if (studentEmail) {
+    const { data, error } = await supabase
+      .from('registrations')
+      .select('id, full_name, email, event_id, attendance_status, registered_at, events(title)')
+      .eq('email', studentEmail)
+      .order('registered_at', { ascending: false });
+    if (!error && data) {
+      studentRegistrations = data;
+    }
+  }
+
+  // Suppress the unused-var lint for the throwaway registrationsResult
+  // declared above so the parallel-shape is preserved if we extend it later.
+  void registrationsResult;
+
+  return res.json({
+    ok: true,
+    profile: profileResult.data,
+    registrations: studentRegistrations,
+  });
+});
+
+router.put('/students/:id', async (req: AuthedRequest, res: Response) => {
+  const parsed = idSchema.safeParse(req.params.id);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid student id' });
+  }
+
+  const validation = studentProfileUpdateSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
+  }
+
+  // Block admins from demoting themselves — would lock them out of the console.
+  if (validation.data.role && req.user?.id === parsed.data) {
+    const isDemotion = validation.data.role !== 'admin';
+    if (isDemotion) {
+      return res.status(400).json({
+        ok: false,
+        error: 'You cannot demote your own admin account. Ask another admin to do this.',
+      });
+    }
+  }
+
+  // Coerce empty strings on optional text fields to null so they clear in DB.
+  const payload: Database['public']['Tables']['profiles']['Update'] = { ...validation.data };
+  if (payload.college !== undefined && typeof payload.college === 'string' && payload.college.trim() === '') {
+    payload.college = null;
+  }
+  if (payload.branch !== undefined && typeof payload.branch === 'string' && payload.branch.trim() === '') {
+    payload.branch = null;
+  }
+  if (payload.year !== undefined && typeof payload.year === 'string' && payload.year.trim() === '') {
+    payload.year = null;
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', parsed.data);
+
+  if (error) {
+    return res.status(500).json({ ok: false, error: 'Failed to update student profile' });
+  }
+  return res.json({ ok: true });
 });
 
 router.patch('/students/:id', async (req: Request, res: Response) => {

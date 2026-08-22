@@ -11,7 +11,7 @@ export const cookieOptions: CookieOptions = {
   secure: isProd,
   sameSite: 'lax',
   path: '/',
-  maxAge: 60 * 60 * 24 * 30,
+  maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days in ms
 };
 
 export function setSessionCookies(res: Response, accessToken: string, refreshToken?: string) {

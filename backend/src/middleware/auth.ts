@@ -4,6 +4,8 @@ import type { Database } from '../types/database.types';
 import { getSupabasePublicKey, getSupabaseUrl } from '../utils/supabase/config';
 import { REFRESH_COOKIE, SESSION_COOKIE, setSessionCookies } from '../lib/session';
 
+import { createAdminClient } from '../utils/supabase/admin';
+
 export interface AuthedRequest extends Request {
   user?: {
     id: string;
@@ -50,16 +52,33 @@ async function loadUser(req: AuthedRequest, res: Response) {
   const accessToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
   const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
 
-  if (!accessToken) return null;
+  if (!accessToken) {
+    if (refreshToken) {
+      try {
+        const refreshed = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+        if (refreshed.data.session) {
+          setSessionCookies(res, refreshed.data.session.access_token, refreshed.data.session.refresh_token);
+          return { id: refreshed.data.session.user.id, email: refreshed.data.session.user.email };
+        }
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
 
   let { data, error } = await supabase.auth.getUser(accessToken);
 
   if ((error || !data.user) && refreshToken) {
-    const refreshed = await supabase.auth.refreshSession({ refresh_token: refreshToken });
-    if (refreshed.data.session) {
-      data = { user: refreshed.data.session.user };
-      error = null;
-      setSessionCookies(res, refreshed.data.session.access_token, refreshed.data.session.refresh_token);
+    try {
+      const refreshed = await supabase.auth.refreshSession({ refresh_token: refreshToken });
+      if (refreshed.data.session) {
+        data = { user: refreshed.data.session.user };
+        error = null;
+        setSessionCookies(res, refreshed.data.session.access_token, refreshed.data.session.refresh_token);
+      }
+    } catch {
+      // Continue to check if user was resolved
     }
   }
 
@@ -75,7 +94,7 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
       return res.status(401).json({ ok: false, error: 'Authentication required' });
     }
 
-    const supabase = createAnonClient();
+    const supabase = createAdminClient();
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, email, role, full_name')
@@ -83,7 +102,12 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
       .single();
 
     req.user = user;
-    req.profile = profile;
+    req.profile = profile || {
+      id: user.id,
+      email: user.email,
+      role: 'student',
+      full_name: null,
+    };
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);
@@ -95,14 +119,22 @@ export async function getOptionalSession(req: AuthedRequest, res: Response) {
   const user = await loadUser(req, res);
   if (!user) return { user: null, profile: null };
 
-  const supabase = createAnonClient();
+  const supabase = createAdminClient();
   const { data: profile } = await supabase
     .from('profiles')
     .select('id, email, role, full_name')
     .eq('id', user.id)
     .single();
 
-  return { user, profile };
+  return {
+    user,
+    profile: profile || {
+      id: user.id,
+      email: user.email,
+      role: 'student',
+      full_name: null,
+    },
+  };
 }
 
 export function requireRole(...roles: string[]) {

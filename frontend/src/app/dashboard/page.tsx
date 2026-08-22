@@ -126,8 +126,8 @@ function RegistrationCard({ reg, isUpcoming, currentDate, handleCancelRegistrati
 
 export default function StudentDashboard() {
   const router = useRouter();
-  const { user, logout } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading, logout } = useAuth();
+  const [dataLoading, setDataLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationType[]>([]);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'completed'>('upcoming');
@@ -174,7 +174,7 @@ export default function StudentDashboard() {
     year: null
   });
 
-const loadDashboardData = async () => {
+  const loadDashboardData = async () => {
     try {
       const data = await api<{ ok: boolean; profile: ProfileType | null; registrations: RegistrationType[] }>('/me');
       if (data.profile) {
@@ -191,24 +191,25 @@ const loadDashboardData = async () => {
       console.error('Error loading dashboard data:', err);
       toast.error('Failed to load dashboard data');
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
   useEffect(() => {
-    if (loading) return;
+    if (authLoading) return;
     if (!user) {
-      router.replace('/login');
+      router.replace('/login?redirect=/dashboard');
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
+    if (authLoading) return;
+    if (user) {
+      void loadDashboardData();
+    } else {
+      setDataLoading(false);
     }
-    void loadDashboardData();
-  }, [user]);
+  }, [user, authLoading]);
 
   const handleSignOut = async () => {
     await logout();
@@ -259,7 +260,7 @@ const loadDashboardData = async () => {
     ));
   };
 
-  if (loading) {
+  if (authLoading || (user && dataLoading)) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 space-y-12 min-h-screen">
         <div className="flex justify-between items-center">

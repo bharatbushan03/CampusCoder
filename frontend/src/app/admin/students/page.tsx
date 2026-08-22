@@ -13,6 +13,7 @@ import {
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import { deleteStudent } from '@/app/actions/adminActions';
 
 type ProfileRow = {
   id: string;
@@ -149,7 +150,7 @@ export default function AdminStudentsPage() {
     if (!confirm('Are you sure you want to delete this student? This will also remove their registrations.')) return;
 
     try {
-      await api(`/admin/students/${studentId}`, { method: 'DELETE' });
+      await deleteStudent(studentId);
 
       setStudents(prev => prev.filter(s => s.id !== studentId));
       setSelectedStudent(null);
@@ -391,13 +392,13 @@ export default function AdminStudentsPage() {
                         >
                           <Eye className="size-4" />
                         </button>
-                        <button type="button"
-                          onClick={() => setSelectedStudent(student)}
-                          className="text-slate-500 hover:text-cyan-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
-                          title="Edit Role"
+                        <Link
+                          href={`/admin/students/${student.id}`}
+                          className="text-slate-500 hover:text-cyan-400 p-1.5 rounded hover:bg-slate-900 transition-colors"
+                          title="Edit Profile"
                         >
                           <Edit className="size-4" />
-                        </button>
+                        </Link>
                         {student.role !== 'admin' && (
                           <button type="button"
                             onClick={() => handleDeleteStudent(student.id)}
@@ -537,6 +538,13 @@ export default function AdminStudentsPage() {
 
             {/* Modal Footer */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-900">
+              <Link
+                href={`/admin/students/${selectedStudent.id}`}
+                className="text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono inline-flex items-center gap-1"
+                onClick={() => setSelectedStudent(null)}
+              >
+                Open full profile →
+              </Link>
               <Button variant="secondary" onClick={() => setSelectedStudent(null)}>
                 Close
               </Button>
