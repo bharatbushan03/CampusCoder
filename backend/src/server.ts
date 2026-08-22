@@ -8,6 +8,7 @@ import { meRouter } from './routes/me';
 import { adminRouter } from './routes/admin';
 import { emailsRouter } from './routes/emails';
 import { uploadRouter } from './routes/upload';
+import { showcaseRouter } from './routes/showcase';
 
 const PORT = process.env.BACKEND_PORT || process.env.PORT || 4000;
 const FRONTEND_URL = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -47,6 +48,7 @@ app.use('/health', (_req: Request, res: Response) => {
 app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/me', meRouter);
+app.use('/api/showcase', showcaseRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/emails', emailsRouter);
 app.use('/api/admin/upload', uploadRouter);
