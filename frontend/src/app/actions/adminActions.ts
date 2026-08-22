@@ -1,7 +1,7 @@
 'use server';
 
 import { serverApi } from '@/lib/serverApi';
-import { eventSchema, resourceSchema, announcementSchema, communityLinkSchema } from '@/lib/validation';
+import { eventSchema, resourceSchema, announcementSchema, communityLinkSchema, studentUpdateSchema } from '@/lib/validation';
 import type { z } from 'zod';
 
 type EventPayload = z.infer<typeof eventSchema>;
@@ -80,6 +80,23 @@ export async function updateResource(id: string, payload: z.infer<typeof resourc
   await serverApi(`/admin/resources/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
+  });
+
+  return { success: true };
+}
+
+export async function updateStudent(id: string, payload: z.infer<typeof studentUpdateSchema>) {
+  await serverApi(`/admin/students/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true };
+}
+
+export async function deleteStudent(id: string) {
+  await serverApi(`/admin/students/${id}`, {
+    method: 'DELETE',
   });
 
   return { success: true };

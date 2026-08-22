@@ -7,12 +7,20 @@ import { clearSessionCookies, REFRESH_COOKIE, setSessionCookies } from '../lib/s
 const router = Router();
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .transform((val) => val.trim().toLowerCase())
+    .pipe(z.string().email('Invalid email address')),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 const signupSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .transform((val) => val.trim().toLowerCase())
+    .pipe(z.string().email('Invalid email address')),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().min(2, 'Name is required'),
   college: z.string().min(2, 'College name is required'),
@@ -21,7 +29,11 @@ const signupSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .transform((val) => val.trim().toLowerCase())
+    .pipe(z.string().email('Invalid email address')),
 });
 
 const resetPasswordSchema = z.object({
@@ -30,7 +42,7 @@ const resetPasswordSchema = z.object({
 });
 
 async function loadProfile(userId: string) {
-  const supabase = createAnonClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from('profiles')
     .select('id, email, role, full_name, college, branch, year, created_at')
@@ -47,7 +59,10 @@ router.post('/login', async (req: Request, res: Response) => {
 
   try {
     const supabase = createAnonClient();
-    const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
 
     if (error || !data.session) {
       return res.status(401).json({ ok: false, error: 'Invalid email or password' });
@@ -60,7 +75,12 @@ router.post('/login', async (req: Request, res: Response) => {
     return res.json({
       ok: true,
       user: { id: data.user.id, email: data.user.email },
-      profile,
+      profile: profile || {
+        id: data.user.id,
+        email: data.user.email,
+        role: 'student',
+        full_name: null,
+      },
     });
   } catch (err: any) {
     console.error('Login error:', err);
@@ -131,6 +151,42 @@ router.get('/me', async (req: AuthedRequest, res: Response) => {
     console.error('Me route error:', err);
     return res.status(500).json({ ok: false, error: 'Authentication failed' });
   }
+});
+
+router.get('/elevate-enabled', (_req: Request, res: Response) => {
+  return res.json({ ok: true, enabled: process.env.ALLOW_SELF_ELEVATE === '1' });
+});
+
+// Demo / dev convenience — only available when ALLOW_SELF_ELEVATE=1 is set
+// in the backend env. Promotes the currently signed-in user to role=organizer
+// so they can reach the admin console. Production deployments should leave
+// the flag unset (or set to 0), which returns 403 here.
+router.post('/elevate-me', async (req: AuthedRequest, res: Response) => {
+  if (process.env.ALLOW_SELF_ELEVATE !== '1') {
+    return res.status(403).json({
+      ok: false,
+      error: 'Self-elevation is disabled. Ask a database admin to set role=admin on your profile.',
+    });
+  }
+
+  const { user } = await getOptionalSession(req, res);
+  if (!user) {
+    return res.status(401).json({ ok: false, error: 'Sign in first.' });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role: 'organizer' })
+    .eq('id', user.id)
+    .select('id, email, role, full_name')
+    .single();
+
+  if (error || !data) {
+    return res.status(500).json({ ok: false, error: 'Failed to elevate role.' });
+  }
+
+  return res.json({ ok: true, profile: data });
 });
 
 router.post('/forgot-password', async (req: Request, res: Response) => {

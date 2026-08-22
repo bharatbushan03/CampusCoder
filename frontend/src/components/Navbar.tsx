@@ -62,14 +62,11 @@ export const Navbar: React.FC = React.memo(function Navbar() {
   }, [dropdownOpen]);
 
   return (
-    <motion.header 
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-      className={`sticky top-0 z-50 w-full transition-colors duration-500 border-b ${
+    <header 
+      className={`sticky top-0 z-50 w-full transition-colors duration-300 border-b ${
         scrolled 
-          ? 'bg-slate-950/80 backdrop-blur-xl border-slate-800/60 py-2' 
-          : 'bg-transparent border-transparent py-4'
+          ? 'bg-slate-950/90 backdrop-blur-xl border-slate-800/80 py-1.5' 
+          : 'bg-slate-950/70 backdrop-blur-md border-slate-800/40 py-2'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -260,6 +257,6 @@ export const Navbar: React.FC = React.memo(function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.header>
+    </header>
   );
 });

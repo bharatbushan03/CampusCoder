@@ -56,3 +56,11 @@ export const resourceSchema = z.object({
   event_id: z.uuid().nullable().optional(),
   is_active: z.boolean().default(true),
 });
+
+export const studentUpdateSchema = z.object({
+  full_name: z.string().min(2, 'Name must be at least 2 characters').max(100).optional(),
+  college: z.string().max(150).optional().nullable(),
+  branch: z.string().max(100).optional().nullable(),
+  year: z.string().max(20).optional().nullable(),
+  role: z.enum(['student', 'admin', 'organizer']).optional(),
+});

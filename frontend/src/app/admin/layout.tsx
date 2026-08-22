@@ -22,14 +22,15 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   let me: MeResponse | null = null;
+  
   try {
     me = await serverApi<MeResponse>('/auth/me');
   } catch {
-    redirect('/login');
+    // Fall through to redirect
   }
 
   if (!me?.user) {
-    redirect('/login');
+    redirect('/login?redirect=/admin');
   }
 
   const profile = me.profile;
@@ -38,14 +39,14 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-slate-950/20">
+    <div className="flex min-h-[calc(100vh-3.75rem)] bg-slate-950/20">
       {/* Sidebar Navigation */}
       <AdminSidebar email={me.user.email || profile.email || ''} role={profile.role} />
 
       {/* Main Panel Content Area */}
-      <div className="flex-1 p-6 md:p-10 overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-y-auto">
         {children}
-      </div>
+      </main>
     </div>
   );
 }
