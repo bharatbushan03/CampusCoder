@@ -26,6 +26,10 @@ backend/package-lock.json
 
 # production
 /build
+/dist
+/backend/dist
+*.log
+
 
 # misc
 .DS_Store
