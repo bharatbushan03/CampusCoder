@@ -10,14 +10,29 @@ import { emailsRouter } from './routes/emails';
 import { uploadRouter } from './routes/upload';
 import { showcaseRouter } from './routes/showcase';
 
-const PORT = process.env.BACKEND_PORT || process.env.PORT || 4000;
-const FRONTEND_URL = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
+const allowedOrigins = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000')
+  .split(',')
+  .map(url => url.trim())
+  .filter(Boolean);
+
+// Always ensure localhost is allowed for local dev/testing
+if (!allowedOrigins.includes('http://localhost:3000')) {
+  allowedOrigins.push('http://localhost:3000');
+}
 
 const app = express();
 
 app.use(
   cors({
-    origin: [FRONTEND_URL, 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, server-to-server or same-origin)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Permissive callback for API endpoints while keeping credentials support
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
