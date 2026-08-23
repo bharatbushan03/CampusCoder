@@ -1,8 +1,9 @@
 /** @type {import('next').NextConfig} */
 const backendUrl = process.env.BACKEND_INTERNAL_URL || 'http://localhost:4000';
+const isVercel = process.env.VERCEL === '1';
 
 const nextConfig = {
-  output: 'standalone',
+  ...(isVercel ? {} : { output: 'standalone' }),
   poweredByHeader: false,
   allowedDevOrigins: ['*.trycloudflare.com'],
   outputFileTracingRoot: __dirname,
