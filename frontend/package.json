@@ -14,7 +14,6 @@
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
-    "@next/swc-win32-x64-msvc": "15.5.20",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "framer-motion": "^12.40.0",
