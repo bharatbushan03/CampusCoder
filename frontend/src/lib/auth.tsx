@@ -24,19 +24,24 @@ type AuthResponse = {
   profile?: Profile | null;
 };
 
+export type SignupData = {
+  email: string;
+  password: string;
+  fullName: string;
+  college: string;
+  branch: string;
+  year: string;
+};
+
 type AuthContextValue = {
   user: SessionUser | null;
   profile: Profile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<Profile | null>;
-  signup: (data: {
-    email: string;
-    password: string;
-    fullName: string;
-    college: string;
-    branch: string;
-    year: string;
-  }) => Promise<{ requiresEmailConfirmation: boolean }>;
+  signup: (data: SignupData) => Promise<{ requiresEmailConfirmation: boolean }>;
+  sendSignupOtp: (data: SignupData) => Promise<{ ok: boolean; message: string; email: string }>;
+  verifySignupOtp: (email: string, otp: string) => Promise<Profile | null>;
+  resendOtp: (email: string, purpose?: string) => Promise<{ ok: boolean; message: string }>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -75,15 +80,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data.profile ?? null;
   }, []);
 
+  const sendSignupOtp = useCallback(async (data: SignupData) => {
+    const res = await api<{ ok: boolean; message: string; email: string }>('/auth/signup/send-otp', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res;
+  }, []);
+
+  const verifySignupOtp = useCallback(async (email: string, otp: string) => {
+    const data = await api<AuthResponse>('/auth/signup/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, otp }),
+    });
+    setUser(data.user);
+    setProfile(data.profile ?? null);
+    return data.profile ?? null;
+  }, []);
+
+  const resendOtp = useCallback(async (email: string, purpose: string = 'signup') => {
+    const res = await api<{ ok: boolean; message: string }>('/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email, purpose }),
+    });
+    return res;
+  }, []);
+
   const signup = useCallback(
-    async (data: {
-      email: string;
-      password: string;
-      fullName: string;
-      college: string;
-      branch: string;
-      year: string;
-    }) => {
+    async (data: SignupData) => {
       const res = await api<{ user: SessionUser; requiresEmailConfirmation: boolean }>('/auth/signup', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -104,7 +128,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, signup, logout, refresh }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        login,
+        signup,
+        sendSignupOtp,
+        verifySignupOtp,
+        resendOtp,
+        logout,
+        refresh,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

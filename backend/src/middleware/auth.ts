@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
 import { getSupabasePublicKey, getSupabaseUrl } from '../utils/supabase/config';
-import { REFRESH_COOKIE, SESSION_COOKIE, setSessionCookies } from '../lib/session';
+import { clearSessionCookies, REFRESH_COOKIE, SESSION_COOKIE, setSessionCookies } from '../lib/session';
 
 import { createAdminClient } from '../utils/supabase/admin';
 
@@ -99,15 +99,15 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
       .from('profiles')
       .select('id, email, role, full_name')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (!profile) {
+      clearSessionCookies(res);
+      return res.status(401).json({ ok: false, error: 'Account not found or has been deleted.' });
+    }
 
     req.user = user;
-    req.profile = profile || {
-      id: user.id,
-      email: user.email,
-      role: 'student',
-      full_name: null,
-    };
+    req.profile = profile;
     next();
   } catch (err) {
     console.error('Auth middleware error:', err);
@@ -124,16 +124,16 @@ export async function getOptionalSession(req: AuthedRequest, res: Response) {
     .from('profiles')
     .select('id, email, role, full_name')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
+
+  if (!profile) {
+    clearSessionCookies(res);
+    return { user: null, profile: null };
+  }
 
   return {
     user,
-    profile: profile || {
-      id: user.id,
-      email: user.email,
-      role: 'student',
-      full_name: null,
-    },
+    profile,
   };
 }
 

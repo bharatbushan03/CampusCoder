@@ -45,7 +45,7 @@ const studentProfileUpdateSchema = z.object({
   role: z.enum(['student', 'admin', 'organizer']).optional(),
 });
 
-// ---------- Dashboard overview ----------
+// ---------- Dashboard overview & Analytics ----------
 
 router.get('/overview', async (_req: Request, res: Response) => {
   const supabase = createAdminClient();
@@ -76,6 +76,220 @@ router.get('/overview', async (_req: Request, res: Response) => {
     studentCount: studentsResult.data?.length ?? 0,
     announcements: announcementsResult.error ? [] : announcementsResult.data,
     communityLinks: linksResult.error ? [] : linksResult.data,
+  });
+});
+
+router.get('/analytics', async (_req: Request, res: Response) => {
+  const supabase = createAdminClient();
+
+  const [profilesRes, eventsRes, registrationsRes] = await Promise.all([
+    supabase.from('profiles').select('id, full_name, email, role, college, branch, year, created_at').order('created_at', { ascending: false }),
+    supabase.from('events').select('id, title, slug, event_type, mode, date, status, created_at').order('date', { ascending: false }),
+    supabase.from('registrations').select('id, full_name, email, college, branch, year, coding_level, preferred_language, attendance_status, registered_at, event_id').order('registered_at', { ascending: false }),
+  ]);
+
+  if (profilesRes.error || eventsRes.error || registrationsRes.error) {
+    return res.status(500).json({ ok: false, error: 'Failed to compute analytics' });
+  }
+
+  const profiles = profilesRes.data || [];
+  const events = eventsRes.data || [];
+  const registrations = registrationsRes.data || [];
+
+  const studentProfiles = profiles.filter((p) => p.role === 'student');
+  const adminProfiles = profiles.filter((p) => p.role === 'admin');
+  const organizerProfiles = profiles.filter((p) => p.role === 'organizer');
+
+  const totalRegistrations = registrations.length;
+  const attendedCount = registrations.filter((r) => r.attendance_status === 'attended').length;
+  const attendanceRate = totalRegistrations > 0 ? Math.round((attendedCount / totalRegistrations) * 100) : 0;
+
+  // 1. Timeline: Last 14 days activity
+  const dateMap: Record<string, { date: string; registrations: number; signups: number }> = {};
+  const today = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    dateMap[dateStr] = { date: dateStr, registrations: 0, signups: 0 };
+  }
+
+  registrations.forEach((r) => {
+    const d = r.registered_at ? new Date(r.registered_at).toISOString().slice(0, 10) : '';
+    if (dateMap[d]) {
+      dateMap[d].registrations++;
+    }
+  });
+
+  studentProfiles.forEach((p) => {
+    const d = p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : '';
+    if (dateMap[d]) {
+      dateMap[d].signups++;
+    }
+  });
+
+  const timeline = Object.values(dateMap);
+
+  // 2. Events by Type
+  const eventTypeCounts: Record<string, number> = {};
+  events.forEach((ev) => {
+    const t = ev.event_type || 'workshop';
+    eventTypeCounts[t] = (eventTypeCounts[t] || 0) + 1;
+  });
+  const eventsByType = Object.entries(eventTypeCounts).map(([type, count]) => ({
+    type: type.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+    count,
+  }));
+
+  // 3. Events by Status
+  const eventStatusCounts: Record<string, number> = {};
+  events.forEach((ev) => {
+    const s = ev.status || 'draft';
+    eventStatusCounts[s] = (eventStatusCounts[s] || 0) + 1;
+  });
+  const eventsByStatus = Object.entries(eventStatusCounts).map(([status, count]) => ({
+    status: status.charAt(0).toUpperCase() + status.slice(1),
+    count,
+  }));
+
+  // 4. Top Events Performance
+  const eventStatsMap: Record<string, { event: string; eventId: string; date: string; type: string; count: number; attended: number }> = {};
+  events.forEach((ev) => {
+    eventStatsMap[ev.id] = {
+      event: ev.title,
+      eventId: ev.id,
+      date: ev.date,
+      type: ev.event_type,
+      count: 0,
+      attended: 0,
+    };
+  });
+
+  registrations.forEach((r) => {
+    if (eventStatsMap[r.event_id]) {
+      eventStatsMap[r.event_id].count++;
+      if (r.attendance_status === 'attended') {
+        eventStatsMap[r.event_id].attended++;
+      }
+    }
+  });
+
+  const topEvents = Object.values(eventStatsMap)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+    .map((e) => ({
+      ...e,
+      rate: e.count > 0 ? Math.round((e.attended / e.count) * 100) : 0,
+    }));
+
+  // 5. Top Colleges
+  const collegeCounts: Record<string, number> = {};
+  profiles.forEach((p) => {
+    if (p.college && p.college.trim()) {
+      const c = p.college.trim();
+      collegeCounts[c] = (collegeCounts[c] || 0) + 1;
+    }
+  });
+  registrations.forEach((r) => {
+    if (r.college && r.college.trim() && !profiles.some((p) => p.email === r.email)) {
+      const c = r.college.trim();
+      collegeCounts[c] = (collegeCounts[c] || 0) + 1;
+    }
+  });
+
+  const topColleges = Object.entries(collegeCounts)
+    .map(([college, count]) => ({ college, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
+  // 6. Branch Breakdown
+  const branchCounts: Record<string, number> = {};
+  profiles.forEach((p) => {
+    if (p.branch && p.branch.trim()) {
+      const b = p.branch.trim();
+      branchCounts[b] = (branchCounts[b] || 0) + 1;
+    }
+  });
+  const topBranches = Object.entries(branchCounts)
+    .map(([branch, count]) => ({ branch, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+
+  // 7. Academic Year Breakdown
+  const yearCounts: Record<string, number> = {};
+  profiles.forEach((p) => {
+    if (p.year && p.year.trim()) {
+      const y = `Year ${p.year.trim()}`;
+      yearCounts[y] = (yearCounts[y] || 0) + 1;
+    }
+  });
+  const yearDistribution = Object.entries(yearCounts).map(([year, count]) => ({ year, count }));
+
+  // 8. Coding Levels & Preferred Languages
+  const levelCounts: Record<string, number> = {};
+  const langCounts: Record<string, number> = {};
+  registrations.forEach((r) => {
+    if (r.coding_level) {
+      const lvl = r.coding_level.charAt(0).toUpperCase() + r.coding_level.slice(1);
+      levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
+    }
+    if (r.preferred_language) {
+      const lang = r.preferred_language.trim();
+      langCounts[lang] = (langCounts[lang] || 0) + 1;
+    }
+  });
+
+  const codingLevels = Object.entries(levelCounts).map(([level, count]) => ({ level, count }));
+  const preferredLanguages = Object.entries(langCounts)
+    .map(([language, count]) => ({ language, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  // 9. Recent Activity Feed
+  const recentRegistrations = registrations.slice(0, 6).map((r) => ({
+    id: r.id,
+    type: 'registration' as const,
+    name: r.full_name || r.email,
+    email: r.email,
+    event: eventStatsMap[r.event_id]?.event || 'Campus Event',
+    time: r.registered_at,
+    status: r.attendance_status,
+  }));
+
+  const recentSignups = profiles.slice(0, 6).map((p) => ({
+    id: p.id,
+    type: 'signup' as const,
+    name: p.full_name || p.email,
+    email: p.email,
+    college: p.college,
+    role: p.role,
+    time: p.created_at,
+  }));
+
+  return res.json({
+    ok: true,
+    summary: {
+      totalStudents: studentProfiles.length,
+      totalAdmins: adminProfiles.length,
+      totalOrganizers: organizerProfiles.length,
+      totalEvents: events.length,
+      publishedEvents: events.filter((e) => e.status === 'published').length,
+      completedEvents: events.filter((e) => e.status === 'completed').length,
+      totalRegistrations,
+      attendedCount,
+      attendanceRate,
+    },
+    timeline,
+    eventsByType,
+    eventsByStatus,
+    topEvents,
+    topColleges,
+    topBranches,
+    yearDistribution,
+    codingLevels,
+    preferredLanguages,
+    recentRegistrations,
+    recentSignups,
   });
 });
 
@@ -565,19 +779,49 @@ router.patch('/students/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.delete('/students/:id', async (req: Request, res: Response) => {
+router.delete('/students/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid student id' });
   }
 
+  // Prevent self-deletion to avoid admin lockout
+  if (req.user?.id === parsed.data) {
+    return res.status(400).json({ ok: false, error: 'You cannot delete your own admin account.' });
+  }
+
   const supabase = createAdminClient();
+
+  // Retrieve student's email to clean up event registrations
+  const { data: studentProfile } = await supabase
+    .from('profiles')
+    .select('email')
+    .eq('id', parsed.data)
+    .maybeSingle();
+
+  if (studentProfile?.email) {
+    try {
+      await supabase.from('registrations').delete().eq('email', studentProfile.email);
+    } catch (regErr) {
+      console.warn('[Admin] Note cleaning up registrations on student deletion:', regErr);
+    }
+  }
+
+  // Delete from public.profiles
   const { error } = await supabase.from('profiles').delete().eq('id', parsed.data);
 
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to delete student' });
   }
-  return res.json({ ok: true });
+
+  // Also permanently delete user credentials from Supabase Auth (auth.users)
+  try {
+    await supabase.auth.admin.deleteUser(parsed.data);
+  } catch (authErr) {
+    console.warn('[Admin] Note deleting user from Supabase Auth:', authErr);
+  }
+
+  return res.json({ ok: true, success: true, message: 'Account permanently deleted from system.' });
 });
 
 // ---------- Announcements ----------
