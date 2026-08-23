@@ -135,6 +135,8 @@ export default function ShowcasePage() {
         liveUrl: '',
         demoVideoUrl: '',
       });
+      // Refresh the projects list to show the new submission immediately
+      loadProjects();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to submit project';
       toast.error(message);
@@ -143,11 +145,20 @@ export default function ShowcasePage() {
     }
   };
 
-  const toggleLike = (id: string) => {
+  const toggleLike = async (id: string) => {
+    const isCurrentlyLiked = likedProjects[id];
     setLikedProjects(prev => ({
       ...prev,
-      [id]: !prev[id],
+      [id]: !isCurrentlyLiked,
     }));
+
+    if (!isCurrentlyLiked) {
+      try {
+        await api(`/showcase/${id}/like`, { method: 'POST' });
+      } catch {
+        // Silent catch for like counter
+      }
+    }
   };
 
   const filteredProjects = projects.filter(p => {

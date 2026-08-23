@@ -946,4 +946,76 @@ router.delete('/resources/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
+// ---------- Showcase Projects Admin Management ----------
+
+const showcaseUpdateSchema = z.object({
+  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+  featured: z.boolean().optional(),
+  title: z.string().min(2).max(100).optional(),
+  tagline: z.string().min(5).max(200).optional(),
+  category: z.string().optional(),
+  stars: z.number().int().min(0).optional(),
+});
+
+router.get('/showcase', async (_req: Request, res: Response) => {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('showcase_projects')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('[Admin] Failed to load showcase projects:', error.message);
+    return res.json({ ok: true, projects: [] });
+  }
+
+  return res.json({ ok: true, projects: data || [] });
+});
+
+router.patch('/showcase/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid project id' });
+  }
+
+  const parsedBody = showcaseUpdateSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, error: parsedBody.error.issues[0].message });
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('showcase_projects')
+    .update({
+      ...parsedBody.data,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', parsedId.data);
+
+  if (error) {
+    return res.status(500).json({ ok: false, error: 'Failed to update showcase project' });
+  }
+
+  return res.json({ ok: true });
+});
+
+router.delete('/showcase/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid project id' });
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('showcase_projects')
+    .delete()
+    .eq('id', parsedId.data);
+
+  if (error) {
+    return res.status(500).json({ ok: false, error: 'Failed to delete showcase project' });
+  }
+
+  return res.json({ ok: true });
+});
+
 export { router as adminRouter };
