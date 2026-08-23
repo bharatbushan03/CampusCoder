@@ -1,9 +1,9 @@
 import React from 'react';
-import { Router, type Response } from 'express';
+import { Router, type Response, type Request } from 'express';
 import { z } from 'zod';
 import { requireAuth, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
-import { ADMIN_EMAIL, FROM_EMAIL, resend } from '../lib/email';
+import { ADMIN_EMAIL, sendAppEmail } from '../lib/email';
 import { ProjectSubmissionNotificationEmail } from '../components/emails/ProjectSubmissionNotification';
 import { ProjectSubmissionReceiptEmail } from '../components/emails/ProjectSubmissionReceipt';
 
@@ -34,17 +34,59 @@ export type ShowcaseProject = {
   authorCollege?: string | null;
   stars?: number;
   featured?: boolean;
+  createdAt?: string;
 };
 
-// Projects list (empty by default until submitted/approved)
-const curatedProjects: ShowcaseProject[] = [];
+function mapDbRowToProject(row: any): ShowcaseProject {
+  return {
+    id: row.id,
+    title: row.title,
+    tagline: row.tagline,
+    description: row.description,
+    techStack: Array.isArray(row.tech_stack) ? row.tech_stack : [],
+    category: row.category || 'Web App',
+    githubUrl: row.github_url || null,
+    liveUrl: row.live_url || null,
+    demoVideoUrl: row.demo_video_url || null,
+    authorName: row.author_name,
+    authorCollege: row.author_college || null,
+    stars: row.stars ?? 0,
+    featured: Boolean(row.featured),
+    createdAt: row.created_at,
+  };
+}
 
-// GET /api/showcase/projects
-router.get('/projects', async (_req, res: Response) => {
-  return res.json({
-    ok: true,
-    projects: curatedProjects,
-  });
+// GET /api/showcase/projects - List all approved projects from database
+router.get('/projects', async (_req: Request, res: Response) => {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('showcase_projects')
+      .select('*')
+      .neq('status', 'rejected')
+      .order('featured', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('[Showcase] Supabase query warning (table may need creation):', error.message);
+      return res.json({
+        ok: true,
+        projects: [],
+      });
+    }
+
+    const projects = (data || []).map(mapDbRowToProject);
+    return res.json({
+      ok: true,
+      projects,
+    });
+  } catch (err: any) {
+    console.error('[Showcase] Error fetching projects:', err);
+    return res.json({
+      ok: true,
+      projects: [],
+    });
+  }
 });
 
 // POST /api/showcase/submit (Requires verified student auth)
@@ -57,7 +99,7 @@ router.post('/submit', requireAuth, async (req: AuthedRequest, res: Response) =>
     });
   }
 
-  const { title, tagline, description, techStack, githubUrl, liveUrl, demoVideoUrl } = validation.data;
+  const { title, tagline, description, techStack, category, githubUrl, liveUrl, demoVideoUrl } = validation.data;
   const user = req.user;
 
   if (!user) {
@@ -78,76 +120,155 @@ router.post('/submit', requireAuth, async (req: AuthedRequest, res: Response) =>
   const year = profile?.year || null;
   const submittedAt = new Date().toLocaleString();
 
-  // Send email notification to admin via Resend
+  // Convert comma-separated tech stack to string array
+  const techStackArray = techStack
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  // 1. Store project into Supabase database
+  let savedProject: ShowcaseProject | null = null;
+  try {
+    const { data: insertedData, error: insertError } = await supabase
+      .from('showcase_projects')
+      .insert({
+        title,
+        tagline,
+        description,
+        tech_stack: techStackArray,
+        category: category || 'Web App',
+        github_url: githubUrl || null,
+        live_url: liveUrl || null,
+        demo_video_url: demoVideoUrl || null,
+        author_id: user.id,
+        author_name: studentName,
+        author_email: studentEmail || null,
+        author_college: college,
+        author_branch: branch,
+        author_year: year,
+        stars: 0,
+        featured: false,
+        status: 'approved',
+      })
+      .select('*')
+      .single();
+
+    if (insertError) {
+      console.error('[Showcase] Failed to save project to Supabase:', insertError);
+      return res.status(500).json({
+        ok: false,
+        error: `Database error: ${insertError.message}`,
+      });
+    }
+
+    savedProject = mapDbRowToProject(insertedData);
+  } catch (dbErr: any) {
+    console.error('[Showcase] Supabase insert exception:', dbErr);
+    return res.status(500).json({
+      ok: false,
+      error: dbErr.message || 'Database error occurred while storing project',
+    });
+  }
+
+  // 2. Send email notification immediately to Admin via unified email service (Azure / Resend)
   let emailSent = false;
-  if (resend) {
-    try {
-      const adminMailRes = await resend.emails.send({
-        from: FROM_EMAIL,
-        to: ADMIN_EMAIL,
-        subject: `🚀 New Project Submission: ${title} by ${studentName}`,
+  try {
+    const adminMailRes = await sendAppEmail({
+      to: ADMIN_EMAIL,
+      subject: `🚀 New Project Submission: ${title} by ${studentName}`,
+      react: (
+        <ProjectSubmissionNotificationEmail
+          studentName={studentName}
+          studentEmail={studentEmail}
+          college={college}
+          branch={branch}
+          year={year}
+          projectTitle={title}
+          tagline={tagline}
+          description={description}
+          techStack={techStack}
+          githubUrl={githubUrl || null}
+          liveUrl={liveUrl || null}
+          demoVideoUrl={demoVideoUrl || null}
+          submittedAt={submittedAt}
+        />
+      ),
+    });
+
+    if (adminMailRes.success) {
+      emailSent = true;
+      console.log(`[Showcase] Admin email sent successfully for "${title}" to ${ADMIN_EMAIL}`);
+    } else {
+      console.warn('[Showcase] Admin notification email dispatch failed:', adminMailRes.error);
+    }
+
+    // Also send confirmation receipt email to the student
+    if (studentEmail) {
+      sendAppEmail({
+        to: studentEmail,
+        subject: `✨ Project Submission Received: ${title}`,
         react: (
-          <ProjectSubmissionNotificationEmail
+          <ProjectSubmissionReceiptEmail
             studentName={studentName}
-            studentEmail={studentEmail}
-            college={college}
-            branch={branch}
-            year={year}
             projectTitle={title}
-            tagline={tagline}
-            description={description}
-            techStack={techStack}
-            githubUrl={githubUrl || null}
-            liveUrl={liveUrl || null}
-            demoVideoUrl={demoVideoUrl || null}
-            submittedAt={submittedAt}
           />
         ),
+      }).catch((err) => {
+        console.warn('[Showcase] Failed to send receipt email to student:', err);
       });
-
-      if (adminMailRes.error) {
-        console.error('Error sending project submission email to admin:', adminMailRes.error);
-      } else {
-        emailSent = true;
-        console.log(`[Showcase] Admin notification email sent successfully for project: "${title}" to ${ADMIN_EMAIL}`);
-      }
-
-      // Also send confirmation email to the student
-      if (studentEmail) {
-        await resend.emails.send({
-          from: FROM_EMAIL,
-          to: studentEmail,
-          subject: `✨ Project Submission Received: ${title}`,
-          react: (
-            <ProjectSubmissionReceiptEmail
-              studentName={studentName}
-              projectTitle={title}
-            />
-          ),
-        }).catch((err) => {
-          console.warn('Failed to send confirmation email to student:', err);
-        });
-      }
-    } catch (mailErr) {
-      console.error('Failed to trigger Resend project submission notification:', mailErr);
     }
-  } else {
-    console.log(
-      `[Showcase DEV] Resend not configured. New project submitted:\n` +
-      `Title: ${title}\nAuthor: ${studentName} (${studentEmail})\nCollege: ${college}\nTech: ${techStack}\nAdmin target: ${ADMIN_EMAIL}`
-    );
+  } catch (mailErr) {
+    console.error('[Showcase] Email trigger exception:', mailErr);
   }
 
   return res.json({
     ok: true,
-    message: 'Your project has been submitted successfully! The admin has been notified via email and will review your submission for the showcase gallery.',
+    message: 'Your project has been submitted and stored in the showcase database! The admin has been notified via email.',
     emailSent,
-    project: {
+    project: savedProject || {
+      id: '',
       title,
-      studentName,
-      submittedAt,
+      tagline,
+      description,
+      techStack: techStackArray,
+      category: category || 'Web App',
+      authorName: studentName,
+      authorCollege: college,
     },
   });
+});
+
+// POST /api/showcase/:id/like - Like or star a showcase project
+router.post('/:id/like', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const supabase = createAdminClient();
+
+    // Fetch current stars
+    const { data: project, error: fetchErr } = await supabase
+      .from('showcase_projects')
+      .select('stars')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !project) {
+      return res.status(404).json({ ok: false, error: 'Project not found' });
+    }
+
+    const newStars = (project.stars ?? 0) + 1;
+    const { error: updateErr } = await supabase
+      .from('showcase_projects')
+      .update({ stars: newStars })
+      .eq('id', id);
+
+    if (updateErr) {
+      return res.status(500).json({ ok: false, error: updateErr.message });
+    }
+
+    return res.json({ ok: true, stars: newStars });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 export { router as showcaseRouter };

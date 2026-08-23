@@ -1,7 +1,8 @@
+import React from 'react';
 import { Router, type Request, type Response } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
-import { resend, FROM_EMAIL } from '../lib/email';
+import { sendAppEmail } from '../lib/email';
 import { MeetingLinkEmail } from '../components/emails/MeetingLinkAnnouncement';
 import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '../lib/eventSchedule';
 import type { Database } from '../types/database.types';
@@ -13,11 +14,6 @@ router.use(requireAuth, requireRole('admin', 'organizer'));
 type MeetingRecipient = Pick<Database['public']['Tables']['registrations']['Row'], 'email' | 'full_name'>;
 
 router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
-  const emailClient = resend;
-  if (!emailClient) {
-    return res.status(500).json({ ok: false, error: 'Email service not configured' });
-  }
-
   try {
     const { eventId } = req.params;
     const force = Boolean(req.body.force) || false;
@@ -52,8 +48,7 @@ router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
     }
 
     const emailPromises = registrations.map((reg) =>
-      emailClient.emails.send({
-        from: FROM_EMAIL,
+      sendAppEmail({
         to: reg.email,
         subject: `Meeting Link: ${event.title}`,
         react: (
