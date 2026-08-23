@@ -23,12 +23,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
 
       - name: Install dependencies
         working-directory: backend
-        run: npm ci
+        run: npm install
 
       - name: Build TypeScript backend
         working-directory: backend
@@ -39,9 +37,8 @@ jobs:
           mkdir -p deploy-pkg
           cp -r backend/dist deploy-pkg/
           cp backend/package.json deploy-pkg/
-          cp backend/package-lock.json deploy-pkg/
           cd deploy-pkg
-          npm ci --omit=dev --ignore-scripts
+          npm install --omit=dev --ignore-scripts
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
