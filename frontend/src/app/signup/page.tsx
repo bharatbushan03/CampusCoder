@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import SignupPageClient from './SignupPageClient';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 export const metadata: Metadata = {
   title: 'Create Account | CampusCoder',
@@ -7,5 +9,15 @@ export const metadata: Metadata = {
 };
 
 export default function SignupPage() {
-  return <SignupPageClient />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <CampusCoderLoader size="lg" text="Loading signup..." />
+        </div>
+      }
+    >
+      <SignupPageClient />
+    </Suspense>
+  );
 }

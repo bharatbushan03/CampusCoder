@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import ForgotPasswordPageClient from './ForgotPasswordPageClient';
+import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 export const metadata: Metadata = {
   title: 'Forgot Password | CampusCoder',
@@ -7,5 +9,15 @@ export const metadata: Metadata = {
 };
 
 export default function ForgotPasswordPage() {
-  return <ForgotPasswordPageClient />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <CampusCoderLoader size="lg" text="Loading..." />
+        </div>
+      }
+    >
+      <ForgotPasswordPageClient />
+    </Suspense>
+  );
 }
