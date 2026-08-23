@@ -1,11 +1,10 @@
-// backend/src/lib/azureEmail.ts
 import { EmailClient } from '@azure/communication-email';
 
 const connectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
 
 export const emailClient = connectionString ? new EmailClient(connectionString) : null;
-export const SENDER_EMAIL = process.env.AZURE_EMAIL_SENDER || 'DoNotReply@your-domain.azurecomm.net';
-export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'bharatbushan5320@gmail.com';
+export const SENDER_EMAIL = process.env.AZURE_EMAIL_SENDER || '';
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
 export async function sendEmail({
   to,
@@ -18,8 +17,8 @@ export async function sendEmail({
   html?: string;
   plainText?: string;
 }) {
-  if (!emailClient) {
-    console.warn('[Azure Email] Client not initialized. Check AZURE_COMMUNICATION_CONNECTION_STRING.');
+  if (!emailClient || !SENDER_EMAIL) {
+    console.warn('[Azure Email] Client or AZURE_EMAIL_SENDER not configured.');
     return { success: false, error: 'Azure Email Client not configured' };
   }
 

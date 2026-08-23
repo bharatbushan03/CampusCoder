@@ -9,14 +9,9 @@ const resendApiKey = process.env.RESEND_API_KEY;
 export const azureEmailClient = azureConnectionString ? new EmailClient(azureConnectionString) : null;
 export const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
-export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'bharatbushan5320@gmail.com';
-export const AZURE_SENDER_EMAIL = process.env.AZURE_EMAIL_SENDER || 'DoNotReply@4cd68ee0-18b0-4412-a82c-535fa9c436b3.azurecomm.net';
-
-let defaultFrom = process.env.FROM_EMAIL || 'CampusCoder <onboarding@resend.dev>';
-if (defaultFrom.includes('@gmail.com') || defaultFrom.includes('@yahoo.com') || defaultFrom.includes('@hotmail.com') || defaultFrom.includes('@outlook.com')) {
-  defaultFrom = 'CampusCoder <onboarding@resend.dev>';
-}
-export const FROM_EMAIL = defaultFrom;
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
+export const AZURE_SENDER_EMAIL = process.env.AZURE_EMAIL_SENDER || '';
+export const FROM_EMAIL = process.env.FROM_EMAIL || '';
 
 export interface SendMailOptions {
   to: string;
@@ -39,7 +34,7 @@ export async function sendAppEmail(options: SendMailOptions): Promise<{ success:
   }
 
   // 1. Prioritize Azure Communication Services if configured
-  if (azureEmailClient) {
+  if (azureEmailClient && AZURE_SENDER_EMAIL) {
     try {
       const emailContent = html
         ? { subject, html, plainText: plainText || undefined }
@@ -65,10 +60,12 @@ export async function sendAppEmail(options: SendMailOptions): Promise<{ success:
       console.error('[Azure Email] Exception:', azureErr.message);
       // Fall through to Resend if available
     }
+  } else if (azureEmailClient && !AZURE_SENDER_EMAIL) {
+    console.warn('[Azure Email] AZURE_COMMUNICATION_CONNECTION_STRING is set, but AZURE_EMAIL_SENDER is missing in .env');
   }
 
   // 2. Fallback to Resend if configured
-  if (resend) {
+  if (resend && FROM_EMAIL) {
     try {
       const res = await resend.emails.send({
         from: FROM_EMAIL,
@@ -88,8 +85,10 @@ export async function sendAppEmail(options: SendMailOptions): Promise<{ success:
       console.error('[Resend Email] Exception:', resendErr);
       return { success: false, error: resendErr };
     }
+  } else if (resend && !FROM_EMAIL) {
+    console.warn('[Resend Email] RESEND_API_KEY is set, but FROM_EMAIL is missing in .env');
   }
 
-  console.warn(`[Email DEV] No email provider configured. (Subject: "${subject}", To: "${to}")`);
+  console.warn(`[Email DEV] No email provider configured in .env. (Subject: "${subject}", To: "${to}")`);
   return { success: false, error: 'No email service configured' };
 }
