@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import type { Database } from '../types/database.types';
+import { appCache } from '../lib/cache';
 import {
   announcementSchema,
   communityLinkSchema,
@@ -405,6 +406,7 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
     }
   }
 
+  appCache.invalidateTags(['events']);
   return res.json({ ok: true, success: true, eventId: insertedEvent.id });
 });
 
@@ -465,6 +467,7 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     await supabase.from('event_owners').insert(speakersToInsert);
   }
 
+  appCache.invalidateTags(['events']);
   return res.json({ ok: true, success: true });
 });
 
@@ -489,6 +492,8 @@ router.patch('/events/:id/status', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update event status' });
   }
+
+  appCache.invalidateTags(['events']);
   return res.json({ ok: true });
 });
 
@@ -513,6 +518,8 @@ router.patch('/events/:id/meeting-link', async (req: Request, res: Response) => 
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to save meeting link' });
   }
+
+  appCache.invalidateTags(['events']);
   return res.json({ ok: true });
 });
 
@@ -540,6 +547,8 @@ router.patch('/events/:id/archive', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to save archive details' });
   }
+
+  appCache.invalidateTags(['events']);
   return res.json({ ok: true });
 });
 
@@ -555,6 +564,8 @@ router.delete('/events/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to delete event' });
   }
+
+  appCache.invalidateTags(['events']);
   return res.json({ ok: true });
 });
 
@@ -752,6 +763,8 @@ router.put('/students/:id', async (req: AuthedRequest, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update student profile' });
   }
+
+  appCache.invalidateTags(['auth_sessions']);
   return res.json({ ok: true });
 });
 
@@ -776,6 +789,8 @@ router.patch('/students/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update role' });
   }
+
+  appCache.invalidateTags(['auth_sessions']);
   return res.json({ ok: true });
 });
 
@@ -821,6 +836,7 @@ router.delete('/students/:id', async (req: AuthedRequest, res: Response) => {
     console.warn('[Admin] Note deleting user from Supabase Auth:', authErr);
   }
 
+  appCache.invalidateTags(['auth_sessions']);
   return res.json({ ok: true, success: true, message: 'Account permanently deleted from system.' });
 });
 
@@ -876,6 +892,8 @@ router.post('/announcements', async (req: AuthedRequest, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to create announcement' });
   }
+
+  appCache.invalidateTags(['announcements']);
   return res.json({ ok: true, success: true });
 });
 
@@ -904,6 +922,8 @@ router.put('/announcements/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update announcement' });
   }
+
+  appCache.invalidateTags(['announcements']);
   return res.json({ ok: true });
 });
 
@@ -928,6 +948,8 @@ router.patch('/announcements/:id/toggle', async (req: Request, res: Response) =>
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to toggle announcement' });
   }
+
+  appCache.invalidateTags(['announcements']);
   return res.json({ ok: true });
 });
 
@@ -943,6 +965,8 @@ router.delete('/announcements/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to delete announcement' });
   }
+
+  appCache.invalidateTags(['announcements']);
   return res.json({ ok: true });
 });
 
@@ -997,6 +1021,8 @@ router.post('/community-links', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to create community link' });
   }
+
+  appCache.invalidateTags(['community_links']);
   return res.json({ ok: true, success: true });
 });
 
@@ -1025,6 +1051,8 @@ router.put('/community-links/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update community link' });
   }
+
+  appCache.invalidateTags(['community_links']);
   return res.json({ ok: true });
 });
 
@@ -1049,6 +1077,8 @@ router.patch('/community-links/:id/toggle', async (req: Request, res: Response) 
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to toggle community link' });
   }
+
+  appCache.invalidateTags(['community_links']);
   return res.json({ ok: true });
 });
 
@@ -1064,6 +1094,8 @@ router.delete('/community-links/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to delete community link' });
   }
+
+  appCache.invalidateTags(['community_links']);
   return res.json({ ok: true });
 });
 
@@ -1119,6 +1151,8 @@ router.post('/resources', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to create resource' });
   }
+
+  appCache.invalidateTags(['resources']);
   return res.json({ ok: true, success: true });
 });
 
@@ -1148,6 +1182,8 @@ router.put('/resources/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update resource' });
   }
+
+  appCache.invalidateTags(['resources']);
   return res.json({ ok: true });
 });
 
@@ -1172,6 +1208,8 @@ router.patch('/resources/:id/toggle', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to toggle resource' });
   }
+
+  appCache.invalidateTags(['resources']);
   return res.json({ ok: true });
 });
 
@@ -1187,6 +1225,8 @@ router.delete('/resources/:id', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to delete resource' });
   }
+
+  appCache.invalidateTags(['resources']);
   return res.json({ ok: true });
 });
 
@@ -1240,6 +1280,7 @@ router.patch('/showcase/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to update showcase project' });
   }
 
+  appCache.invalidateTags(['showcase']);
   return res.json({ ok: true });
 });
 
@@ -1259,6 +1300,7 @@ router.delete('/showcase/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to delete showcase project' });
   }
 
+  appCache.invalidateTags(['showcase']);
   return res.json({ ok: true });
 });
 

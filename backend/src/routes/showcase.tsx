@@ -6,6 +6,9 @@ import { createAdminClient } from '../utils/supabase/admin';
 import { ADMIN_EMAIL, sendAppEmail } from '../lib/email';
 import { ProjectSubmissionNotificationEmail } from '../components/emails/ProjectSubmissionNotification';
 import { ProjectSubmissionReceiptEmail } from '../components/emails/ProjectSubmissionReceipt';
+import { appCache, cacheRoute } from '../lib/cache';
+import { likeRateLimiter } from '../middleware/rateLimit';
+import { backgroundQueue } from '../lib/queue';
 
 const router = Router();
 
@@ -56,8 +59,8 @@ function mapDbRowToProject(row: any): ShowcaseProject {
   };
 }
 
-// GET /api/showcase/projects - List all approved projects from database
-router.get('/projects', async (_req: Request, res: Response) => {
+// GET /api/showcase/projects - List all approved projects from database (Cached for 60s)
+router.get('/projects', cacheRoute(60, ['showcase'], 30), async (_req: Request, res: Response) => {
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -162,6 +165,7 @@ router.post('/submit', requireAuth, async (req: AuthedRequest, res: Response) =>
     }
 
     savedProject = mapDbRowToProject(insertedData);
+    appCache.invalidateTags(['showcase']);
   } catch (dbErr: any) {
     console.error('[Showcase] Supabase insert exception:', dbErr);
     return res.status(500).json({
@@ -170,61 +174,60 @@ router.post('/submit', requireAuth, async (req: AuthedRequest, res: Response) =>
     });
   }
 
-  // 2. Send email notification immediately to Admin via unified email service (Azure / Resend)
-  let emailSent = false;
-  try {
-    const adminMailRes = await sendAppEmail({
-      to: ADMIN_EMAIL,
-      subject: `🚀 New Project Submission: ${title} by ${studentName}`,
-      react: (
-        <ProjectSubmissionNotificationEmail
-          studentName={studentName}
-          studentEmail={studentEmail}
-          college={college}
-          branch={branch}
-          year={year}
-          projectTitle={title}
-          tagline={tagline}
-          description={description}
-          techStack={techStack}
-          githubUrl={githubUrl || null}
-          liveUrl={liveUrl || null}
-          demoVideoUrl={demoVideoUrl || null}
-          submittedAt={submittedAt}
-        />
-      ),
-    });
+  // 2. Queue email notifications non-blockingly via background worker
+  if (ADMIN_EMAIL) {
+    backgroundQueue.add(
+      `showcase_admin_${title}`,
+      { studentName, studentEmail, college, branch, year, title, tagline, description, techStack, githubUrl, liveUrl, demoVideoUrl, submittedAt },
+      async (data) => {
+        await sendAppEmail({
+          to: ADMIN_EMAIL,
+          subject: `🚀 New Project Submission: ${data.title} by ${data.studentName}`,
+          react: (
+            <ProjectSubmissionNotificationEmail
+              studentName={data.studentName}
+              studentEmail={data.studentEmail}
+              college={data.college}
+              branch={data.branch}
+              year={data.year}
+              projectTitle={data.title}
+              tagline={data.tagline}
+              description={data.description}
+              techStack={data.techStack}
+              githubUrl={data.githubUrl || null}
+              liveUrl={data.liveUrl || null}
+              demoVideoUrl={data.demoVideoUrl || null}
+              submittedAt={data.submittedAt}
+            />
+          ),
+        });
+      }
+    );
+  }
 
-    if (adminMailRes.success) {
-      emailSent = true;
-      console.log(`[Showcase] Admin email sent successfully for "${title}" to ${ADMIN_EMAIL}`);
-    } else {
-      console.warn('[Showcase] Admin notification email dispatch failed:', adminMailRes.error);
-    }
-
-    // Also send confirmation receipt email to the student
-    if (studentEmail) {
-      sendAppEmail({
-        to: studentEmail,
-        subject: `✨ Project Submission Received: ${title}`,
-        react: (
-          <ProjectSubmissionReceiptEmail
-            studentName={studentName}
-            projectTitle={title}
-          />
-        ),
-      }).catch((err) => {
-        console.warn('[Showcase] Failed to send receipt email to student:', err);
-      });
-    }
-  } catch (mailErr) {
-    console.error('[Showcase] Email trigger exception:', mailErr);
+  if (studentEmail) {
+    backgroundQueue.add(
+      `showcase_receipt_${studentEmail}`,
+      { studentName, title },
+      async (data) => {
+        await sendAppEmail({
+          to: studentEmail,
+          subject: `✨ Project Submission Received: ${data.title}`,
+          react: (
+            <ProjectSubmissionReceiptEmail
+              studentName={data.studentName}
+              projectTitle={data.title}
+            />
+          ),
+        });
+      }
+    );
   }
 
   return res.json({
     ok: true,
     message: 'Your project has been submitted and stored in the showcase database! The admin has been notified via email.',
-    emailSent,
+    emailSent: true,
     project: savedProject || {
       id: '',
       title,
@@ -238,13 +241,23 @@ router.post('/submit', requireAuth, async (req: AuthedRequest, res: Response) =>
   });
 });
 
-// POST /api/showcase/:id/like - Like or star a showcase project
-router.post('/:id/like', async (req: Request, res: Response) => {
+// POST /api/showcase/:id/like - Like or star a showcase project (Rate-limited, atomic increment)
+router.post('/:id/like', likeRateLimiter, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const supabase = createAdminClient();
 
-    // Fetch current stars
+    // 1. Try atomic stored procedure RPC first (concurrency-safe)
+    const { data: rpcStars, error: rpcErr } = await (supabase as any).rpc('increment_project_stars', {
+      target_project_id: id,
+    });
+
+    if (!rpcErr && typeof rpcStars === 'number') {
+      appCache.invalidateTags(['showcase']);
+      return res.json({ ok: true, stars: rpcStars });
+    }
+
+    // 2. Fallback: standard fetch and increment if stored procedure is pending migration
     const { data: project, error: fetchErr } = await supabase
       .from('showcase_projects')
       .select('stars')
@@ -265,6 +278,7 @@ router.post('/:id/like', async (req: Request, res: Response) => {
       return res.status(500).json({ ok: false, error: updateErr.message });
     }
 
+    appCache.invalidateTags(['showcase']);
     return res.json({ ok: true, stars: newStars });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message });

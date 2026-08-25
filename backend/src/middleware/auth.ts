@@ -5,6 +5,7 @@ import { getSupabasePublicKey, getSupabaseUrl } from '../utils/supabase/config';
 import { clearSessionCookies, REFRESH_COOKIE, SESSION_COOKIE, setSessionCookies } from '../lib/session';
 
 import { createAdminClient } from '../utils/supabase/admin';
+import { appCache } from '../lib/cache';
 
 export interface AuthedRequest extends Request {
   user?: {
@@ -19,13 +20,27 @@ export interface AuthedRequest extends Request {
   } | null;
 }
 
+let anonClientInstance: ReturnType<typeof createClient<Database>> | null = null;
+
 export function createAnonClient() {
-  return createClient<Database>(getSupabaseUrl(), getSupabasePublicKey(), {
+  if (anonClientInstance) {
+    return anonClientInstance;
+  }
+  anonClientInstance = createClient<Database>(getSupabaseUrl(), getSupabasePublicKey(), {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
   });
+  return anonClientInstance;
+}
+
+export async function invalidateAuthSession(accessToken?: string) {
+  if (accessToken) {
+    await appCache.delete(`auth_session:${accessToken}`);
+  } else {
+    await appCache.invalidateTags(['auth_sessions']);
+  }
 }
 
 export function createUserClient(accessToken: string) {
@@ -89,6 +104,18 @@ async function loadUser(req: AuthedRequest, res: Response) {
 
 export async function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
+    const accessToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
+
+    // Check fast dual-tier session cache (30s TTL)
+    if (accessToken) {
+      const cached = await appCache.get<{ user: { id: string; email?: string }; profile: any }>(`auth_session:${accessToken}`);
+      if (cached) {
+        req.user = cached.user;
+        req.profile = cached.profile;
+        return next();
+      }
+    }
+
     const user = await loadUser(req, res);
     if (!user) {
       return res.status(401).json({ ok: false, error: 'Authentication required' });
@@ -106,6 +133,11 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
       return res.status(401).json({ ok: false, error: 'Account not found or has been deleted.' });
     }
 
+    // Cache verified session for 30 seconds
+    if (accessToken) {
+      await appCache.set(`auth_session:${accessToken}`, { user, profile }, 30, ['auth_sessions']);
+    }
+
     req.user = user;
     req.profile = profile;
     next();
@@ -116,6 +148,15 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
 }
 
 export async function getOptionalSession(req: AuthedRequest, res: Response) {
+  const accessToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
+
+  if (accessToken) {
+    const cached = await appCache.get<{ user: { id: string; email?: string }; profile: any }>(`auth_session:${accessToken}`);
+    if (cached) {
+      return cached;
+    }
+  }
+
   const user = await loadUser(req, res);
   if (!user) return { user: null, profile: null };
 
@@ -129,6 +170,10 @@ export async function getOptionalSession(req: AuthedRequest, res: Response) {
   if (!profile) {
     clearSessionCookies(res);
     return { user: null, profile: null };
+  }
+
+  if (accessToken) {
+    await appCache.set(`auth_session:${accessToken}`, { user, profile }, 30, ['auth_sessions']);
   }
 
   return {

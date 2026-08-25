@@ -9,8 +9,13 @@ import { adminRouter } from './routes/admin';
 import { emailsRouter } from './routes/emails';
 import { uploadRouter } from './routes/upload';
 import { showcaseRouter } from './routes/showcase';
+import { globalRateLimiter } from './middleware/rateLimit';
+import { appCache } from './lib/cache';
+import { backgroundQueue } from './lib/queue';
+import { pingRedis } from './lib/redis';
 
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
+const startTime = Date.now();
 const allowedOrigins = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000')
   .split(',')
   .map(url => url.trim())
@@ -42,8 +47,19 @@ app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, _res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+// Global Rate Limiting
+app.use(globalRateLimiter);
+
+// High-precision Request Latency Logger
+app.use((req, res, next) => {
+  const startHr = process.hrtime();
+  res.on('finish', () => {
+    const [seconds, nanoseconds] = process.hrtime(startHr);
+    const durationMs = (seconds * 1000 + nanoseconds / 1e6).toFixed(2);
+    if (process.env.NODE_ENV !== 'test') {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl || req.path} ${res.statusCode} - ${durationMs}ms`);
+    }
+  });
   next();
 });
 
@@ -56,8 +72,27 @@ app.get('/', (_req: Request, res: Response) => {
   });
 });
 
-app.use('/health', (_req: Request, res: Response) => {
-  res.json({ ok: true, service: 'campuscoder-backend', timestamp: new Date().toISOString() });
+app.use('/health', async (_req: Request, res: Response) => {
+  const mem = process.memoryUsage();
+  const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
+  const redisHealth = await pingRedis();
+
+  res.json({
+    ok: true,
+    service: 'campuscoder-backend',
+    version: '0.1.0',
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptimeSeconds,
+    memory: {
+      heapUsedMB: (mem.heapUsed / 1024 / 1024).toFixed(2),
+      heapTotalMB: (mem.heapTotal / 1024 / 1024).toFixed(2),
+      rssMB: (mem.rss / 1024 / 1024).toFixed(2),
+    },
+    cache: appCache.getStats(),
+    redis: redisHealth,
+    queue: backgroundQueue.getStats(),
+  });
 });
 
 app.use('/api/auth', authRouter);
@@ -76,7 +111,7 @@ app.use((err: any, _req: Request, res: Response, _next: any) => {
   console.error('Unhandled error:', err);
   res.status(err.status || 500).json({
     ok: false,
-    error: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
   });
 });
 

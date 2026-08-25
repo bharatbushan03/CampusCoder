@@ -1,10 +1,10 @@
 import { Router, type Request, type Response } from 'express';
-import { createHash } from 'crypto';
 import { z } from 'zod';
 import { createAnonClient } from '../middleware/auth';
-import { createAdminClient } from '../utils/supabase/admin';
 import { registrationSchema } from '../lib/validation';
 import { sendRegistrationEmails } from '../lib/registrationEmails';
+import { cacheRoute } from '../lib/cache';
+import { registrationRateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ function sanitizeText(text: string) {
     .replace(/'/g, '&#x27;');
 }
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('events')
@@ -31,7 +31,7 @@ router.get('/', async (_req: Request, res: Response) => {
   return res.json({ ok: true, events: data });
 });
 
-router.get('/featured', async (_req: Request, res: Response) => {
+router.get('/featured', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
   const supabase = createAnonClient();
   const today = new Date().toISOString().split('T')[0];
 
@@ -61,7 +61,7 @@ router.get('/featured', async (_req: Request, res: Response) => {
   });
 });
 
-router.get('/archive', async (_req: Request, res: Response) => {
+router.get('/archive', cacheRoute(120, ['events'], 60), async (_req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('events')
@@ -75,7 +75,7 @@ router.get('/archive', async (_req: Request, res: Response) => {
   return res.json({ ok: true, events: data });
 });
 
-router.get('/workshops', async (_req: Request, res: Response) => {
+router.get('/workshops', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('events')
@@ -90,7 +90,7 @@ router.get('/workshops', async (_req: Request, res: Response) => {
   return res.json({ ok: true, events: data });
 });
 
-router.get('/options', async (_req: Request, res: Response) => {
+router.get('/options', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('events')
@@ -104,7 +104,7 @@ router.get('/options', async (_req: Request, res: Response) => {
   return res.json({ ok: true, events: data });
 });
 
-router.get('/slug/:slug', async (req: Request, res: Response) => {
+router.get('/slug/:slug', cacheRoute(60, ['events'], 30), async (req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('events')
@@ -119,7 +119,7 @@ router.get('/slug/:slug', async (req: Request, res: Response) => {
   return res.json({ ok: true, event: data });
 });
 
-router.get('/slug/:slug/related', async (req: Request, res: Response) => {
+router.get('/slug/:slug/related', cacheRoute(60, ['events'], 30), async (req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('events')
@@ -134,7 +134,7 @@ router.get('/slug/:slug/related', async (req: Request, res: Response) => {
   return res.json({ ok: true, events: data });
 });
 
-router.get('/community-links', async (_req: Request, res: Response) => {
+router.get('/community-links', cacheRoute(180, ['community_links'], 60), async (_req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('community_links')
@@ -148,7 +148,7 @@ router.get('/community-links', async (_req: Request, res: Response) => {
   return res.json({ ok: true, links: data });
 });
 
-router.get('/announcements/latest', async (_req: Request, res: Response) => {
+router.get('/announcements/latest', cacheRoute(60, ['announcements'], 30), async (_req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('announcements')
@@ -166,7 +166,7 @@ router.get('/announcements/latest', async (_req: Request, res: Response) => {
 
 const eventIdSchema = z.uuid('Invalid event identifier.');
 
-router.post('/registrations', async (req: Request, res: Response) => {
+router.post('/registrations', registrationRateLimiter, async (req: Request, res: Response) => {
   const { eventId } = req.body as { eventId?: string };
 
   const eventIdValidation = eventIdSchema.safeParse(eventId);
@@ -207,26 +207,6 @@ router.post('/registrations', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: 'Registration is closed because this event date has passed.' });
   }
 
-  // Server-side rate limiting (60s per email)
-  const adminSupabase = createAdminClient();
-  const rateLimitKey = `registration:${createHash('sha256').update(email).digest('hex')}`;
-  const { data: rateLimit } = await adminSupabase
-    .from('rate_limits')
-    .select('last_attempt')
-    .eq('key', rateLimitKey)
-    .maybeSingle();
-
-  if (rateLimit) {
-    const lastAttempt = new Date(rateLimit.last_attempt).getTime();
-    if (Date.now() - lastAttempt < 60000) {
-      return res.status(429).json({ ok: false, error: 'Too many requests. Please wait a minute before registering again.' });
-    }
-  }
-
-  await adminSupabase
-    .from('rate_limits')
-    .upsert({ key: rateLimitKey, last_attempt: new Date().toISOString() });
-
   const sanitizedData = {
     full_name: sanitizeText(data.fullName.trim()),
     email,
@@ -264,8 +244,9 @@ router.post('/registrations', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'A system error occurred during registration. Please try again.' });
   }
 
+  // Non-blocking background email dispatch via background queue
   try {
-    await sendRegistrationEmails(
+    void sendRegistrationEmails(
       {
         full_name: sanitizedData.full_name,
         email: sanitizedData.email,
@@ -275,7 +256,7 @@ router.post('/registrations', async (req: Request, res: Response) => {
       event
     );
   } catch (emailErr) {
-    console.error('Non-critical: Email failed to send', emailErr);
+    console.error('Non-critical: Background email dispatch notification:', emailErr);
   }
 
   return res.json({ ok: true, success: true });
