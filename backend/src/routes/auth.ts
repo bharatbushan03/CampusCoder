@@ -1,13 +1,14 @@
 import React from 'react';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { createAnonClient, getOptionalSession, requireAuth, type AuthedRequest } from '../middleware/auth';
+import { createAnonClient, getOptionalSession, invalidateAuthSession, requireAuth, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
-import { clearSessionCookies, REFRESH_COOKIE, setSessionCookies } from '../lib/session';
+import { clearSessionCookies, REFRESH_COOKIE, SESSION_COOKIE, setSessionCookies } from '../lib/session';
 import { generateOtpCode, storeOtp, verifyAndConsumeOtp, checkResendCooldown, getExistingPayload } from '../lib/otpStore';
 import { sendAppEmail } from '../lib/email';
 import { OtpVerificationEmail } from '../components/emails/OtpVerificationEmail';
 import { PasswordResetEmail } from '../components/emails/PasswordResetEmail';
+import { authRateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
@@ -96,7 +97,7 @@ async function cleanupOrphanAuthUser(email: string): Promise<boolean> {
     if (profile) return false;
 
     // Search for orphan user in auth.users whose profile was deleted
-    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
     if (!error && data?.users) {
       const orphan = data.users.find((u) => u.email?.toLowerCase() === normalizedEmail);
       if (orphan) {
@@ -112,7 +113,7 @@ async function cleanupOrphanAuthUser(email: string): Promise<boolean> {
   }
 }
 
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
@@ -149,7 +150,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // Step 1: Send OTP to user's email for registration verification
-router.post('/signup/send-otp', async (req: Request, res: Response) => {
+router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
@@ -169,9 +170,6 @@ router.post('/signup/send-otp', async (req: Request, res: Response) => {
     if (existingUser) {
       return res.status(409).json({ ok: false, error: 'An account with this email already exists. Please sign in instead.' });
     }
-
-    // Clean up any orphan auth.users record from a previously deleted profile
-    await cleanupOrphanAuthUser(email);
 
     // Check resend rate limit cooldown (60 seconds)
     const cooldown = checkResendCooldown(email, 'signup');
@@ -224,7 +222,7 @@ router.post('/signup/send-otp', async (req: Request, res: Response) => {
 });
 
 // Step 2: Verify OTP and finalize user creation with 48-hour session
-router.post('/signup/verify-otp', async (req: Request, res: Response) => {
+router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = signupVerifyOtpSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
@@ -321,7 +319,7 @@ router.post('/signup/verify-otp', async (req: Request, res: Response) => {
 });
 
 // Resend OTP endpoint
-router.post('/resend-otp', async (req: Request, res: Response) => {
+router.post('/resend-otp', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = resendOtpSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
@@ -374,7 +372,7 @@ router.post('/resend-otp', async (req: Request, res: Response) => {
 });
 
 // Fallback direct signup (auto-confirmed via admin client)
-router.post('/signup', async (req: Request, res: Response) => {
+router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
@@ -394,8 +392,6 @@ router.post('/signup', async (req: Request, res: Response) => {
     if (existingUser) {
       return res.status(409).json({ ok: false, error: 'An account with this email already exists' });
     }
-
-    await cleanupOrphanAuthUser(email);
 
     let { data: createdUser, error: createError } = await admin.auth.admin.createUser({
       email,
@@ -470,7 +466,11 @@ router.post('/signup', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/logout', (_req: Request, res: Response) => {
+router.post('/logout', (req: Request, res: Response) => {
+  const accessToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
+  if (accessToken) {
+    invalidateAuthSession(accessToken);
+  }
   clearSessionCookies(res);
   return res.json({ ok: true });
 });
@@ -514,10 +514,15 @@ router.post('/elevate-me', async (req: AuthedRequest, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to elevate role.' });
   }
 
+  const accessToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
+  if (accessToken) {
+    invalidateAuthSession(accessToken);
+  }
+
   return res.json({ ok: true, profile: data });
 });
 
-router.post('/forgot-password', async (req: Request, res: Response) => {
+router.post('/forgot-password', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = forgotPasswordSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
@@ -599,7 +604,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/reset-password', async (req: Request, res: Response) => {
+router.post('/reset-password', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = resetPasswordSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
@@ -627,12 +632,6 @@ router.post('/reset-password', async (req: Request, res: Response) => {
           .maybeSingle();
         targetUserId = profile?.id || null;
       }
-
-      if (!targetUserId) {
-        const { data: authData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        const authUser = authData?.users.find((u) => u.email?.toLowerCase() === email);
-        targetUserId = authUser?.id || null;
-      }
     } else if (accessToken) {
       // 2. Token-based recovery
       const anon = createAnonClient();
@@ -659,6 +658,11 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, error: updateError.message });
     }
 
+    if (accessToken) {
+      invalidateAuthSession(accessToken);
+    } else {
+      invalidateAuthSession();
+    }
     clearSessionCookies(res);
     return res.json({ ok: true, message: 'Password has been successfully updated.' });
   } catch (err: any) {

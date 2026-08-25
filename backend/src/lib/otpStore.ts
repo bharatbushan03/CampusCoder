@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { createAdminClient } from '../utils/supabase/admin';
+import { getRedisClient, isRedisReady } from './redis';
 
 export interface StoredOtpRecord {
   email: string;
@@ -13,8 +14,10 @@ export interface StoredOtpRecord {
 // In-memory fallback map: key = `${purpose}:${email}`
 const memoryOtpMap = new Map<string, StoredOtpRecord>();
 
-const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const RESEND_COOLDOWN_MS = 60 * 1000; // 60 seconds
+const OTP_TTL_SECONDS = 10 * 60; // 10 minutes
+const OTP_TTL_MS = OTP_TTL_SECONDS * 1000;
+const RESEND_COOLDOWN_SECONDS = 60; // 60 seconds
+const RESEND_COOLDOWN_MS = RESEND_COOLDOWN_SECONDS * 1000;
 
 export function generateOtpCode(): string {
   // 6-digit cryptographically secure numeric OTP
@@ -22,7 +25,11 @@ export function generateOtpCode(): string {
 }
 
 function getCacheKey(email: string, purpose: string): string {
-  return `${purpose.toLowerCase()}:${email.trim().toLowerCase()}`;
+  return `cc:otp:${purpose.toLowerCase()}:${email.trim().toLowerCase()}`;
+}
+
+function getCooldownKey(email: string, purpose: string): string {
+  return `cc:otp:cooldown:${purpose.toLowerCase()}:${email.trim().toLowerCase()}`;
 }
 
 export function checkResendCooldown(email: string, purpose: string): { allowed: boolean; waitSeconds: number } {
@@ -42,15 +49,31 @@ export function checkResendCooldown(email: string, purpose: string): { allowed: 
 
 export async function getExistingPayload(email: string, purpose: string = 'signup'): Promise<any> {
   const normalizedEmail = email.trim().toLowerCase();
-  const key = getCacheKey(normalizedEmail, purpose);
+  const redisKey = getCacheKey(normalizedEmail, purpose);
 
-  // 1. Check in-memory map
-  const memoryRecord = memoryOtpMap.get(key);
+  // 1. Check Redis
+  const redis = getRedisClient();
+  if (redis && isRedisReady()) {
+    try {
+      const raw = await redis.get(redisKey);
+      if (raw) {
+        const record = JSON.parse(raw) as StoredOtpRecord;
+        if (record?.payload) {
+          return record.payload;
+        }
+      }
+    } catch (err) {
+      console.warn('[OtpStore] Redis payload fetch error:', err);
+    }
+  }
+
+  // 2. Check in-memory map
+  const memoryRecord = memoryOtpMap.get(redisKey);
   if (memoryRecord?.payload) {
     return memoryRecord.payload;
   }
 
-  // 2. Check Supabase DB
+  // 3. Check Supabase DB
   try {
     const supabase = createAdminClient();
     const { data } = await supabase
@@ -72,10 +95,20 @@ export async function clearExistingOtp(email: string, purpose: string = 'signup'
   const normalizedEmail = email.trim().toLowerCase();
   const key = getCacheKey(normalizedEmail, purpose);
 
-  // Delete from in-memory cache
+  // 1. Delete from Redis
+  const redis = getRedisClient();
+  if (redis && isRedisReady()) {
+    try {
+      await redis.del(key);
+    } catch (err) {
+      console.warn('[OtpStore] Redis delete error:', err);
+    }
+  }
+
+  // 2. Delete from in-memory cache
   memoryOtpMap.delete(key);
 
-  // Delete from database
+  // 3. Delete from database
   try {
     const supabase = createAdminClient();
     await supabase
@@ -105,10 +138,6 @@ export async function storeOtp(
     finalPayload = await getExistingPayload(normalizedEmail, purpose);
   }
 
-  // 1. Remove any old OTP record immediately from memory cache
-  memoryOtpMap.delete(key);
-
-  // 2. Set new OTP record in memory
   const record: StoredOtpRecord = {
     email: normalizedEmail,
     otpCode: otpCode.trim(),
@@ -117,9 +146,22 @@ export async function storeOtp(
     expiresAt,
     createdAt: now,
   };
+
+  // 1. Store in Redis with TTL
+  const redis = getRedisClient();
+  if (redis && isRedisReady()) {
+    try {
+      await redis.set(key, JSON.stringify(record), 'EX', OTP_TTL_SECONDS);
+      await redis.set(getCooldownKey(normalizedEmail, purpose), '1', 'EX', RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      console.warn('[OtpStore] Redis save error:', err);
+    }
+  }
+
+  // 2. Set new OTP record in local memory
   memoryOtpMap.set(key, record);
 
-  // 3. Invalidate and clear all prior OTPs from Supabase and insert only the new one
+  // 3. Persist to Supabase DB as backup
   try {
     const supabase = createAdminClient();
     await supabase
@@ -136,7 +178,7 @@ export async function storeOtp(
       expires_at: new Date(expiresAt).toISOString(),
     });
   } catch (dbErr) {
-    console.warn('[OtpStore] Notice: Persistent DB save skipped, using memory cache:', dbErr);
+    console.warn('[OtpStore] Notice: Persistent DB save skipped, using cache:', dbErr);
   }
 }
 
@@ -150,7 +192,40 @@ export async function verifyAndConsumeOtp(
   const key = getCacheKey(normalizedEmail, purpose);
   const now = Date.now();
 
-  // 1. Check in-memory cache first
+  // 1. Check Redis first
+  const redis = getRedisClient();
+  if (redis && isRedisReady()) {
+    try {
+      const raw = await redis.get(key);
+      if (raw) {
+        const record = JSON.parse(raw) as StoredOtpRecord;
+        if (record.otpCode === cleanOtp) {
+          // Success: consume and delete OTP from Redis & Memory & DB
+          await redis.del(key);
+          memoryOtpMap.delete(key);
+
+          try {
+            const supabase = createAdminClient();
+            await supabase
+              .from('email_otps' as any)
+              .delete()
+              .eq('email', normalizedEmail)
+              .eq('purpose', purpose);
+          } catch {
+            // ignore
+          }
+
+          return { ok: true, payload: record.payload };
+        } else {
+          return { ok: false, error: 'Invalid verification code. Please check and try again.' };
+        }
+      }
+    } catch (err) {
+      console.warn('[OtpStore] Redis verify error:', err);
+    }
+  }
+
+  // 2. Check in-memory cache
   const memoryRecord = memoryOtpMap.get(key);
   if (memoryRecord) {
     if (now > memoryRecord.expiresAt) {
@@ -179,7 +254,7 @@ export async function verifyAndConsumeOtp(
     return { ok: true, payload: memoryRecord.payload };
   }
 
-  // 2. Fallback to DB check
+  // 3. Fallback to DB check
   try {
     const supabase = createAdminClient();
     const { data, error } = await supabase

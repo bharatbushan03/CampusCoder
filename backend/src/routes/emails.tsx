@@ -7,6 +7,8 @@ import { MeetingLinkEmail } from '../components/emails/MeetingLinkAnnouncement';
 import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '../lib/eventSchedule';
 import type { Database } from '../types/database.types';
 
+import { backgroundQueue } from '../lib/queue';
+
 const router = Router();
 
 router.use(requireAuth, requireRole('admin', 'organizer'));
@@ -47,23 +49,28 @@ router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, error: 'No registrations found' });
     }
 
-    const emailPromises = registrations.map((reg) =>
-      sendAppEmail({
-        to: reg.email,
-        subject: `Meeting Link: ${event.title}`,
-        react: (
-          <MeetingLinkEmail
-            studentName={reg.full_name}
-            eventTitle={event.title}
-            eventDate={EVENT_DATE_LABEL}
-            eventTime={EVENT_TIME_LABEL}
-            meetingLink={event.meeting_link!}
-          />
-        ),
-      })
-    );
-
-    await Promise.all(emailPromises);
+    // Queue batch emails into background queue with throttling
+    for (const reg of registrations) {
+      backgroundQueue.add(
+        `meeting_link_${eventId}_${reg.email}`,
+        { reg, event },
+        async ({ reg: r, event: ev }) => {
+          await sendAppEmail({
+            to: r.email,
+            subject: `Meeting Link: ${ev.title}`,
+            react: (
+              <MeetingLinkEmail
+                studentName={r.full_name}
+                eventTitle={ev.title}
+                eventDate={EVENT_DATE_LABEL}
+                eventTime={EVENT_TIME_LABEL}
+                meetingLink={ev.meeting_link!}
+              />
+            ),
+          });
+        }
+      );
+    }
 
     const { error: updateError } = await supabase
       .from('events')
@@ -74,9 +81,9 @@ router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
       console.error('Failed to update sent timestamp:', updateError);
     }
 
-    return res.json({ ok: true, success: true, count: registrations.length });
+    return res.json({ ok: true, success: true, count: registrations.length, queued: true });
   } catch (error: any) {
-    console.error('Failed to send meeting link emails:', error);
+    console.error('Failed to queue meeting link emails:', error);
     return res.status(500).json({ ok: false, error: error.message || 'Failed to send meeting link' });
   }
 });
