@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, Terminal, Calendar, Clock, MapPin, Users, 
   ExternalLink, Mail, Save, AlertTriangle, CheckCircle2, 
@@ -19,7 +18,6 @@ interface PageProps {
 }
 
 export default function EventManagementPage({ params }: PageProps) {
-  const router = useRouter();
   const { id } = use(params);
 
   const [loading, setLoading] = useState(true);

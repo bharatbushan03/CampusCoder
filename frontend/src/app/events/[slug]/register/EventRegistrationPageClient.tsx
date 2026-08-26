@@ -99,7 +99,7 @@ export default function EventRegistrationPage() {
         }
 
         if (data.communityLinks) setCommunityLinks(data.communityLinks);
-      } catch (err) {
+      } catch {
         console.warn('Backend offline, looking up registration target in local static events');
         setIsDbOffline(true);
         const match = placeholderEvents.find((ev) => getSlug(ev.title) === slug);
@@ -126,15 +126,13 @@ export default function EventRegistrationPage() {
     if (!result.success) {
       const fieldIssue = result.error.issues.find((i) => i.path[0] === field);
       if (fieldIssue) {
-      setFieldErrors((prev) => ({ ...prev, [field]: fieldIssue.message }));
+        setFieldErrors((prev) => ({ ...prev, [field]: fieldIssue.message }));
+      } else {
+        setFieldErrors(({ [field]: _, ...rest }) => rest);
+      }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       setFieldErrors(({ [field]: _, ...rest }) => rest);
     }
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    setFieldErrors(({ [field]: _, ...rest }) => rest);
-  }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -203,7 +201,6 @@ export default function EventRegistrationPage() {
   const updateField = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [field]: _, ...rest } = prev;
       return rest;
     });

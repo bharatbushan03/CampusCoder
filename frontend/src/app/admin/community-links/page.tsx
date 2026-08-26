@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
-  PlusCircle, Trash2, Loader2, Edit, Search, ArrowLeft, Link2, ExternalLink
+  PlusCircle, Trash2, Loader2, Edit, Search, ArrowLeft, ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';

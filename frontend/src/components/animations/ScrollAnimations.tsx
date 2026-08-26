@@ -171,7 +171,7 @@ interface CounterStatProps {
  */
 export const CounterStat: React.FC<CounterStatProps> = React.memo(function CounterStat({
   value,
-  duration = 2,
+  duration: _duration = 2,
   prefix = '',
   suffix = '',
   className = '',

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
-  Users, Calendar, CheckCircle2, AlertTriangle, Search, 
+  Calendar, CheckCircle2, AlertTriangle, Search, 
   Filter, Download, Eye, Trash2, X, ArrowLeft, Mail, Phone, 
   School, GraduationCap, Code2, MessageSquare, Clock
 } from 'lucide-react';

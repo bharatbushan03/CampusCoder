@@ -28,7 +28,7 @@ describe('CountdownTimer', () => {
   it('renders nothing initially to prevent hydration mismatch, then renders timer', () => {
     const targetDate = new Date(Date.now() + 10000); // 10 seconds from now
     
-    const { container } = render(<CountdownTimer targetDate={targetDate} />);
+    render(<CountdownTimer targetDate={targetDate} />);
     
     // We can't strictly test the non-mounted state easily if useEffect runs synchronously in test,
     // but we can verify it eventually renders the timer.

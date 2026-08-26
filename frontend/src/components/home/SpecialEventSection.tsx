@@ -1,14 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { 
   Calendar, 
   Clock, 
   Target, 
   Award, 
   CheckCircle, 
-  Code2, 
   Zap, 
   Gift, 
   ArrowRight

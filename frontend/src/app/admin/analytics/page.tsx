@@ -174,7 +174,7 @@ export default function AdminAnalyticsPage() {
     );
   }
 
-  const { summary, timeline, eventsByType, eventsByStatus, topEvents, topColleges, preferredLanguages, codingLevels } =
+  const { summary, timeline, eventsByType, topEvents, topColleges, preferredLanguages } =
     data;
   const maxVal = Math.max(...timeline.map((t) => Math.max(t.registrations, t.signups, 1)), 5);
 

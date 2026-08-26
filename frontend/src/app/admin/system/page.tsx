@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
   ArrowLeft, Server, Wifi, Cpu, HardDrive,
-  AlertTriangle, CheckCircle, XCircle, Loader2, RefreshCw,
-  ExternalLink, Settings, Activity, TrendingUp, Zap, Cylinder
+  CheckCircle, RefreshCw,
+  Activity, Zap, Cylinder
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -181,7 +181,7 @@ const mockLogs = [
 export default function AdminSystemPage() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
-  const [logs, setLogs] = useState(mockLogs);
+  const [logs] = useState(mockLogs);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);

@@ -27,7 +27,6 @@ import { Badge } from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import { placeholderEvents } from '@/lib/placeholderData';
 import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
-import DynamicHeroCodeScene from '@/components/3d/DynamicHeroCodeScene';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CommunityHero } from '@/components/home/CommunityHero';
 
@@ -78,13 +77,6 @@ const programs = [
     level: 'All levels',
     icon: Users,
   },
-];
-
-const trustIndicators = [
-  { label: 'Student-led community', icon: Users },
-  { label: 'Hands-on workshops', icon: BookOpen },
-  { label: 'Coding challenges', icon: Code2 },
-  { label: 'Placement prep', icon: Target },
 ];
 
 const howItWorks = [

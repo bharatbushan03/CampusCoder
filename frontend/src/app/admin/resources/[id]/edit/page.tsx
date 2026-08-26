@@ -68,7 +68,7 @@ export default function EditResourcePage({ params }: PageProps) {
           is_active: res.is_active
         });
         setEvents(eventsData.events || []);
-      } catch (err) {
+      } catch {
         toast.error('Error loading resource');
         router.push('/admin/resources');
       } finally {

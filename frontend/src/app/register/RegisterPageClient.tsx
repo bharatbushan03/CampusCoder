@@ -79,7 +79,7 @@ function RegisterForm() {
             setFormData(prev => prev.eventId ? prev : ({ ...prev, eventId: fallbackEvents[0].id }));
           }
         }
-      } catch (err) {
+      } catch {
         console.warn('Backend offline, using static options for registration dropdown');
         setIsDbOffline(true);
         const fallbackEvents = placeholderEvents.map(toEventOption);
