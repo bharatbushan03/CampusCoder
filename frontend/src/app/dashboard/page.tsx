@@ -46,7 +46,7 @@ type RegistrationType = {
   events: EventRow;
 };
 
-function EmptyStateCard({ activeTab, currentDate }: { activeTab: 'upcoming' | 'completed'; currentDate: Date }) {
+function EmptyStateCard({ activeTab }: { activeTab: 'upcoming' | 'completed' }) {
   return (
     <Card className="text-center py-24 bg-slate-900/10 border border-dashed border-slate-800 rounded-[2.5rem] space-y-6">
       <div className="bg-slate-950 border border-slate-800 p-6 rounded-full size-20 flex items-center justify-center mx-auto shadow-2xl">
@@ -72,10 +72,9 @@ function EmptyStateCard({ activeTab, currentDate }: { activeTab: 'upcoming' | 'c
   );
 }
 
-function RegistrationCard({ reg, isUpcoming, currentDate, handleCancelRegistration }: { 
+function RegistrationCard({ reg, isUpcoming, handleCancelRegistration }: { 
   reg: RegistrationType; 
   isUpcoming: boolean; 
-  currentDate: Date;
   handleCancelRegistration: (regId: string, eventTitle: string) => void;
 }) {
   const ev = reg.events;
@@ -458,14 +457,13 @@ export default function StudentDashboard() {
                     key={reg.id}
                     reg={reg}
                     isUpcoming={isUpcoming}
-                    currentDate={currentDate}
                     handleCancelRegistration={handleCancelRegistration}
                   />
                 );
               })}
             </div>
           ) : (
-            <EmptyStateCard activeTab={activeTab} currentDate={currentDate} />
+            <EmptyStateCard activeTab={activeTab} />
           )}
         </div>
 

@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import {
   Sparkles,
   ArrowRight,
-  ChevronRight,
   Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
-  Bell, Calendar, Loader2, Save, AlignLeft, Type, Info
+  Calendar, Loader2, Save, AlignLeft, Type, Info
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { announcementSchema } from '@/lib/validation';

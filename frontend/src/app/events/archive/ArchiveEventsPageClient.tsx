@@ -12,7 +12,6 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
 import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';

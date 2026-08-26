@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import {
   Calendar,
   Clock,
@@ -22,7 +21,6 @@ import {
   Sparkles,
   ChevronRight,
 } from 'lucide-react';
-import { placeholderEvents } from '@/lib/placeholderData';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
