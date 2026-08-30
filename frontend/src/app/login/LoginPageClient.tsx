@@ -3,24 +3,21 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Terminal, KeyRound, Mail, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
+import { Terminal, KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/lib/auth';
-import { api } from '@/lib/api';
 import { TechBackground } from '@/components/animations/TechBackground';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, profile, loading: authLoading, login, refresh } = useAuth();
+  const { user, profile, loading: authLoading, login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [elevateEnabled, setElevateEnabled] = useState(false);
-  const [isElevating, setIsElevating] = useState(false);
 
   const redirectParam = searchParams ? searchParams.get('redirect') || searchParams.get('from') : null;
 
@@ -35,14 +32,6 @@ function LoginForm() {
       }
     }
   }, [user, profile, authLoading, redirectParam, router]);
-
-  useEffect(() => {
-    // Ask the backend whether the dev-mode self-elevate endpoint is enabled.
-    // Shown as a button on the login card so demo users can reach /admin.
-    api<{ ok: boolean; enabled: boolean }>('/auth/elevate-enabled')
-      .then((data) => setElevateEnabled(!!data.enabled))
-      .catch(() => setElevateEnabled(false));
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,23 +57,6 @@ function LoginForm() {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setErrorMsg(message);
       setIsSubmitting(false);
-    }
-  };
-
-  const handleElevate = async () => {
-    setIsElevating(true);
-    setErrorMsg('');
-    try {
-      await api('/auth/elevate-me', { method: 'POST' });
-      // Re-pull /auth/me so the AuthProvider picks up the new role, then go.
-      await refresh();
-      router.push('/admin');
-      router.refresh();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to elevate role. Sign in first.';
-      setErrorMsg(message);
-      setIsElevating(false);
     }
   };
 
@@ -177,23 +149,6 @@ function LoginForm() {
               </Button>
             </div>
           </form>
-
-          {/* Dev/Demo mode elevate button if enabled */}
-          {elevateEnabled && (
-            <div className="mt-4 pt-4 border-t border-slate-900">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleElevate}
-                disabled={isElevating}
-                className="w-full flex items-center justify-center gap-2 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-              >
-                <ShieldCheck className="size-4" />
-                {isElevating ? 'Elevating...' : 'Elevate to Admin (Demo Mode)'}
-              </Button>
-            </div>
-          )}
 
           {/* Prompt to register */}
           <div className="text-center mt-6 pt-6 border-t border-slate-900">
