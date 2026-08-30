@@ -1,7 +1,14 @@
 'use server';
 
 import { serverApi } from '@/lib/serverApi';
-import { eventSchema, resourceSchema, announcementSchema, communityLinkSchema, studentUpdateSchema } from '@/lib/validation';
+import { 
+  eventSchema, 
+  resourceSchema, 
+  competitionSchema, 
+  announcementSchema, 
+  communityLinkSchema, 
+  studentUpdateSchema 
+} from '@/lib/validation';
 import type { z } from 'zod';
 
 type EventPayload = z.infer<typeof eventSchema>;
@@ -85,6 +92,22 @@ export async function updateResource(id: string, payload: z.infer<typeof resourc
   return { success: true };
 }
 
+export async function toggleResource(id: string) {
+  await serverApi(`/admin/resources/${id}/toggle`, {
+    method: 'PATCH',
+  });
+
+  return { success: true };
+}
+
+export async function deleteResource(id: string) {
+  await serverApi(`/admin/resources/${id}`, {
+    method: 'DELETE',
+  });
+
+  return { success: true };
+}
+
 export async function updateStudent(id: string, payload: z.infer<typeof studentUpdateSchema>) {
   await serverApi(`/admin/students/${id}`, {
     method: 'PUT',
@@ -96,6 +119,40 @@ export async function updateStudent(id: string, payload: z.infer<typeof studentU
 
 export async function deleteStudent(id: string) {
   await serverApi(`/admin/students/${id}`, {
+    method: 'DELETE',
+  });
+
+  return { success: true };
+}
+
+export async function createCompetition(payload: z.infer<typeof competitionSchema>) {
+  const result = await serverApi<{ ok: boolean; competition: any }>('/admin/competitions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true, competition: result.competition };
+}
+
+export async function updateCompetition(id: string, payload: z.infer<typeof competitionSchema>) {
+  const result = await serverApi<{ ok: boolean; competition: any }>(`/admin/competitions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true, competition: result.competition };
+}
+
+export async function toggleCompetition(id: string) {
+  await serverApi(`/admin/competitions/${id}/toggle`, {
+    method: 'PATCH',
+  });
+
+  return { success: true };
+}
+
+export async function deleteCompetition(id: string) {
+  await serverApi(`/admin/competitions/${id}`, {
     method: 'DELETE',
   });
 

@@ -9,6 +9,7 @@ import {
   communityLinkSchema,
   eventSchema,
   resourceSchema,
+  competitionSchema,
 } from '../lib/validation';
 
 const router = Router();
@@ -1230,6 +1231,107 @@ router.delete('/resources/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
+router.post('/resources/seed', async (_req: Request, res: Response) => {
+  const supabase = createAdminClient();
+
+  const seedResources = [
+    {
+      title: 'MDN Web Docs',
+      description: 'The best place to learn web development. Detailed documentation on HTML, CSS, JavaScript, and Web APIs.',
+      link: 'https://developer.mozilla.org/',
+      category: 'free-tools',
+      is_active: true,
+    },
+    {
+      title: 'DevDocs API Documentation',
+      description: 'Combines multiple API documentations in a fast, organized, and searchable offline-ready interface.',
+      link: 'https://devdocs.io/',
+      category: 'free-tools',
+      is_active: true,
+    },
+    {
+      title: 'Regex101 Regular Expression Tester',
+      description: 'Online regex tester and debugger with syntax highlighting, visual breakdown, and explanation.',
+      link: 'https://regex101.com/',
+      category: 'free-tools',
+      is_active: true,
+    },
+    {
+      title: 'NeetCode 150 Algorithmic Roadmap',
+      description: 'The definitive coding interview preparation roadmap with video solutions in Python, C++, and Java.',
+      link: 'https://neetcode.io/',
+      category: 'dsa',
+      is_active: true,
+    },
+    {
+      title: 'Striver SDE Sheet by takeUforward',
+      description: 'Top 180+ Data Structures & Algorithms problems frequently asked in Product-Based Companies and FAANG.',
+      link: 'https://takeuforward.org/interviews/strivers-sde-sheet-top-coding-interview-problems/',
+      category: 'dsa',
+      is_active: true,
+    },
+    {
+      title: 'Roadmap.sh Interactive Developer Roadmaps',
+      description: 'Community-driven interactive roadmaps, best practices, and career guides for frontend, backend, devops, and AI.',
+      link: 'https://roadmap.sh/',
+      category: 'roadmaps',
+      is_active: true,
+    },
+    {
+      title: 'Harvard CS50x Introduction to Computer Science',
+      description: 'Harvard University\'s world-renowned introduction to the intellectual enterprises of computer science and art of programming.',
+      link: 'https://cs50.harvard.edu/x/',
+      category: 'courses',
+      is_active: true,
+    },
+    {
+      title: 'ByteByteGo System Design Primer',
+      description: 'Visual system design explanations, high scalability architectural case studies, and interview guides.',
+      link: 'https://bytebytego.com/',
+      category: 'system-design',
+      is_active: true,
+    },
+    {
+      title: 'Tech Interview Handbook by Yangshun Tay',
+      description: 'Curated coding interview preparation materials, behavioral questions, resume guides, and negotiation tactics.',
+      link: 'https://www.techinterviewhandbook.org/',
+      category: 'interview-prep',
+      is_active: true,
+    },
+    {
+      title: 'First Contributions Guide to Open Source',
+      description: 'Hands-on beginner-friendly tutorial for making your first pull request on GitHub and contributing to open source.',
+      link: 'https://firstcontributions.github.io/',
+      category: 'open-source',
+      is_active: true,
+    },
+    {
+      title: 'Devpost Global Hackathon Hub',
+      description: 'Global hackathons directory sponsored by Google, Microsoft, AWS, OpenAI, and Solana with cash prize pools.',
+      link: 'https://devpost.com/hackathons',
+      category: 'hackathons',
+      is_active: true,
+    },
+    {
+      title: 'freeCodeCamp Verified Certifications',
+      description: 'Earn free verified certifications in Web Design, JavaScript Algorithms, Front End Libraries, and Backend APIs.',
+      link: 'https://www.freecodecamp.org/',
+      category: 'certifications',
+      is_active: true,
+    },
+  ];
+
+  const { error } = await supabase.from('resources').insert(seedResources);
+
+  if (error) {
+    console.error('Error seeding resources:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to seed resources' });
+  }
+
+  appCache.invalidateTags(['resources']);
+  return res.json({ ok: true, message: `Successfully seeded ${seedResources.length} curated resources!` });
+});
+
 // ---------- Showcase Projects Admin Management ----------
 
 const showcaseUpdateSchema = z.object({
@@ -1300,8 +1402,253 @@ router.delete('/showcase/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to delete showcase project' });
   }
 
-  appCache.invalidateTags(['showcase']);
+// ---------- Competitions Admin Management ----------
+
+router.get('/competitions', async (_req: Request, res: Response) => {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching admin competitions:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to load competitions' });
+  }
+
+  return res.json({ ok: true, competitions: data || [] });
+});
+
+router.get('/competitions/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid competition id' });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('*')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (error || !data) {
+    return res.status(404).json({ ok: false, error: 'Competition not found' });
+  }
+
+  return res.json({ ok: true, competition: data });
+});
+
+router.post('/competitions', async (req: Request, res: Response) => {
+  const parsed = competitionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('competitions')
+    .insert([parsed.data])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating competition:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to create competition' });
+  }
+
+  appCache.invalidateTags(['competitions']);
+  return res.status(201).json({ ok: true, competition: data });
+});
+
+router.put('/competitions/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid competition id' });
+  }
+
+  const parsed = competitionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('competitions')
+    .update(parsed.data)
+    .eq('id', parsedId.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating competition:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to update competition' });
+  }
+
+  appCache.invalidateTags(['competitions']);
+  return res.json({ ok: true, competition: data });
+});
+
+router.patch('/competitions/:id/toggle', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid competition id' });
+  }
+
+  const supabase = createAdminClient();
+  const { data: current, error: getErr } = await supabase
+    .from('competitions')
+    .select('is_active')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (getErr || !current) {
+    return res.status(404).json({ ok: false, error: 'Competition not found' });
+  }
+
+  const { error: updateErr } = await supabase
+    .from('competitions')
+    .update({ is_active: !current.is_active })
+    .eq('id', parsedId.data);
+
+  if (updateErr) {
+    return res.status(500).json({ ok: false, error: 'Failed to toggle competition status' });
+  }
+
+  appCache.invalidateTags(['competitions']);
+  return res.json({ ok: true, is_active: !current.is_active });
+});
+
+router.delete('/competitions/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid competition id' });
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('competitions')
+    .delete()
+    .eq('id', parsedId.data);
+
+  if (error) {
+    console.error('Error deleting competition:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to delete competition' });
+  }
+
+  appCache.invalidateTags(['competitions']);
   return res.json({ ok: true });
+});
+
+router.post('/competitions/seed', async (_req: Request, res: Response) => {
+  const supabase = createAdminClient();
+
+  const seedCompetitions = [
+    {
+      title: 'Smart India Hackathon (SIH 2026)',
+      subtitle: "World's Largest Open Innovation Model for Higher Education Students",
+      platform: 'Ministry of Education / AICTE',
+      platform_url: 'https://sih.gov.in/',
+      type: 'hackathon',
+      difficulty: 'All Levels',
+      prize_pool: '₹1,00,000 per Problem Statement',
+      team_size: '6 Members (Min 1 Female Member Mandatory)',
+      mode: 'Hybrid',
+      status: 'Live Now',
+      start_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      deadline_date: 'Oct 15, 2026',
+      target_date: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
+      description: 'Nationwide initiative providing students a platform to solve pressing problems of ministries, departments, industries, and other organizations.',
+      tags: ['hackathon', 'hardware', 'software', 'gov-india', 'ai-iot'],
+      banner_gradient: 'from-amber-500/20 via-orange-500/20 to-red-500/20',
+      perks: ['Cash prizes from Government Ministries', 'Direct Pre-Placement Interview (PPI) offers', 'National recognition & AICTE felicitation certificate', 'Incubation & venture capital mentorship support'],
+      eligibility: 'Regular undergraduate / postgraduate students from AICTE/UGC approved engineering & tech institutions.',
+      timeline: [
+        { date: 'Aug 2026', title: 'Problem Statements Release', desc: 'Hardware & Software problem statement pool unlocked by ministries.' },
+        { date: 'Oct 2026', title: 'Internal Campus Hackathons', desc: 'College SPOC selects and nominates top teams.' },
+        { date: 'Dec 2026', title: 'Grand Finale (36h Hackathon)', desc: '36-hour non-stop nationwide offline coding & hardware demo rounds.' }
+      ],
+      prep_kit: [
+        { title: 'Official PPT Idea Template', url: 'https://sih.gov.in/', type: 'template' },
+        { title: 'Previous Winning Prototypes Archive', url: 'https://github.com/topics/sih-winner', type: 'guide' }
+      ],
+      checklist: ['Form a 6-member cross-functional team', 'Select problem statement matching your tech stack', 'Prepare PPT following mandatory 6-slide SIH layout', 'Submit internal nomination through CampusCoder SPOC'],
+      featured: true,
+      is_active: true
+    },
+    {
+      title: 'LeetCode Weekly & Biweekly Contests',
+      subtitle: 'Global algorithmic speed & problem-solving rank ladder',
+      platform: 'LeetCode',
+      platform_url: 'https://leetcode.com/contest/',
+      type: 'competitive-programming',
+      difficulty: 'Intermediate',
+      prize_pool: 'LeetCoins, Badges & FAANG Recruiter Visibility',
+      team_size: 'Individual (Solo)',
+      mode: 'Online',
+      status: 'Weekly Recurring',
+      start_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      deadline_date: 'Every Sunday (8:00 AM IST)',
+      target_date: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
+      description: 'Weekly 90-minute contests with 4 algorithmic problems ranging from easy string parsing to hard dynamic programming on trees and graphs.',
+      tags: ['algorithms', 'data-structures', 'weekly', 'rating'],
+      banner_gradient: 'from-amber-500/20 via-yellow-500/20 to-emerald-500/20',
+      perks: ['Global Elo-based rating graph', 'Redeemable LeetCode official merchandise & hoodies', 'Automated interview referrals for Knight & Guardian rank holders', 'Detailed post-contest editorial discussions'],
+      eligibility: 'Open to anyone worldwide with a free LeetCode account.',
+      timeline: [
+        { date: 'Every Saturday', title: 'Biweekly Contest (8:00 PM IST)', desc: '90-minute timed 4-problem algorithmic set.' },
+        { date: 'Every Sunday', title: 'Weekly Contest (8:00 AM IST)', desc: 'Flagship rating contest with global leaderboard recalculation.' }
+      ],
+      prep_kit: [
+        { title: 'NeetCode 150 Contest Patterns', url: 'https://neetcode.io/', type: 'guide' },
+        { title: 'USACO Guide Advanced Algorithms', url: 'https://usaco.guide/', type: 'practice' }
+      ],
+      checklist: ['Practice template snippets in fast I/O', 'Master standard BFS/DFS and two-pointer templates', 'Analyze optimal space-time constraints before coding'],
+      featured: true,
+      is_active: true
+    },
+    {
+      title: 'Smart India Hackathon 2025 Grand Finale (Concluded)',
+      subtitle: 'Official 36-Hour National Championship Archive',
+      platform: 'AICTE / MoE Innovation Cell',
+      platform_url: 'https://sih.gov.in/',
+      type: 'hackathon',
+      difficulty: 'All Levels',
+      prize_pool: '₹1,00,000 per Problem Statement',
+      team_size: '6 Members',
+      mode: 'Offline at Nodal Centers',
+      status: 'Concluded',
+      start_date: '2025-12-10T09:00:00.000Z',
+      deadline_date: 'Dec 12, 2025',
+      target_date: '2025-12-12T18:00:00.000Z',
+      concluded_date: 'Dec 12, 2025',
+      description: 'Concluded edition of SIH 2025 where over 1,200 collegiate teams competed live across 50 nodal centers in India.',
+      tags: ['hackathon', 'archive', 'winners', 'hardware', 'software'],
+      banner_gradient: 'from-slate-700/20 via-slate-800/20 to-slate-900/20',
+      perks: ['120 winning teams felicitated', 'National media coverage and seed funding grants', 'Full access to winning open-source repositories'],
+      eligibility: 'Completed season archive.',
+      timeline: [
+        { date: 'Dec 11, 2025', title: '36-Hour Non-stop Hackathon', desc: 'Live mentoring and 3 evaluation jury rounds.' },
+        { date: 'Dec 12, 2025', title: 'Results Declaration & Award Ceremony', desc: 'Winners announced with ₹1 Lakh award per problem statement.' }
+      ],
+      prep_kit: [
+        { title: 'SIH 2025 Winning Projects Compendium', url: 'https://github.com/topics/sih-winner', type: 'guide' }
+      ],
+      checklist: ['Review winning architectural presentations', 'Study top scoring documentation formats'],
+      featured: false,
+      is_active: true
+    }
+  ];
+
+  const { error } = await supabase.from('competitions').insert(seedCompetitions);
+
+  if (error) {
+    console.error('Error seeding competitions:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to seed competitions' });
+  }
+
+  appCache.invalidateTags(['competitions']);
+  return res.json({ ok: true, message: `Successfully seeded ${seedCompetitions.length} competitions!` });
 });
 
 export { router as adminRouter };

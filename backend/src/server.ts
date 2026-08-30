@@ -9,6 +9,8 @@ import { adminRouter } from './routes/admin';
 import { emailsRouter } from './routes/emails';
 import { uploadRouter } from './routes/upload';
 import { showcaseRouter } from './routes/showcase';
+import { resourcesRouter } from './routes/resources';
+import { competitionsRouter } from './routes/competitions';
 import { globalRateLimiter } from './middleware/rateLimit';
 import { appCache } from './lib/cache';
 import { backgroundQueue } from './lib/queue';
@@ -97,6 +99,8 @@ app.use('/health', async (_req: Request, res: Response) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
+app.use('/api/resources', resourcesRouter);
+app.use('/api/competitions', competitionsRouter);
 app.use('/api/me', meRouter);
 app.use('/api/showcase', showcaseRouter);
 app.use('/api/admin', adminRouter);

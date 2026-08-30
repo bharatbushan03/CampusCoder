@@ -50,10 +50,37 @@ export const communityLinkSchema = z.object({
 
 export const resourceSchema = z.object({
   title: z.string().min(3, 'Title is too short').max(150),
-  description: z.string().max(500).optional(),
+  description: z.string().max(500).optional().nullable(),
   link: z.url('Invalid URL format'),
-  category: z.enum(['roadmaps', 'practice', 'dsa', 'placement', 'general']),
+  category: z.string().min(2, 'Category is required').max(50),
   event_id: z.uuid().nullable().optional(),
+  is_active: z.boolean().default(true),
+});
+
+export const competitionSchema = z.object({
+  title: z.string().min(3, 'Title is too short').max(150),
+  subtitle: z.string().max(250).optional().nullable(),
+  platform: z.string().min(2, 'Platform is required').max(100),
+  platform_url: z.url('Invalid URL format'),
+  type: z.string().min(2, 'Type is required').max(50).default('hackathon'),
+  difficulty: z.string().max(50).default('All Levels'),
+  prize_pool: z.string().max(150).optional().nullable(),
+  team_size: z.string().max(100).optional().nullable(),
+  mode: z.string().max(50).default('Online'),
+  status: z.string().max(50).default('Upcoming'),
+  start_date: z.string().optional().nullable(),
+  deadline_date: z.string().min(2, 'Deadline display date is required').max(100),
+  target_date: z.string().min(5, 'Target date is required'),
+  concluded_date: z.string().max(100).optional().nullable(),
+  description: z.string().max(2000).optional().nullable(),
+  tags: z.array(z.string()).default([]),
+  banner_gradient: z.string().max(150).optional().nullable(),
+  perks: z.array(z.string()).default([]),
+  eligibility: z.string().max(500).optional().nullable(),
+  timeline: z.array(z.any()).default([]),
+  prep_kit: z.array(z.any()).default([]),
+  checklist: z.array(z.string()).default([]),
+  featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
 });
 

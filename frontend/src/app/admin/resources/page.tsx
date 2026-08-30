@@ -11,10 +11,13 @@ import {
   Search,
   ArrowLeft,
   BookOpen,
-  Power
+  Power,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { toast } from 'sonner';
 
 type EventRow = { title: string };
 type ResourceRow = {
@@ -33,6 +36,7 @@ type ResourceWithEvent = ResourceRow & {
 
 export default function AdminResourcesPage() {
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
   const [resources, setResources] = useState<ResourceWithEvent[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -49,33 +53,50 @@ export default function AdminResourcesPage() {
   };
 
   useEffect(() => {
-     
     void loadData();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this resource forever?')) return;
+  const handleDelete = async (id: string, title: string) => {
+    if (!confirm(`Delete resource "${title}" permanently?`)) return;
     try {
       await api(`/admin/resources/${id}`, { method: 'DELETE' });
-      await loadData();
+      toast.success('Resource deleted');
+      setResources(prev => prev.filter(r => r.id !== id));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      alert('Delete failed: ' + message);
+      toast.error('Delete failed: ' + message);
     }
   };
 
   const handleToggleActive = async (id: string) => {
     try {
       await api(`/admin/resources/${id}/toggle`, { method: 'PATCH' });
+      setResources(prev => prev.map(r => r.id === id ? { ...r, is_active: !r.is_active } : r));
+      toast.success('Resource visibility updated');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error('Update failed: ' + message);
+    }
+  };
+
+  const handleSeedResources = async () => {
+    setSeeding(true);
+    try {
+      const res = await api<{ ok: boolean; message: string }>('/admin/resources/seed', { method: 'POST' });
+      toast.success(res.message || 'Curated resources seeded successfully!');
       await loadData();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      alert('Update failed: ' + message);
+      toast.error('Seeding failed: ' + message);
+    } finally {
+      setSeeding(false);
     }
   };
 
   const filteredResources = resources.filter((res) => {
-    const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (res.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          res.link.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCat = categoryFilter ? res.category === categoryFilter : true;
     return matchesSearch && matchesCat;
   });
@@ -96,21 +117,23 @@ export default function AdminResourcesPage() {
             <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
           </Link>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">Resource <span className="text-emerald-500">Library</span></h1>
-          <p className="text-sm text-slate-400">Curate roadmaps, tools, and learning materials for the community.</p>
+          <p className="text-sm text-slate-400">Curate roadmaps, tools, kits, and learning materials dynamically.</p>
         </div>
-        <Link href="/admin/resources/new">
-          <Button variant="primary" className="flex items-center gap-1.5 w-full sm:w-auto font-bold">
-            <PlusCircle className="size-4" /> Add Resource
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/resources/new">
+            <Button variant="primary" className="flex items-center gap-1.5 w-full sm:w-auto font-bold">
+              <PlusCircle className="size-4" /> Add Resource
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-          <input aria-label="Search by title"
+          <input aria-label="Search by title or link"
             type="text"
-            placeholder="Search by title&hellip;"
+            placeholder="Search by title, description or URL..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50"
@@ -122,10 +145,19 @@ export default function AdminResourcesPage() {
           className="bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50"
         >
           <option value="">All Categories</option>
+          <option value="dsa">DSA & Practice</option>
+          <option value="free-tools">Free Tools</option>
+          <option value="courses">Courses</option>
           <option value="roadmaps">Roadmaps</option>
-          <option value="practice">Practice</option>
-          <option value="dsa">DSA Kits</option>
+          <option value="interview-prep">Interview Prep</option>
+          <option value="system-design">System Design</option>
+          <option value="open-source">Open Source</option>
+          <option value="hackathons">Hackathons</option>
+          <option value="certifications">Certifications</option>
+          <option value="notes">1st & 2nd Year Notes</option>
+          <option value="competitions">Competitions</option>
           <option value="placement">Placements</option>
+          <option value="practice">Practice</option>
           <option value="general">General</option>
         </select>
       </div>
@@ -148,11 +180,21 @@ export default function AdminResourcesPage() {
                   <tr key={res.id} className="hover:bg-slate-900/20 transition-colors">
                     <td className="py-4 px-6">
                       <div className="font-semibold text-white">{res.title}</div>
-                      <div className="text-[10px] text-slate-500 font-mono truncate max-w-[200px] mt-0.5">{res.link}</div>
+                      {res.description && (
+                        <div className="text-xs text-slate-400 line-clamp-1 mt-0.5">{res.description}</div>
+                      )}
+                      <a 
+                        href={res.link} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-[10px] text-emerald-400/80 hover:text-emerald-400 font-mono truncate max-w-[280px] block mt-0.5 hover:underline"
+                      >
+                        {res.link}
+                      </a>
                     </td>
                     <td className="py-4 px-6">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 uppercase text-slate-400">
-                        {res.category}
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 uppercase text-slate-300">
+                        {res.category.replace('-', ' ')}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-xs text-slate-400">
@@ -161,8 +203,8 @@ export default function AdminResourcesPage() {
                     <td className="py-4 px-6">
                       <button type="button" 
                         onClick={() => handleToggleActive(res.id)}
-                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[9px] font-mono font-medium border uppercase cursor-pointer ${
-                          res.is_active ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-400'
+                        className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-[9px] font-mono font-medium border uppercase cursor-pointer transition-all ${
+                          res.is_active ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
                         }`}
                       >
                         <Power className="size-2.5" />
@@ -177,8 +219,9 @@ export default function AdminResourcesPage() {
                           </button>
                         </Link>
                         <button type="button"
-                          onClick={() => handleDelete(res.id)}
+                          onClick={() => handleDelete(res.id, res.title)}
                           className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
+                          title="Delete resource"
                         >
                           <Trash2 className="size-4" />
                         </button>
@@ -191,9 +234,21 @@ export default function AdminResourcesPage() {
           </div>
         </Card>
       ) : (
-        <div className="text-center py-20 bg-slate-900/10 border border-slate-900 rounded-2xl">
-          <BookOpen className="size-10 text-slate-800 mx-auto mb-4" />
+        <div className="text-center py-20 bg-slate-900/10 border border-slate-900 rounded-2xl space-y-4">
+          <BookOpen className="size-10 text-slate-800 mx-auto" />
           <p className="text-sm font-mono text-slate-500">No resources found in the database.</p>
+          <div className="flex justify-center gap-3 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSeedResources}
+              disabled={seeding}
+              className="flex items-center gap-1.5 text-xs font-mono border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              {seeding ? <RefreshCw className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+              Seed Curated Default Resources
+            </Button>
+          </div>
         </div>
       )}
     </div>
