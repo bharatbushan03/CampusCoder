@@ -485,43 +485,6 @@ router.get('/me', async (req: AuthedRequest, res: Response) => {
   }
 });
 
-router.get('/elevate-enabled', (_req: Request, res: Response) => {
-  return res.json({ ok: true, enabled: process.env.ALLOW_SELF_ELEVATE === '1' });
-});
-
-router.post('/elevate-me', async (req: AuthedRequest, res: Response) => {
-  if (process.env.ALLOW_SELF_ELEVATE !== '1') {
-    return res.status(403).json({
-      ok: false,
-      error: 'Self-elevation is disabled. Ask a database admin to set role=admin on your profile.',
-    });
-  }
-
-  const { user } = await getOptionalSession(req, res);
-  if (!user) {
-    return res.status(401).json({ ok: false, error: 'Sign in first.' });
-  }
-
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ role: 'organizer' })
-    .eq('id', user.id)
-    .select('id, email, role, full_name')
-    .single();
-
-  if (error || !data) {
-    return res.status(500).json({ ok: false, error: 'Failed to elevate role.' });
-  }
-
-  const accessToken = req.cookies?.[SESSION_COOKIE] as string | undefined;
-  if (accessToken) {
-    invalidateAuthSession(accessToken);
-  }
-
-  return res.json({ ok: true, profile: data });
-});
-
 router.post('/forgot-password', authRateLimiter, async (req: Request, res: Response) => {
   const parsed = forgotPasswordSchema.safeParse(req.body);
   if (!parsed.success) {

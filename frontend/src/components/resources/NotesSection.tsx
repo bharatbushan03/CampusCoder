@@ -263,7 +263,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
             }`}
           >
             <GraduationCap className="h-4 w-4" />
-            1st Year (Freshmen)
+            1st Year
           </button>
 
           <button
@@ -278,7 +278,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
             }`}
           >
             <BookOpen className="h-4 w-4" />
-            2nd Year (Sophomore)
+            2nd Year
           </button>
 
           <button
@@ -369,7 +369,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
                 Sem 4
               </button>
             </>
-          ) : (
+          ) : selectedYear === '3rd-year' ? (
             <>
               <button
                 onClick={() => setSelectedSemester('sem-5')}
@@ -387,6 +387,9 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
               >
                 Sem 6
               </button>
+            </>
+          ) : selectedYear === '4th-year' ? (
+            <>
               <button
                 onClick={() => setSelectedSemester('sem-7')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
@@ -404,7 +407,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
                 Sem 8
               </button>
             </>
-          )}
+          ) : null}
         </div>
       </div>
 
