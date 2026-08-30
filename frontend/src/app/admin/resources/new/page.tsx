@@ -13,8 +13,6 @@ import { api } from '@/lib/api';
 
 type EventOption = { id: string; title: string };
 
-type ResourceCategory = 'roadmaps' | 'practice' | 'dsa' | 'placement' | 'general';
-
 export default function NewResourcePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,7 +22,7 @@ export default function NewResourcePage() {
     title: '',
     description: '',
     link: '',
-    category: 'roadmaps' as ResourceCategory,
+    category: 'dsa',
     event_id: '',
     is_active: true
   });
@@ -118,13 +116,22 @@ export default function NewResourcePage() {
               </label>
               <select id="page-category"
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as ResourceCategory })}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50"
               >
+                <option value="dsa">DSA & Practice</option>
+                <option value="free-tools">Free Tools</option>
+                <option value="courses">Courses</option>
                 <option value="roadmaps">Roadmaps</option>
-                <option value="practice">Practice</option>
-                <option value="dsa">DSA Kits</option>
+                <option value="interview-prep">Interview Prep</option>
+                <option value="system-design">System Design</option>
+                <option value="open-source">Open Source</option>
+                <option value="hackathons">Hackathons</option>
+                <option value="certifications">Certifications</option>
+                <option value="notes">1st & 2nd Year Notes</option>
+                <option value="competitions">Competitions</option>
                 <option value="placement">Placements</option>
+                <option value="practice">Practice</option>
                 <option value="general">General</option>
               </select>
             </div>

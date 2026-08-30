@@ -19,6 +19,7 @@ import {
   Activity,
   UserCheck,
   Sparkles,
+  Trophy,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
@@ -48,6 +49,7 @@ const navGroups = [
     label: 'Community',
     links: [
       { label: 'Showcase', href: '/admin/showcase', icon: Sparkles },
+      { label: 'Competitions', href: '/admin/competitions', icon: Trophy },
       { label: 'Announcements', href: '/admin/announcements', icon: Bell },
       { label: 'Community Links', href: '/admin/community-links', icon: Link2 },
       { label: 'Resources', href: '/admin/resources', icon: BookOpen },
