@@ -29,6 +29,10 @@ router.get('/', cacheRoute(60, ['competitions'], 30), async (req: Request, res: 
   const { data, error } = await query;
 
   if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+      console.warn('[Supabase] public.competitions table not yet created in database. Run migration 20260830000000_create_competitions.sql in Supabase SQL editor.');
+      return res.json({ ok: true, competitions: [] });
+    }
     console.error('Error fetching public competitions:', error);
     return res.status(500).json({ ok: false, error: 'Failed to load competitions' });
   }

@@ -84,6 +84,24 @@ export const competitionSchema = z.object({
   is_active: z.boolean().default(true),
 });
 
+export const noteSchema = z.object({
+  title: z.string().min(3, 'Title is too short').max(200),
+  code: z.string().min(2, 'Subject code is required').max(50),
+  subject: z.string().max(150).optional().nullable(),
+  year: z.enum(['1st-year', '2nd-year', '3rd-year', '4th-year']).default('1st-year'),
+  semester: z.string().min(2, 'Semester is required').max(50).default('sem-1'),
+  branch: z.string().max(100).default('All Branches'),
+  description: z.string().max(2000).optional().nullable(),
+  pdf_url: z.url('Invalid PDF URL format'),
+  file_size: z.string().max(50).optional().nullable(),
+  page_count: z.number().int().min(1).optional().nullable(),
+  author: z.string().max(100).optional().nullable(),
+  tags: z.array(z.string()).default([]),
+  topics: z.array(z.any()).default([]),
+  highlights: z.array(z.string()).default([]),
+  is_active: z.boolean().default(true),
+});
+
 export const studentUpdateSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters').max(100).optional(),
   college: z.string().max(150).optional().nullable(),

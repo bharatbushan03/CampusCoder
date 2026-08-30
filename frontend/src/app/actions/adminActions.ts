@@ -5,6 +5,7 @@ import {
   eventSchema, 
   resourceSchema, 
   competitionSchema, 
+  noteSchema,
   announcementSchema, 
   communityLinkSchema, 
   studentUpdateSchema 
@@ -153,6 +154,40 @@ export async function toggleCompetition(id: string) {
 
 export async function deleteCompetition(id: string) {
   await serverApi(`/admin/competitions/${id}`, {
+    method: 'DELETE',
+  });
+
+  return { success: true };
+}
+
+export async function createNote(payload: z.infer<typeof noteSchema>) {
+  const result = await serverApi<{ ok: boolean; note: any }>('/admin/notes', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true, note: result.note };
+}
+
+export async function updateNote(id: string, payload: z.infer<typeof noteSchema>) {
+  const result = await serverApi<{ ok: boolean; note: any }>(`/admin/notes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true, note: result.note };
+}
+
+export async function toggleNote(id: string) {
+  await serverApi(`/admin/notes/${id}/toggle`, {
+    method: 'PATCH',
+  });
+
+  return { success: true };
+}
+
+export async function deleteNote(id: string) {
+  await serverApi(`/admin/notes/${id}`, {
     method: 'DELETE',
   });
 

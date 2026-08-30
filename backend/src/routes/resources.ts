@@ -25,6 +25,10 @@ router.get('/', cacheRoute(60, ['resources'], 30), async (req: Request, res: Res
   const { data, error } = await query;
 
   if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+      console.warn('[Supabase] public.resources table not yet created in database. Run migration 20260529000002_add_resources_and_archive_fields.sql in Supabase SQL editor.');
+      return res.json({ ok: true, resources: [] });
+    }
     console.error('Error fetching public resources:', error);
     return res.status(500).json({ ok: false, error: 'Failed to load resources' });
   }
