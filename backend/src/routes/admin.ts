@@ -10,6 +10,7 @@ import {
   eventSchema,
   resourceSchema,
   competitionSchema,
+  noteSchema,
 } from '../lib/validation';
 
 const router = Router();
@@ -1110,9 +1111,13 @@ router.get('/resources', async (_req: Request, res: Response) => {
     .order('created_at', { ascending: false });
 
   if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+      console.warn('[Admin] public.resources table not yet created in Supabase.');
+      return res.json({ ok: true, resources: [] });
+    }
     return res.status(500).json({ ok: false, error: 'Failed to load resources' });
   }
-  return res.json({ ok: true, resources: data });
+  return res.json({ ok: true, resources: data || [] });
 });
 
 router.get('/resources/:id', async (req: Request, res: Response) => {
@@ -1402,6 +1407,10 @@ router.delete('/showcase/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to delete showcase project' });
   }
 
+  appCache.invalidateTags(['showcase']);
+  return res.json({ ok: true });
+});
+
 // ---------- Competitions Admin Management ----------
 
 router.get('/competitions', async (_req: Request, res: Response) => {
@@ -1412,6 +1421,10 @@ router.get('/competitions', async (_req: Request, res: Response) => {
     .order('created_at', { ascending: false });
 
   if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+      console.warn('[Admin] public.competitions table not yet created in Supabase.');
+      return res.json({ ok: true, competitions: [] });
+    }
     console.error('Error fetching admin competitions:', error);
     return res.status(500).json({ ok: false, error: 'Failed to load competitions' });
   }
@@ -1651,4 +1664,248 @@ router.post('/competitions/seed', async (_req: Request, res: Response) => {
   return res.json({ ok: true, message: `Successfully seeded ${seedCompetitions.length} competitions!` });
 });
 
+// ---------- Notes PDF & Academic Handbooks Admin Management ----------
+
+router.get('/notes', async (_req: Request, res: Response) => {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+      console.warn('[Admin] public.notes table not yet created in Supabase.');
+      return res.json({ ok: true, notes: [] });
+    }
+    console.error('Error fetching admin notes:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to load notes' });
+  }
+
+  return res.json({ ok: true, notes: data || [] });
+});
+
+router.get('/notes/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid note id' });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (error || !data) {
+    return res.status(404).json({ ok: false, error: 'Note not found' });
+  }
+
+  return res.json({ ok: true, note: data });
+});
+
+router.post('/notes', async (req: Request, res: Response) => {
+  const parsed = noteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('notes')
+    .insert([parsed.data])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating note:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to create note' });
+  }
+
+  appCache.invalidateTags(['notes']);
+  return res.status(201).json({ ok: true, note: data });
+});
+
+router.put('/notes/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid note id' });
+  }
+
+  const parsed = noteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('notes')
+    .update(parsed.data)
+    .eq('id', parsedId.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating note:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to update note' });
+  }
+
+  appCache.invalidateTags(['notes']);
+  return res.json({ ok: true, note: data });
+});
+
+router.patch('/notes/:id/toggle', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid note id' });
+  }
+
+  const supabase = createAdminClient();
+  const { data: current, error: getErr } = await supabase
+    .from('notes')
+    .select('is_active')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (getErr || !current) {
+    return res.status(404).json({ ok: false, error: 'Note not found' });
+  }
+
+  const { error: updateErr } = await supabase
+    .from('notes')
+    .update({ is_active: !current.is_active })
+    .eq('id', parsedId.data);
+
+  if (updateErr) {
+    return res.status(500).json({ ok: false, error: 'Failed to toggle note status' });
+  }
+
+  appCache.invalidateTags(['notes']);
+  return res.json({ ok: true, is_active: !current.is_active });
+});
+
+router.delete('/notes/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid note id' });
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', parsedId.data);
+
+  if (error) {
+    console.error('Error deleting note:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to delete note' });
+  }
+
+  appCache.invalidateTags(['notes']);
+  return res.json({ ok: true });
+});
+
+router.post('/notes/seed', async (_req: Request, res: Response) => {
+  const supabase = createAdminClient();
+
+  const seedNotes = [
+    {
+      title: 'Engineering Mathematics - I (Calculus & Linear Algebra)',
+      code: 'MATH101',
+      subject: 'Engineering Mathematics',
+      year: '1st-year',
+      semester: 'sem-1',
+      branch: 'All Branches',
+      description: 'Foundational calculus, linear algebra, matrices, rank, eigenvalues, and multivariable functions essential for all engineering branches.',
+      pdf_url: 'https://tutorial.math.lamar.edu/pdf/Calculus_Cheat_Sheet_All.pdf',
+      file_size: '4.8 MB',
+      page_count: 52,
+      author: 'Prof. Sharma (Mathematics Dept)',
+      tags: ['Calculus', 'Linear Algebra', 'Matrices', 'Eigenvalues', 'Limits'],
+      topics: [
+        { title: 'Module 1: Matrix Theory & Linear Algebra', subtopics: ['Matrix Rank & Echelon Form', 'System of Linear Equations', 'Eigenvalues & Eigenvectors'] },
+        { title: 'Module 2: Differential Calculus', subtopics: ['Rolle’s & Mean Value Theorems', 'Taylor’s & Maclaurin’s Series', 'Indeterminate Forms'] },
+        { title: 'Module 3: Multivariable Calculus', subtopics: ['Partial Derivatives', 'Total Differential', 'Jacobians', 'Maxima & Minima'] }
+      ],
+      highlights: ['Complete formula sheets for Cayley-Hamilton & Eigenvalues', 'Handwritten step-by-step solved PYQs from last 5 years', 'Quick revision cheat sheet for partial derivatives and Jacobians'],
+      is_active: true
+    },
+    {
+      title: 'Programming for Problem Solving in C',
+      code: 'CS101',
+      subject: 'Programming in C',
+      year: '1st-year',
+      semester: 'sem-1',
+      branch: 'All Branches',
+      description: 'Structured programming fundamentals in C covering variables, pointers, dynamic memory allocation, structs, and file handling.',
+      pdf_url: 'https://www.unf.edu/~wkloster/2220/ppts/cprogramming_tutorial.pdf',
+      file_size: '3.6 MB',
+      page_count: 64,
+      author: 'CampusCoder Academic Team',
+      tags: ['C Language', 'Pointers', 'Arrays', 'Structures', 'Memory Allocation'],
+      topics: [
+        { title: 'Module 1: C Basics & Control Flow', subtopics: ['Data Types & Operators', 'Conditional Statements (if-else, switch)', 'Loops (for, while, do-while)'] },
+        { title: 'Module 2: Arrays, Strings & Pointers', subtopics: ['1D and 2D Arrays', 'String Manipulation Library Functions', 'Pointer Arithmetic & Double Pointers'] },
+        { title: 'Module 3: Structures & File I/O', subtopics: ['Struct vs Union', 'DMA (malloc, calloc, realloc, free)', 'File Operations (fopen, fread, fwrite)'] }
+      ],
+      highlights: ['Visual memory layout diagrams for Pointer Arithmetic and Dynamic Allocation', '30+ tested executable C program templates for lab exams', 'Common viva-voce questions with answers for end-semester practicals'],
+      is_active: true
+    },
+    {
+      title: 'Data Structures and Algorithms (Handwritten Complete Notes)',
+      code: 'CS201',
+      subject: 'Data Structures & Algorithms',
+      year: '2nd-year',
+      semester: 'sem-3',
+      branch: 'CSE / IT',
+      description: 'Comprehensive handwritten guide covering linear data structures, binary search trees, AVL trees, graphs, heaps, dynamic programming, and complexity analysis.',
+      pdf_url: 'https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/resources/mit6_006s20_lec01/',
+      file_size: '6.2 MB',
+      page_count: 88,
+      author: 'CampusCoder Tech Team',
+      tags: ['DSA', 'Trees', 'Graphs', 'Dynamic Programming', 'Complexity'],
+      topics: [
+        { title: 'Module 1: Linear Structures & Stacks/Queues', subtopics: ['Singly, Doubly, Circular Linked Lists', 'Stack Applications (Infix to Postfix)', 'Queue & Deque Implementations'] },
+        { title: 'Module 2: Non-Linear Structures (Trees & Heaps)', subtopics: ['Binary Search Trees (BST) Traversal', 'AVL Tree Rotations', 'Min/Max Heap Operations & HeapSort'] },
+        { title: 'Module 3: Graph Algorithms & Dynamic Programming', subtopics: ['BFS & DFS Traversals', 'Dijkstra & Kruskal MST', '0/1 Knapsack & LCS Problems'] }
+      ],
+      highlights: ['Clean ASCII and handwritten tree rotation diagrams', 'Time and space complexity cheat sheet for all standard operations', 'Curated LeetCode problem mappings with matching theory modules'],
+      is_active: true
+    },
+    {
+      title: 'Database Management Systems (DBMS) Comprehensive Guide',
+      code: 'CS204',
+      subject: 'DBMS',
+      year: '2nd-year',
+      semester: 'sem-4',
+      branch: 'CSE / IT',
+      description: 'Relational algebra, SQL query optimization, ER modeling, B+ Trees indexing, 1NF to BCNF Normalization, and ACID transaction concurrency protocols.',
+      pdf_url: 'https://web.stanford.edu/class/cs145/notes/cs145-notes.pdf',
+      file_size: '5.1 MB',
+      page_count: 72,
+      author: 'Prof. R. Verma (CSE Dept)',
+      tags: ['DBMS', 'SQL', 'Normalization', 'Transactions', 'Indexing'],
+      topics: [
+        { title: 'Module 1: ER Modeling & Relational Algebra', subtopics: ['ER to Relational Schema Mapping', 'Relational Algebra Operations', 'Integrity Constraints'] },
+        { title: 'Module 2: SQL & Schema Normalization', subtopics: ['Complex Joins, Subqueries & Aggregations', 'Functional Dependencies & Candidate Keys', '1NF, 2NF, 3NF, BCNF Decomposition'] },
+        { title: 'Module 3: Transactions & Concurrency Control', subtopics: ['ACID Properties', 'Serializability & Precedence Graphs', 'Two-Phase Locking (2PL) & Deadlocks'] }
+      ],
+      highlights: ['Step-by-step BCNF and 3NF decomposition solver tables', 'SQL query templates for multi-table joins and subquery optimizations', 'Concurrency control conflict serializability practice questions'],
+      is_active: true
+    }
+  ];
+
+  const { error } = await supabase.from('notes').insert(seedNotes);
+
+  if (error) {
+    console.error('Error seeding notes:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to seed notes' });
+  }
+
+  appCache.invalidateTags(['notes']);
+  return res.json({ ok: true, message: `Successfully seeded ${seedNotes.length} engineering subject handbooks!` });
+});
+
 export { router as adminRouter };
+

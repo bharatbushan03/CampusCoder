@@ -231,6 +231,66 @@ export type Database = {
         };
         Relationships: [];
       };
+      notes: {
+        Row: {
+          id: string;
+          title: string;
+          code: string;
+          subject: string | null;
+          year: string;
+          semester: string;
+          branch: string | null;
+          description: string | null;
+          pdf_url: string;
+          file_size: string | null;
+          page_count: number | null;
+          author: string | null;
+          tags: string[];
+          topics: any;
+          highlights: string[];
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          code: string;
+          subject?: string | null;
+          year?: string;
+          semester?: string;
+          branch?: string | null;
+          description?: string | null;
+          pdf_url: string;
+          file_size?: string | null;
+          page_count?: number | null;
+          author?: string | null;
+          tags?: string[];
+          topics?: any;
+          highlights?: string[];
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          code?: string;
+          subject?: string | null;
+          year?: string;
+          semester?: string;
+          branch?: string | null;
+          description?: string | null;
+          pdf_url?: string;
+          file_size?: string | null;
+          page_count?: number | null;
+          author?: string | null;
+          tags?: string[];
+          topics?: any;
+          highlights?: string[];
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       event_owners: {
         Row: {
           id: string;

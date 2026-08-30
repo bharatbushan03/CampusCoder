@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { notesData } from './notesData';
 import { getCompetitionDateState, CompetitionItem } from './competitionsData';
-import { resourceSchema, competitionSchema } from '@/lib/validation';
+import { resourceSchema, competitionSchema, noteSchema } from '@/lib/validation';
 
 describe('Resources & Academic Data Integration', () => {
-  it('validates dynamic resourceSchema and competitionSchema successfully', () => {
+  it('validates dynamic resourceSchema, competitionSchema, and noteSchema successfully', () => {
     const validResource = {
       title: 'Full Stack Open',
       description: 'Deep dive into modern web development with React, Redux, Node.js, GraphQL, and TypeScript.',
@@ -31,6 +31,27 @@ describe('Resources & Academic Data Integration', () => {
 
     const parsedComp = competitionSchema.safeParse(validCompetition);
     expect(parsedComp.success).toBe(true);
+
+    const validNote = {
+      title: 'Data Structures and Algorithms Complete Hand-written Notes',
+      code: 'CS201',
+      subject: 'Data Structures & Algorithms',
+      year: '2nd-year',
+      semester: 'sem-3',
+      branch: 'CSE / IT',
+      description: 'Comprehensive handwritten guide covering binary search trees, AVL trees, graphs, and dynamic programming.',
+      pdf_url: 'https://example.com/dsa-notes.pdf',
+      file_size: '6.2 MB',
+      page_count: 88,
+      author: 'CampusCoder Tech Team',
+      tags: ['DSA', 'Trees', 'Graphs'],
+      topics: [{ title: 'Module 1', subtopics: ['Trees', 'Graphs'] }],
+      highlights: ['Includes complexity cheat sheet'],
+      is_active: true,
+    };
+
+    const parsedNote = noteSchema.safeParse(validNote);
+    expect(parsedNote.success).toBe(true);
   });
 
   it('contains 1st year and 2nd year subject notes', () => {

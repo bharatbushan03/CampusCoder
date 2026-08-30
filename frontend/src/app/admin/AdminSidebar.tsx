@@ -20,6 +20,7 @@ import {
   UserCheck,
   Sparkles,
   Trophy,
+  GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
@@ -43,6 +44,7 @@ const navGroups = [
       { label: 'Events', href: '/admin/events', icon: Calendar },
       { label: 'Registrations', href: '/admin/registrations', icon: Users },
       { label: 'Students', href: '/admin/students', icon: UserCheck },
+      { label: 'Notes (PDFs)', href: '/admin/notes', icon: GraduationCap },
     ],
   },
   {
