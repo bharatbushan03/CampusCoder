@@ -7,7 +7,15 @@ const azureConnectionString = process.env.AZURE_COMMUNICATION_CONNECTION_STRING;
 const resendApiKey = process.env.RESEND_API_KEY;
 
 export const azureEmailClient = azureConnectionString ? new EmailClient(azureConnectionString) : null;
-export const resend = resendApiKey ? new Resend(resendApiKey) : null;
+export const getResendClient = (): Resend | null => {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+};
+
+export const getFromEmail = (): string => {
+  return process.env.FROM_EMAIL || process.env.RESEND_FROM_EMAIL || 'CampusCoder <onboarding@resend.dev>';
+};
 
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 export const AZURE_SENDER_EMAIL = process.env.AZURE_EMAIL_SENDER || '';
@@ -39,30 +47,36 @@ export async function sendAppEmail(
   }
 
   const sendPromise = async (): Promise<{ success: boolean; id?: string; error?: any }> => {
+    const resendClient = getResendClient();
+    const fromAddress = getFromEmail();
+
     // 1. Primary: Use Resend for OTP and transactional emails
-    if (resend) {
+    if (resendClient) {
       try {
-        const fromAddress = FROM_EMAIL || 'CampusCoder <onboarding@resend.dev>';
-        const res = await resend.emails.send({
+        const renderedHtml = html || (react ? renderToStaticMarkup(react) : undefined);
+        console.log(`[Resend Email] Attempting to send "${subject}" to ${to} from "${fromAddress}"...`);
+        const res = await resendClient.emails.send({
           from: fromAddress,
           to,
           subject,
-          ...(react ? { react } : { html: html || '' }),
+          html: renderedHtml || (plainText ? `<p>${plainText}</p>` : `<p>${subject}</p>`),
           text: plainText || undefined,
         });
 
         if (res.error) {
-          console.error('[Resend Email] Send error:', res.error);
-          // If Resend failed, attempt Azure fallback below if configured
-        } else {
-          console.log(`[Resend Email] Successfully sent "${subject}" to ${to} (id: ${res.data?.id})`);
-          return { success: true, id: res.data?.id };
+          console.error('[Resend Email Error]:', JSON.stringify(res.error, null, 2));
+          return { success: false, error: res.error };
         }
+
+
+        console.log(`[Resend Email Success] Dispatched to ${to} (Message ID: ${res.data?.id})`);
+        return { success: true, id: res.data?.id };
       } catch (resendErr: any) {
-        console.error('[Resend Email] Exception:', resendErr);
+        console.error('[Resend Email Exception]:', resendErr?.message || resendErr);
+        return { success: false, error: resendErr };
       }
     } else {
-      console.warn('[Resend Email] RESEND_API_KEY is not set in backend/.env');
+      console.warn('[Resend Email] RESEND_API_KEY is not configured in backend/.env');
     }
 
     // 2. Fallback: Azure Communication Services if configured
@@ -100,9 +114,10 @@ export async function sendAppEmail(
       }
     }
 
-    console.warn(`[Email DEV] No active email provider delivered. (Subject: "${subject}", To: "${to}")`);
+    console.warn(`[Email DEV Fallback] No email service delivered. (Subject: "${subject}", To: "${to}")`);
     return { success: false, error: 'No email service configured' };
   };
+
 
 
   // Wrap in timeout safeguard to guarantee Node request handlers never hang
