@@ -53,7 +53,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# AGENTS
+# AGENTS & Coding Assistants
 .claude
 .antigravitycli
 .commandcode
@@ -61,5 +61,14 @@ next-env.d.ts
 .react-doctor
 .trae
 .next
+.cursor
+.cursorrules
+.windsurf
+.windsurfrules
+.gemini
+.copilot
 AGENTS.md
 CLAUDE.md
+*.agent.md
+CHAT.md
+

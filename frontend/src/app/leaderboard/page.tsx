@@ -2,15 +2,12 @@
 
 import React from 'react';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
-import { Trophy, Medal } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
 export default function LeaderboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 space-y-12 min-h-[70vh] flex flex-col items-center justify-center">
       <AnimatedSection className="space-y-6 text-center max-w-3xl mx-auto" direction="up">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-          <Medal className="h-3 w-3" /> Rankings
-        </div>
         <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight font-mono">
           Community <span className="text-emerald-500">Leaderboard</span>
         </h1>

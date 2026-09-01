@@ -8,6 +8,7 @@ import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Providers } from "@/components/Providers";
 import { Toaster } from "sonner";
 import { PageTransition } from "@/components/animations/PageTransition";
+import { CursorSpotlight } from "@/components/animations/CursorSpotlight";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,11 +35,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-300">
+      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-300 relative">
+        <CursorSpotlight />
         <Providers>
           <AnnouncementBanner />
           <Navbar />
-          <main className="flex-1 flex flex-col overflow-x-hidden">
+          <main className="flex-1 flex flex-col overflow-x-hidden relative z-10">
             <PageTransition>
               {children}
             </PageTransition>
