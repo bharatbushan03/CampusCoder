@@ -137,7 +137,7 @@ describe('Resources & Academic Data Integration', () => {
       difficulty: 'All Levels',
       prizePool: '₹1 Lakh',
       teamSize: '6',
-      mode: 'Offline',
+      mode: 'In-Person',
       status: 'Concluded',
       deadlineDate: 'Dec 2025',
       targetDate: '2025-12-12T18:00:00.000Z',
