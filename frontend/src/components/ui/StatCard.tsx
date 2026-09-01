@@ -17,17 +17,17 @@ export const StatCard: React.FC<StatCardProps> = React.memo(function StatCard({
 }) {
   return (
     <div
-      className={`rounded-xl border border-slate-800/60 bg-slate-900/50 p-5 ${className}`}
+      className={`rounded-xl border border-white/[0.07] bg-[#0e1422] p-5 shadow-[0_1px_2px_rgba(0,0,0,0.4)] hover:border-white/[0.14] transition-all duration-150 ${className}`}
     >
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-slate-500">{label}</p>
-        {Icon && <Icon className="size-4 text-slate-500" />}
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+        {Icon && <Icon className="size-4 text-emerald-400/80" />}
       </div>
-      <div className="mt-2 flex items-baseline gap-3">
-        <p className="text-2xl font-bold text-slate-50">{value}</p>
+      <div className="mt-2.5 flex items-baseline gap-3">
+        <p className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-mono tabular-nums">{value}</p>
         {trend && (
           <span
-            className={`text-xs font-medium ${
+            className={`font-mono text-xs font-semibold ${
               trend.positive ? 'text-emerald-400' : 'text-red-400'
             }`}
           >
@@ -38,3 +38,4 @@ export const StatCard: React.FC<StatCardProps> = React.memo(function StatCard({
     </div>
   );
 });
+
