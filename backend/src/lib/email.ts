@@ -11,7 +11,7 @@ export const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 export const AZURE_SENDER_EMAIL = process.env.AZURE_EMAIL_SENDER || '';
-export const FROM_EMAIL = process.env.FROM_EMAIL || '';
+export const FROM_EMAIL = process.env.FROM_EMAIL || process.env.RESEND_FROM_EMAIL || 'CampusCoder <onboarding@resend.dev>';
 
 import { backgroundQueue } from './queue';
 
@@ -39,7 +39,33 @@ export async function sendAppEmail(
   }
 
   const sendPromise = async (): Promise<{ success: boolean; id?: string; error?: any }> => {
-    // 1. Prioritize Azure Communication Services if configured
+    // 1. Primary: Use Resend for OTP and transactional emails
+    if (resend) {
+      try {
+        const fromAddress = FROM_EMAIL || 'CampusCoder <onboarding@resend.dev>';
+        const res = await resend.emails.send({
+          from: fromAddress,
+          to,
+          subject,
+          ...(react ? { react } : { html: html || '' }),
+          text: plainText || undefined,
+        });
+
+        if (res.error) {
+          console.error('[Resend Email] Send error:', res.error);
+          // If Resend failed, attempt Azure fallback below if configured
+        } else {
+          console.log(`[Resend Email] Successfully sent "${subject}" to ${to} (id: ${res.data?.id})`);
+          return { success: true, id: res.data?.id };
+        }
+      } catch (resendErr: any) {
+        console.error('[Resend Email] Exception:', resendErr);
+      }
+    } else {
+      console.warn('[Resend Email] RESEND_API_KEY is not set in backend/.env');
+    }
+
+    // 2. Fallback: Azure Communication Services if configured
     if (azureEmailClient && AZURE_SENDER_EMAIL) {
       try {
         const emailContent = html
@@ -54,10 +80,8 @@ export async function sendAppEmail(
           },
         });
 
-        // Non-blocking poll in background, or check initial status
         const initialStatus = poller.getOperationState();
         if (initialStatus.status === 'running' || initialStatus.status === 'notStarted') {
-          // Allow background poller to finish without delaying caller
           poller.pollUntilDone().catch((err) => {
             console.warn(`[Azure Email] Background polling warning for ${to}:`, err?.message);
           });
@@ -73,39 +97,13 @@ export async function sendAppEmail(
         }
       } catch (azureErr: any) {
         console.error('[Azure Email] Exception:', azureErr.message);
-        // Fall through to Resend if available
       }
-    } else if (azureEmailClient && !AZURE_SENDER_EMAIL) {
-      console.warn('[Azure Email] AZURE_COMMUNICATION_CONNECTION_STRING is set, but AZURE_EMAIL_SENDER is missing in .env');
     }
 
-    // 2. Fallback to Resend if configured
-    if (resend && FROM_EMAIL) {
-      try {
-        const res = await resend.emails.send({
-          from: FROM_EMAIL,
-          to,
-          subject,
-          ...(react ? { react } : { html: html || '' }),
-        });
-
-        if (res.error) {
-          console.error('[Resend Email] Send error:', res.error);
-          return { success: false, error: res.error };
-        }
-
-        return { success: true, id: res.data?.id };
-      } catch (resendErr: any) {
-        console.error('[Resend Email] Exception:', resendErr);
-        return { success: false, error: resendErr };
-      }
-    } else if (resend && !FROM_EMAIL) {
-      console.warn('[Resend Email] RESEND_API_KEY is set, but FROM_EMAIL is missing in .env');
-    }
-
-    console.warn(`[Email DEV] No email provider configured in .env. (Subject: "${subject}", To: "${to}")`);
+    console.warn(`[Email DEV] No active email provider delivered. (Subject: "${subject}", To: "${to}")`);
     return { success: false, error: 'No email service configured' };
   };
+
 
   // Wrap in timeout safeguard to guarantee Node request handlers never hang
   const timeoutPromise = new Promise<{ success: boolean; id?: string; error?: any }>((resolve) => {
