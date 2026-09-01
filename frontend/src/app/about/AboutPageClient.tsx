@@ -60,9 +60,6 @@ export default function AboutPageClient() {
         
         {/* Header Section */}
         <AnimatedSection className="space-y-4 text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-            <Target className="h-3 w-3" /> Our Mission
-          </div>
           <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight font-mono">
             About <span className="text-emerald-500">CampusCoder</span>
           </h1>

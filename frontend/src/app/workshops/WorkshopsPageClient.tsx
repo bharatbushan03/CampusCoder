@@ -8,7 +8,6 @@ import {
   Terminal,
   Video,
   ArrowRight,
-  Sparkles,
   Layers
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
@@ -85,9 +84,6 @@ export default function WorkshopsPage() {
           <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Events
         </Link>
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-            <Sparkles className="size-6 text-emerald-400" />
-          </div>
           <h1 className="text-4xl font-extrabold text-white tracking-tight font-mono">Technical <span className="text-emerald-500">Workshops</span></h1>
         </div>
         <p className="text-slate-400 max-w-2xl text-lg">Hands-on sessions led by seniors and mentors. Build real projects and learn by doing.</p>

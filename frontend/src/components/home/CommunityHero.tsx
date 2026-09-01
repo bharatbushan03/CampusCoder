@@ -4,11 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Sparkles,
-  ArrowRight,
-  Users
+  ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { DynamicHeroCodeScene } from '@/components/3d/DynamicHeroCodeScene';
 
 // Animation variants (same as DSAEventHero for consistency)
 const containerVariants: any = {
@@ -52,16 +51,6 @@ export function CommunityHero() {
             initial="hidden"
             animate="visible"
           >
-            {/* Badge */}
-            <motion.div variants={itemVariants}>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-                <Sparkles className="h-4 w-4 text-emerald-400" />
-                <span className="text-emerald-300 text-xs font-mono font-bold tracking-widest uppercase">
-                  Join the Community
-                </span>
-              </div>
-            </motion.div>
-
             {/* Headings */}
             <motion.div variants={itemVariants} className="space-y-4 max-w-2xl">
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
@@ -95,29 +84,26 @@ export function CommunityHero() {
             </motion.div>
           </motion.div>
 
-          {/* Right Content - Simple illustration */}
+          {/* Right Content - Three.js 3D Interactive Animation Scene */}
           <motion.div
-            className="lg:col-span-5 relative w-full aspect-square max-w-[500px] mx-auto lg:mx-0 mt-10 lg:mt-0"
-            initial={{ opacity: 0, scale: 0.9 }}
+            className="lg:col-span-5 relative w-full aspect-square max-w-[480px] sm:max-w-[520px] mx-auto lg:mx-0 mt-8 lg:mt-0"
+            initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
           >
-            {/* Hologram Box container */}
-            <div className="absolute inset-0 bg-slate-900/30 rounded-3xl border border-slate-800 backdrop-blur-sm overflow-hidden flex items-center justify-center">
-              {/* Simple illustration: group of people coding */}
-              <div className="text-center space-y-3">
-                <Users className="size-12 text-emerald-400" />
-                <p className="text-sm text-slate-400">Meet your coding peers</p>
-                <div className="flex space-x-3">
-                  <div className="w-3 h-3 bg-emerald-400 rounded" />
-                  <div className="w-3 h-3 bg-teal-400 rounded" />
-                  <div className="w-3 h-3 bg-emerald-400 rounded" />
-                </div>
+            {/* 3D Scene Container */}
+            <div className="relative w-full h-full rounded-3xl bg-slate-950/50 border border-slate-800/80 backdrop-blur-md overflow-hidden shadow-2xl group">
+              {/* Top accent line */}
+              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent z-20" />
+
+              {/* Three.js Canvas */}
+              <div className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing">
+                <DynamicHeroCodeScene />
               </div>
             </div>
 
-            {/* Glowing borders */}
-            <div className="absolute -inset-0.5 bg-gradient-to-tr from-emerald-500/20 to-teal-500/5 rounded-3xl z-[-1] blur-md" />
+            {/* Glowing outer ambient border */}
+            <div className="absolute -inset-1 bg-gradient-to-tr from-emerald-500/25 via-teal-500/10 to-indigo-500/10 rounded-3xl -z-10 blur-xl opacity-70 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
           </motion.div>
         </div>
       </div>

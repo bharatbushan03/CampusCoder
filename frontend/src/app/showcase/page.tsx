@@ -185,9 +185,6 @@ export default function ShowcasePage() {
         
         {/* Header Hero Section */}
         <AnimatedSection className="text-center max-w-3xl mx-auto space-y-5" direction="up">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-mono font-semibold tracking-wide">
-            <Sparkles className="size-3.5" /> CampusCoder Community Projects
-          </div>
           
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight font-mono">
             Student <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">Showcase</span>
