@@ -13,29 +13,30 @@ interface ButtonProps extends ButtonPropsBase {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  kbd?: string;
   children: React.ReactNode;
 }
 
 const baseStyles =
-  'inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500/30 disabled:opacity-50 disabled:pointer-events-none cursor-pointer select-none';
+  'inline-flex items-center justify-center font-medium rounded-lg transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-[#080b11] disabled:opacity-50 disabled:pointer-events-none cursor-pointer select-none';
 
 const variants: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
-    'bg-emerald-500 text-emerald-950 hover:bg-emerald-400 font-semibold shadow-sm',
+    'bg-emerald-500 text-[#080b11] hover:bg-emerald-400 font-semibold border border-emerald-400/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_1px_3px_rgba(0,0,0,0.4)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_2px_8px_rgba(16,185,129,0.3)]',
   secondary:
-    'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700 font-medium',
+    'bg-[#0e1422] text-slate-100 hover:bg-[#151c2f] border border-white/[0.1] shadow-[0_1px_2px_rgba(0,0,0,0.3)] hover:border-white/[0.18]',
   outline:
-    'bg-transparent border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white',
+    'bg-transparent border border-white/[0.12] text-slate-200 hover:bg-white/[0.04] hover:border-white/[0.22] hover:text-white',
   ghost:
-    'bg-transparent text-slate-400 hover:text-white hover:bg-slate-800/50',
+    'bg-transparent text-slate-400 hover:text-white hover:bg-white/[0.05]',
   danger:
-    'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white',
+    'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/30',
 };
 
 const sizes: Record<NonNullable<ButtonProps['size']>, string> = {
-  sm: 'px-3 py-2 text-sm max-md:min-h-[44px] max-md:min-w-[44px]',
-  md: 'px-5 py-2.5 text-sm max-md:min-h-[44px] max-md:min-w-[44px]',
-  lg: 'px-8 py-3 text-base max-md:min-h-[44px] max-md:min-w-[44px]',
+  sm: 'px-3 py-1.5 text-xs gap-1.5 max-md:min-h-[40px]',
+  md: 'px-4 py-2 text-sm gap-2 max-md:min-h-[44px]',
+  lg: 'px-6 py-2.5 text-sm md:text-base gap-2.5 max-md:min-h-[48px]',
 };
 
 export const Button: React.FC<ButtonProps> = React.memo(function Button({
@@ -43,6 +44,7 @@ export const Button: React.FC<ButtonProps> = React.memo(function Button({
   size = 'md',
   className = '',
   isLoading = false,
+  kbd,
   children,
   disabled,
   type = 'button',
@@ -70,9 +72,8 @@ export const Button: React.FC<ButtonProps> = React.memo(function Button({
       type={type}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={isLoading || disabled}
-      whileHover={reducedMotion ? {} : { scale: 1.02 }}
-      whileTap={reducedMotion ? {} : { scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      whileTap={reducedMotion ? {} : { scale: 0.98 }}
+      transition={{ duration: 0.1, ease: [0.16, 1, 0.3, 1] }}
       form={form}
       formAction={formAction}
       name={name}
@@ -91,9 +92,15 @@ export const Button: React.FC<ButtonProps> = React.memo(function Button({
       onMouseLeave={onMouseLeave}
     >
       {isLoading && (
-        <div className="mr-2 size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <div className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
       )}
       {children}
+      {kbd && (
+        <span className="ml-1.5 inline-flex items-center justify-center font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-black/20 border border-black/30 text-current opacity-80">
+          {kbd}
+        </span>
+      )}
     </motion.button>
   );
 });
+

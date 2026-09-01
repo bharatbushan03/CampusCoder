@@ -21,8 +21,8 @@ export const Card: React.FC<CardProps> = React.memo(function Card({
 
   return (
     <div
-      className={`rounded-xl border border-slate-800/60 bg-slate-900/50 transition-all duration-200 ${
-        isHover ? 'hover:border-slate-700 hover:bg-slate-900/70' : ''
+      className={`rounded-xl border border-white/[0.07] bg-[#0e1422] shadow-[0_1px_2px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.15)] transition-all duration-150 ${
+        isHover ? 'hover:border-white/[0.15] hover:bg-[#12192b]' : ''
       } ${className}`}
       {...props}
     >
@@ -30,3 +30,4 @@ export const Card: React.FC<CardProps> = React.memo(function Card({
     </div>
   );
 });
+

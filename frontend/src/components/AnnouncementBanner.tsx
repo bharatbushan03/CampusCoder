@@ -55,15 +55,15 @@ export const AnnouncementBanner: React.FC = () => {
 
   return (
     <div className="sticky top-0 z-[60] w-full">
-      <div className="bg-emerald-500/10 backdrop-blur-md border-b border-emerald-500/20 px-4 py-2.5 shadow-2xl overflow-hidden relative group">
+      <div className="bg-[#0e1422] border-b border-white/[0.08] px-4 py-2 shadow-lg overflow-hidden relative group">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-3 overflow-hidden flex-1">
-            <div className="flex-shrink-0 size-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center">
-              <Megaphone className="size-3.5 text-emerald-400" />
-            </div>
-            <p className="text-xs md:text-sm font-medium text-slate-200 truncate pr-4 leading-none">
-              <span className="text-emerald-400 font-bold uppercase tracking-widest text-[10px] mr-3 border border-emerald-500/30 px-1.5 py-0.5 rounded bg-emerald-500/5 font-mono hidden sm:inline-block">Alert</span>
-              {announcement.title}: <span className="text-slate-400 font-normal">{announcement.message}</span>
+          <div className="flex items-center gap-2.5 overflow-hidden flex-1">
+            <span className="flex-shrink-0 size-6 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <Megaphone className="size-3 text-emerald-400" />
+            </span>
+            <p className="text-xs font-medium text-slate-200 truncate pr-4">
+              <span className="text-emerald-400 font-bold uppercase tracking-wider text-[9px] mr-2 border border-emerald-500/30 px-1.5 py-0.5 rounded bg-emerald-500/5 font-mono hidden sm:inline-block">Alert</span>
+              <strong className="text-white">{announcement.title}:</strong> <span className="text-slate-400 font-normal">{announcement.message}</span>
             </p>
           </div>
           
@@ -71,25 +71,23 @@ export const AnnouncementBanner: React.FC = () => {
             {announcement.events && (
               <Link 
                 href={`/events/${announcement.events.slug}`}
-                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold font-mono uppercase tracking-widest text-emerald-400 hover:text-white transition-all group/btn"
+                className="hidden sm:flex items-center gap-1 text-[10px] font-bold font-mono uppercase tracking-widest text-emerald-400 hover:text-emerald-300 transition-colors"
               >
-                Learn More <ArrowRight className="size-3 group-hover/btn:translate-x-0.5 transition-transform" />
+                Learn More <ArrowRight className="size-3" />
               </Link>
             )}
             
             <button type="button"
               onClick={handleDismiss}
-              className="size-7 rounded-lg hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-white transition-colors group/x cursor-pointer"
+              className="size-6 rounded hover:bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
               aria-label="Dismiss"
             >
-              <X className="size-3.5 group-hover/x:rotate-90 transition-transform duration-300" />
+              <X className="size-3.5" />
             </button>
           </div>
         </div>
-        
-        {/* Progress line decorative */}
-        <div className="absolute bottom-0 left-0 h-[1px] bg-emerald-500/40 w-full animate-pulse"></div>
       </div>
     </div>
   );
 };
+

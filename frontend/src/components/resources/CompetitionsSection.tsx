@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+
 import Link from 'next/link';
 import { 
   Trophy, 
@@ -9,21 +10,20 @@ import {
   Users, 
   Bookmark, 
   BookmarkCheck, 
-  Sparkles, 
   Flame, 
   Eye, 
   Filter, 
-  Layers,
-  Calendar,
-  Clock,
-  CheckCircle2,
-  ArrowUpDown,
-  Radio,
-  History,
-  Settings,
-  Plus,
-  Loader2
+  Calendar, 
+  Clock, 
+  CheckCircle2, 
+  ArrowUpDown, 
+  Radio, 
+  History, 
+  Loader2,
+  Plus
 } from 'lucide-react';
+
+
 import { 
   CompetitionItem, 
   CompetitionType, 
@@ -138,16 +138,17 @@ export function CompetitionsSection({ initialSearch = '' }: CompetitionsSectionP
     localStorage.setItem('cc_bookmarked_competitions', JSON.stringify(updated));
   };
 
-  const typeFilters: { id: CompetitionType; label: string; icon: any }[] = [
-    { id: 'all', label: 'All Tracks', icon: Layers },
-    { id: 'hackathon', label: 'Hackathons', icon: Flame },
-    { id: 'competitive-programming', label: 'Competitive Programming', icon: Trophy },
-    { id: 'ai-data', label: 'AI & Data Science', icon: Sparkles },
-    { id: 'open-source', label: 'Open Source', icon: Users },
-    { id: 'flagship', label: 'Global Flagships', icon: Trophy },
+  const typeFilters: { id: CompetitionType; label: string }[] = [
+    { id: 'all', label: 'All Tracks' },
+    { id: 'hackathon', label: 'Hackathons' },
+    { id: 'competitive-programming', label: 'Competitive Programming' },
+    { id: 'ai-data', label: 'AI & Data Science' },
+    { id: 'open-source', label: 'Open Source' },
+    { id: 'flagship', label: 'Global Flagships' },
   ];
 
   const difficultyLevels: (CompetitionDifficulty | 'All')[] = ['All', 'Beginner', 'Intermediate', 'Advanced', 'All Levels'];
+
 
   // Global counts based on dynamic competitions
   const globalCounts = useMemo(() => {
@@ -392,111 +393,37 @@ export function CompetitionsSection({ initialSearch = '' }: CompetitionsSectionP
   };
 
   return (
-    <div className="space-y-10">
-      {/* Header Banner with Metrics & Admin Shortcuts */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/60 p-6 sm:p-8 backdrop-blur-sm">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-                <Trophy className="h-3 w-3" /> Competitions Arena
-              </div>
-
-              {isAdminOrOrganizer && (
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/admin/competitions"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/40 text-[10px] font-mono font-semibold transition-all"
-                  >
-                    <Settings className="h-3 w-3 text-emerald-400" />
-                    Manage Arenas
-                  </Link>
-
-                  <Link
-                    href="/admin/competitions/new"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30 text-[10px] font-mono font-semibold transition-all"
-                  >
-                    <Plus className="h-3 w-3 text-emerald-400" />
-                    Add Competition
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-mono">
-              Hackathons, Contests & <span className="text-emerald-400">Global Arenas</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Track live challenges on top, register for upcoming arenas, and study past problem statements and prep kits from concluded tournaments.
-            </p>
-          </div>
-
-          {/* Quick Metrics */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/80 border border-slate-800">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-              <div>
-                <div className="text-xs font-mono font-bold text-white">{globalCounts.live} Live Now</div>
-                <div className="text-[10px] text-slate-500">Active Arenas</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/80 border border-slate-800">
-              <Calendar className="h-5 w-5 text-cyan-400 shrink-0" />
-              <div>
-                <div className="text-xs font-mono font-bold text-white">{globalCounts.upcoming} Upcoming</div>
-                <div className="text-[10px] text-slate-500">Open Registrations</div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900/80 border border-slate-800">
-              <History className="h-5 w-5 text-slate-400 shrink-0" />
-              <div>
-                <div className="text-xs font-mono font-bold text-white">{globalCounts.concluded} Concluded</div>
-                <div className="text-[10px] text-slate-500">Past Archives</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* Interactive Controls Bar */}
       <div className="space-y-4">
         {/* Track Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           {typeFilters.map(filter => {
-            const Icon = filter.icon;
             const isActive = selectedType === filter.id;
             return (
               <button
                 key={filter.id}
                 onClick={() => setSelectedType(filter.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-semibold transition-all shrink-0 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider font-semibold transition-all shrink-0 cursor-pointer ${
                   isActive
-                    ? 'bg-emerald-500 border border-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-                    : 'bg-slate-900/60 border border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
+                    : 'bg-[#0e1422] border border-white/[0.08] text-slate-400 hover:border-white/[0.2] hover:text-white'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{filter.label}</span>
+                {filter.label}
               </button>
             );
           })}
         </div>
 
-        {/* Date Status View Switcher Pills */}
+
+        {/* Date Status View Switcher Pills: Live, Concluded, Upcoming, All */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setStatusFilter('all')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
               statusFilter === 'all'
-                ? 'bg-slate-800 text-white border border-slate-700'
+                ? 'bg-white/[0.1] text-white border border-white/[0.2]'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -505,38 +432,38 @@ export function CompetitionsSection({ initialSearch = '' }: CompetitionsSectionP
 
           <button
             onClick={() => setStatusFilter('live')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
               statusFilter === 'live'
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                 : 'text-slate-400 hover:text-emerald-400'
             }`}
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-            🔴 Live Now ({globalCounts.live})
-          </button>
-
-          <button
-            onClick={() => setStatusFilter('upcoming')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-              statusFilter === 'upcoming'
-                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-                : 'text-slate-400 hover:text-cyan-400'
-            }`}
-          >
-            <Clock className="h-3.5 w-3.5" />
-            ⚡ Upcoming & Open ({globalCounts.upcoming})
+            <span className="size-1.5 rounded-full bg-emerald-400 animate-ping" />
+            Live Arenas ({globalCounts.live})
           </button>
 
           <button
             onClick={() => setStatusFilter('concluded')}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
               statusFilter === 'concluded'
-                ? 'bg-slate-800 text-slate-300 border border-slate-700'
-                : 'text-slate-400 hover:text-slate-300'
+                ? 'bg-white/[0.08] text-slate-200 border border-white/[0.15]'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <History className="h-3.5 w-3.5" />
-            🏁 Concluded ({globalCounts.concluded})
+            <History className="size-3.5" />
+            Concluded ({globalCounts.concluded})
+          </button>
+
+          <button
+            onClick={() => setStatusFilter('upcoming')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-mono uppercase tracking-wider font-semibold transition-all cursor-pointer ${
+              statusFilter === 'upcoming'
+                ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                : 'text-slate-400 hover:text-cyan-400'
+            }`}
+          >
+            <Clock className="size-3.5" />
+            Upcoming ({globalCounts.upcoming})
           </button>
         </div>
 
@@ -547,7 +474,7 @@ export function CompetitionsSection({ initialSearch = '' }: CompetitionsSectionP
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
             <input
               type="text"
-              placeholder="Search competitions, tags, platforms (e.g. SIH, LeetCode, Devpost, Kaggle)..."
+              placeholder="Search competitions, platforms (e.g. LeetCode, Kaggle)..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"

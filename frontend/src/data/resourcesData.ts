@@ -26,7 +26,9 @@ export interface Resource {
 
 /**
  * Dynamic resource registry.
- * Static mock items removed per request so that all resources are dynamically managed
- * via the Admin Portal (/admin/resources).
+ * Static mock items removed per user request so that all resources are dynamically managed
+ * and added via the website Admin Portal (/admin/resources).
  */
 export const resourcesData: Resource[] = [];
+
+

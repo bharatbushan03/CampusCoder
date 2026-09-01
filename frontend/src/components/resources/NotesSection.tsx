@@ -6,23 +6,20 @@ import Link from 'next/link';
 import { 
   BookOpen, 
   Search, 
-  GraduationCap, 
   Download, 
   CheckCircle2, 
   Circle, 
-  Sparkles, 
   ChevronDown, 
   ChevronUp, 
-  Layers, 
-  BookmarkCheck,
-  PlusCircle,
-  Settings,
-  Eye,
-  Loader2
+  Eye, 
+  Loader2 
 } from 'lucide-react';
+
+
 import { notesData as defaultNotesData, YearLevel } from '@/data/notesData';
 import { AnimatedCard } from '@/components/animations/ScrollAnimations';
 import { Button } from '@/components/ui/Button';
+
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { PdfViewerModal, PdfViewerData } from '@/components/resources/PdfViewerModal';
@@ -177,92 +174,25 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
     });
   }, [dynamicNotes, selectedYear, selectedSemester, search]);
 
-  const totalYearSubjects = useMemo(() => {
-    return dynamicNotes.filter(n => n.year === selectedYear).length;
-  }, [dynamicNotes, selectedYear]);
-
-  const completedYearSubjects = useMemo(() => {
-    return dynamicNotes.filter(n => n.year === selectedYear && completedSubjects[n.id]).length;
-  }, [dynamicNotes, selectedYear, completedSubjects]);
-
-  const yearProgressPercent = totalYearSubjects > 0 ? Math.round((completedYearSubjects / totalYearSubjects) * 100) : 0;
 
   return (
-    <div className="space-y-8">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/60 p-6 sm:p-8 backdrop-blur-sm">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-mono font-bold uppercase tracking-widest">
-                <GraduationCap className="h-3 w-3" /> Academic & Engineering Hub
-              </div>
-
-              {/* Admin Shortcut Badges */}
-              {isAdminOrOrganizer && (
-                <div className="flex items-center gap-2">
-                  <Link href="/admin/notes">
-                    <Button size="sm" variant="outline" className="h-7 px-2.5 text-[11px] font-mono border-blue-500/30 text-blue-300 hover:bg-blue-500/10">
-                      <Settings className="size-3 mr-1" /> Manage Notes
-                    </Button>
-                  </Link>
-                  <Link href="/admin/notes/new">
-                    <Button size="sm" className="h-7 px-2.5 text-[11px] font-mono bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400">
-                      <PlusCircle className="size-3 mr-1" /> Upload Notes
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-mono">
-              Engineering <span className="text-blue-400">Handbooks & Notes</span>
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Access verified PDF syllabus notes with double convenience: read directly in our <strong className="text-slate-200">Online Viewer</strong> or <strong className="text-slate-200">Download for Offline Study</strong>.
-            </p>
-          </div>
-
-          {/* Revision Progress Widget */}
-          <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2 shrink-0 sm:w-64">
-            <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-400 flex items-center gap-1.5">
-                <BookmarkCheck className="h-3.5 w-3.5 text-emerald-400" /> Revision Track
-              </span>
-              <span className="text-emerald-400 font-bold">{completedYearSubjects}/{totalYearSubjects} Done</span>
-            </div>
-            <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-              <div 
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
-                style={{ width: `${yearProgressPercent}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-slate-500 font-mono text-center">
-              {selectedYear === '1st-year' ? '1st Year Foundation Progress' : 'Core Engineering Progress'}
-            </p>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* Year Selection Tabs (1st Year, 2nd Year, Senior) */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         {/* Big Year Toggle Pills */}
-        <div className="flex flex-wrap p-1.5 bg-slate-950 border border-slate-800 rounded-2xl w-full sm:w-auto gap-1">
+        <div className="flex flex-wrap p-1 bg-[#0e1422] border border-white/[0.08] rounded-xl w-full sm:w-auto gap-1">
           <button
             onClick={() => {
               setSelectedYear('1st-year');
               setSelectedSemester('all');
             }}
-            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               selectedYear === '1st-year'
-                ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
+                ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <GraduationCap className="h-4 w-4" />
             1st Year
           </button>
 
@@ -271,13 +201,12 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
               setSelectedYear('2nd-year');
               setSelectedSemester('all');
             }}
-            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               selectedYear === '2nd-year'
-                ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
+                ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <BookOpen className="h-4 w-4" />
             2nd Year
           </button>
 
@@ -286,14 +215,15 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
               setSelectedYear('3rd-year');
               setSelectedSemester('all');
             }}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               selectedYear === '3rd-year'
-                ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
+                ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             3rd Year
           </button>
+
 
           <button
             onClick={() => {
@@ -416,7 +346,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
         <input
           type="text"
-          placeholder="Search subjects, codes (e.g. CS201, MATH101), topics, or concepts..."
+          placeholder="Search subjects, codes (e.g. COM101, BSC101)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
@@ -482,14 +412,14 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
 
                     {/* Highlights Bullet points */}
                     {note.highlights && note.highlights.length > 0 && (
-                      <div className="space-y-1.5 bg-slate-900/40 p-3 rounded-xl border border-slate-800/80">
-                        <div className="text-[10px] font-mono uppercase text-slate-400 font-semibold flex items-center gap-1">
-                          <Sparkles className="h-3 w-3 text-blue-400" /> Key Exam Essentials
+                      <div className="space-y-1.5 bg-[#080b11] p-3 rounded-lg border border-white/[0.07]">
+                        <div className="text-[10px] font-mono uppercase text-slate-400 font-semibold">
+                          Key Exam Essentials
                         </div>
                         <ul className="space-y-1">
                           {note.highlights.map((h, i) => (
                             <li key={i} className="text-[11px] text-slate-300 flex items-center gap-2">
-                              <span className="h-1 w-1 rounded-full bg-blue-400 shrink-0" />
+                              <span className="h-1 w-1 rounded-full bg-cyan-400 shrink-0" />
                               <span>{h}</span>
                             </li>
                           ))}
@@ -503,10 +433,9 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
                         <button
                           type="button"
                           onClick={() => toggleExpanded(note.id)}
-                          className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg bg-slate-900/50 hover:bg-slate-900 text-xs font-mono text-slate-300 transition-colors cursor-pointer border border-slate-800/60"
+                          className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg bg-[#080b11] hover:bg-white/[0.05] text-xs font-mono text-slate-300 transition-colors cursor-pointer border border-white/[0.07]"
                         >
-                          <span className="flex items-center gap-1.5">
-                            <Layers className="h-3.5 w-3.5 text-blue-400" />
+                          <span>
                             Syllabus Modules ({note.topics.length} Units)
                           </span>
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -521,12 +450,12 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
                               className="overflow-hidden space-y-2 pt-1"
                             >
                               {note.topics.map((mod, mi) => (
-                                <div key={mi} className="p-2.5 rounded-lg bg-slate-900/30 border border-slate-800/40 space-y-1">
+                                <div key={mi} className="p-2.5 rounded-lg bg-[#080b11] border border-white/[0.05] space-y-1">
                                   <div className="text-[11px] font-bold text-white font-mono">{mod.title}</div>
                                   {mod.subtopics && Array.isArray(mod.subtopics) && mod.subtopics.length > 0 && (
                                     <div className="flex flex-wrap gap-1">
                                       {mod.subtopics.map((st, sti) => (
-                                        <span key={sti} className="text-[10px] text-slate-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800/60">
+                                        <span key={sti} className="text-[10px] text-slate-400 bg-white/[0.02] px-1.5 py-0.5 rounded border border-white/[0.05]">
                                           {st}
                                         </span>
                                       ))}
@@ -542,7 +471,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
                   </div>
 
                   {/* TWO USER ACCESS WAYS: 1) Online View, 2) Download */}
-                  <div className="pt-3 border-t border-slate-900 grid grid-cols-2 gap-2">
+                  <div className="pt-3 border-t border-white/[0.07] grid grid-cols-2 gap-2">
                     {/* Way 1: Online View Modal */}
                     <button
                       type="button"
@@ -554,7 +483,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
                         semester: note.semester,
                         year: note.year
                       })}
-                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-blue-500 hover:bg-blue-400 text-slate-950 font-mono font-bold text-xs shadow-md shadow-blue-500/10 transition-all cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-xs shadow-sm transition-all cursor-pointer"
                     >
                       <Eye className="h-3.5 w-3.5" />
                       <span>View Online</span>
@@ -566,7 +495,7 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
                       download
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 font-mono text-xs font-semibold transition-all cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-[#080b11] hover:bg-white/[0.05] text-slate-200 border border-white/[0.08] font-mono text-xs font-semibold transition-all cursor-pointer"
                     >
                       <Download className="h-3.5 w-3.5 text-emerald-400" />
                       <span>Download PDF</span>
@@ -578,29 +507,30 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
           })}
         </div>
       ) : (
-        <div className="text-center py-20 bg-slate-950/40 border border-slate-800 rounded-3xl space-y-4">
-          <GraduationCap className="h-10 w-10 text-slate-700 mx-auto" />
-          <p className="text-slate-400 font-mono text-sm">No notes match your current filter.</p>
-          <div className="flex flex-wrap justify-center gap-3">
+        <div className="text-center py-16 bg-[#0e1422] border border-white/[0.08] rounded-2xl space-y-3">
+          <BookOpen className="h-8 w-8 text-slate-600 mx-auto" />
+          <p className="text-slate-400 font-mono text-xs">No notes match your current filter.</p>
+          <div className="flex flex-wrap justify-center gap-2">
             <button
               onClick={() => {
                 setSelectedSemester('all');
                 setSearch('');
               }}
-              className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-blue-400 hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-[#080b11] border border-white/[0.08] text-xs font-mono text-cyan-400 hover:text-white transition-colors cursor-pointer"
             >
               Clear Search & Filters
             </button>
             {isAdminOrOrganizer && (
               <Link href="/admin/notes/new">
                 <Button size="sm" className="bg-emerald-500 text-slate-950 font-bold font-mono text-xs">
-                  <PlusCircle className="size-3.5" /> Upload Handbook (PDF)
+                  Upload Handbook (PDF)
                 </Button>
               </Link>
             )}
           </div>
         </div>
       )}
+
 
       {/* Interactive PDF Reader Study Desk Modal */}
       <PdfViewerModal
