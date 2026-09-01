@@ -184,6 +184,12 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
     // Generate 6-digit OTP
     const otp = generateOtpCode();
 
+    console.log(`\n======================================================`);
+    console.log(`🔑 [SIGNUP OTP DISPATCH]`);
+    console.log(`   Recipient: ${email}`);
+    console.log(`   OTP Code:  ${otp}`);
+    console.log(`======================================================\n`);
+
     // Store OTP and pending registration payload
     await storeOtp(email, otp, 'signup', {
       email,
@@ -194,7 +200,7 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
       year,
     });
 
-    // Send OTP email using Azure/Resend
+    // Send OTP email using Resend
     const emailResult = await sendAppEmail({
       to: email,
       subject: `Your CampusCoder Verification Code: ${otp}`,
@@ -212,7 +218,11 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
 
     return res.json({
       ok: true,
-      message: 'Verification code sent to your email',
+      message: emailResult.success 
+        ? 'Verification code sent to your email' 
+        : (process.env.NODE_ENV !== 'production' 
+            ? `Code generated: ${otp} (Email warning: ${emailResult.error?.message || 'Check terminal console'})`
+            : 'Verification code sent to your email'),
       email,
     });
   } catch (err: any) {
@@ -220,6 +230,7 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
     return res.status(500).json({ ok: false, error: 'Failed to send verification code. Please try again.' });
   }
 });
+
 
 // Step 2: Verify OTP and finalize user creation with 48-hour session
 router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Response) => {
@@ -344,12 +355,18 @@ router.post('/resend-otp', authRateLimiter, async (req: Request, res: Response) 
     // Generate new OTP
     const otp = generateOtpCode();
 
+    console.log(`\n======================================================`);
+    console.log(`🔑 [RESEND OTP DISPATCH]`);
+    console.log(`   Recipient: ${email}`);
+    console.log(`   New OTP:   ${otp}`);
+    console.log(`======================================================\n`);
+
     // Store new OTP (this automatically deletes any old OTP from memory and Supabase DB)
     await storeOtp(email, otp, purpose, existingPayload);
 
     // Send email with new OTP
     const fullName = existingPayload?.fullName || '';
-    await sendAppEmail({
+    const emailResult = await sendAppEmail({
       to: email,
       subject: `Your CampusCoder Verification Code: ${otp}`,
       react: React.createElement(OtpVerificationEmail, {
@@ -360,11 +377,16 @@ router.post('/resend-otp', authRateLimiter, async (req: Request, res: Response) 
       plainText: `Hi ${fullName || 'there'}, your new CampusCoder verification code is ${otp}. This code is valid for 10 minutes. The previous code has been invalidated.`,
     });
 
+    if (!emailResult.success) {
+      console.warn('[Resend OTP] Email delivery warning:', emailResult.error);
+    }
+
     return res.json({
       ok: true,
       message: 'A new verification code has been sent to your email. The old code is now invalid.',
       email,
     });
+
   } catch (err: any) {
     console.error('Resend OTP error:', err);
     return res.status(500).json({ ok: false, error: 'Failed to resend verification code' });
@@ -536,7 +558,14 @@ router.post('/forgot-password', authRateLimiter, async (req: Request, res: Respo
 
     const resetDirectUrl = `${siteUrl}/reset-password?email=${encodeURIComponent(email)}`;
 
-    // 4. Dispatch branded email via Azure/Resend
+    console.log(`\n======================================================`);
+    console.log(`🔑 [PASSWORD RESET OTP DISPATCH]`);
+    console.log(`   Recipient:  ${email}`);
+    console.log(`   Reset Code: ${otp}`);
+    console.log(`   Reset URL:  ${resetDirectUrl}`);
+    console.log(`======================================================\n`);
+
+    // 4. Dispatch branded email via Resend
     const emailResult = await sendAppEmail({
       to: email,
       subject: `Your CampusCoder Password Reset Code: ${otp}`,
@@ -549,12 +578,13 @@ router.post('/forgot-password', authRateLimiter, async (req: Request, res: Respo
     });
 
     if (!emailResult.success) {
-      console.error('[Forgot Password] Azure/Resend send failed:', emailResult.error);
+      console.error('[Forgot Password] Resend send failed:', emailResult.error);
       return res.status(500).json({
         ok: false,
         error: `Failed to deliver email: ${emailResult.error?.message || 'Email delivery failed'}`,
       });
     }
+
 
     return res.json({
       ok: true,
