@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { getRedisClient, isRedisReady } from './redis';
+import { getRedisClient, isRedisReady, redisCircuitBreaker } from './redis';
 
 interface MemoryCacheEntry<T> {
   value: T;
@@ -12,6 +12,7 @@ export interface CacheStats {
   misses: number;
   l1MemoryKeys: number;
   redisConnected: boolean;
+  circuitState: string;
   invalidations: number;
 }
 
@@ -28,7 +29,7 @@ class DualTierCache {
   private tagPrefix = 'cc:tag:';
 
   constructor() {
-    // Run garbage collection sweep on local memory every 60 seconds
+    // Garbage collection sweep on local memory every 60 seconds
     this.sweepInterval = setInterval(() => this.sweepMemory(), 60_000);
     if (this.sweepInterval.unref) {
       this.sweepInterval.unref();
@@ -36,7 +37,7 @@ class DualTierCache {
   }
 
   /**
-   * Fast synchronous lookup in L1 local memory only
+   * Fast synchronous lookup in L1 local memory only (0ms)
    */
   public getSync<T>(key: string): T | null {
     const entry = this.memoryStore.get(key);
@@ -50,10 +51,10 @@ class DualTierCache {
   }
 
   /**
-   * Dual-layer read: L1 Memory -> L2 Redis
+   * Dual-layer read: L1 Memory (0ms) -> L2 Redis (strict 50ms deadline)
    */
   public async get<T>(key: string): Promise<T | null> {
-    // 1. Check L1 Memory
+    // 1. Check L1 Memory (0ms instantaneous lookup)
     const memEntry = this.memoryStore.get(key);
     if (memEntry) {
       if (Date.now() <= memEntry.expiresAt) {
@@ -63,29 +64,37 @@ class DualTierCache {
       this.memoryStore.delete(key);
     }
 
-    // 2. Check L2 Redis if available
+    // 2. Fast check: Only query Redis if ready and circuit is CLOSED/HALF_OPEN
+    if (!isRedisReady()) {
+      this.stats.misses++;
+      return null;
+    }
+
     const redis = getRedisClient();
-    if (redis && isRedisReady()) {
+    if (redis) {
       try {
-        const raw = await redis.get(this.keyPrefix + key);
+        const fetchPromise = redis.get(this.keyPrefix + key);
+        const timeoutPromise = new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('L2 cache deadline exceeded (50ms)')), 50)
+        );
+
+        const raw = await Promise.race([fetchPromise, timeoutPromise]);
         if (raw) {
           this.stats.l2Hits++;
+          redisCircuitBreaker.recordSuccess();
           const parsed = JSON.parse(raw);
 
-          // Warm L1 memory cache with remaining TTL
-          const ttlSeconds = await redis.ttl(this.keyPrefix + key);
-          if (ttlSeconds > 0) {
-            this.memoryStore.set(key, {
-              value: parsed,
-              expiresAt: Date.now() + ttlSeconds * 1000,
-              tags: [],
-            });
-          }
+          // Warm L1 memory cache with 60s TTL
+          this.memoryStore.set(key, {
+            value: parsed,
+            expiresAt: Date.now() + 60_000,
+            tags: [],
+          });
 
           return parsed as T;
         }
-      } catch (err) {
-        console.warn('[Cache] Redis get error:', err);
+      } catch (err: any) {
+        redisCircuitBreaker.recordFailure(err);
       }
     }
 
@@ -94,36 +103,43 @@ class DualTierCache {
   }
 
   /**
-   * Dual-layer write: L1 Memory + L2 Redis
+   * Dual-layer write: L1 Memory (immediate) + L2 Redis (asynchronous Write-Behind)
    */
   public async set<T>(key: string, value: T, ttlSeconds: number, tags: string[] = []): Promise<void> {
-    // 1. Set L1 Memory
+    // 1. Set L1 Memory immediately (0ms, guaranteed availability)
     this.memoryStore.set(key, {
       value,
       expiresAt: Date.now() + ttlSeconds * 1000,
       tags,
     });
 
-    // 2. Set L2 Redis with tag indexing
-    const redis = getRedisClient();
-    if (redis && isRedisReady()) {
-      try {
-        const payloadStr = JSON.stringify(value);
-        const pipeline = redis.pipeline();
+    // 2. Set L2 Redis asynchronously in background (Write-Behind, never blocks HTTP thread)
+    if (isRedisReady()) {
+      const redis = getRedisClient();
+      if (redis) {
+        queueMicrotask(() => {
+          (async () => {
+            try {
+              const payloadStr = JSON.stringify(value);
+              const pipeline = redis.pipeline();
 
-        // Store value with TTL
-        pipeline.set(this.keyPrefix + key, payloadStr, 'EX', ttlSeconds);
+              // Store value with TTL
+              pipeline.set(this.keyPrefix + key, payloadStr, 'EX', ttlSeconds);
 
-        // Add to tag sets for group invalidation
-        for (const tag of tags) {
-          const tagKey = this.tagPrefix + tag;
-          pipeline.sadd(tagKey, key);
-          pipeline.expire(tagKey, Math.max(ttlSeconds * 2, 86400));
-        }
+              // Add to tag sets for group invalidation
+              for (const tag of tags) {
+                const tagKey = this.tagPrefix + tag;
+                pipeline.sadd(tagKey, key);
+                pipeline.expire(tagKey, Math.max(ttlSeconds * 2, 86400));
+              }
 
-        await pipeline.exec();
-      } catch (err) {
-        console.warn('[Cache] Redis set error:', err);
+              await pipeline.exec();
+              redisCircuitBreaker.recordSuccess();
+            } catch (err: any) {
+              redisCircuitBreaker.recordFailure(err);
+            }
+          })().catch(() => {});
+        });
       }
     }
   }
@@ -134,12 +150,10 @@ class DualTierCache {
   public async delete(key: string): Promise<boolean> {
     const memoryDeleted = this.memoryStore.delete(key);
 
-    const redis = getRedisClient();
-    if (redis && isRedisReady()) {
-      try {
-        await redis.del(this.keyPrefix + key);
-      } catch (err) {
-        console.warn('[Cache] Redis del error:', err);
+    if (isRedisReady()) {
+      const redis = getRedisClient();
+      if (redis) {
+        redis.del(this.keyPrefix + key).catch(() => {});
       }
     }
 
@@ -155,7 +169,7 @@ class DualTierCache {
     const tagSet = new Set(tags);
     let count = 0;
 
-    // 1. Invalidate in L1 Memory
+    // 1. Invalidate in L1 Memory synchronously
     for (const [key, entry] of this.memoryStore.entries()) {
       const hasMatch = entry.tags.some((t) => tagSet.has(t));
       if (hasMatch) {
@@ -164,27 +178,32 @@ class DualTierCache {
       }
     }
 
-    // 2. Invalidate in L2 Redis via Tag Sets
-    const redis = getRedisClient();
-    if (redis && isRedisReady()) {
-      try {
-        for (const tag of tags) {
-          const tagKey = this.tagPrefix + tag;
-          const members = await redis.smembers(tagKey);
+    // 2. Invalidate in L2 Redis via Tag Sets asynchronously
+    if (isRedisReady()) {
+      const redis = getRedisClient();
+      if (redis) {
+        queueMicrotask(() => {
+          (async () => {
+            try {
+              for (const tag of tags) {
+                const tagKey = this.tagPrefix + tag;
+                const members = await redis.smembers(tagKey);
 
-          if (members && members.length > 0) {
-            const pipeline = redis.pipeline();
-            for (const memberKey of members) {
-              pipeline.del(this.keyPrefix + memberKey);
-              this.memoryStore.delete(memberKey);
-              count++;
+                if (members && members.length > 0) {
+                  const pipeline = redis.pipeline();
+                  for (const memberKey of members) {
+                    pipeline.del(this.keyPrefix + memberKey);
+                  }
+                  pipeline.del(tagKey);
+                  await pipeline.exec();
+                }
+              }
+              redisCircuitBreaker.recordSuccess();
+            } catch (err: any) {
+              redisCircuitBreaker.recordFailure(err);
             }
-            pipeline.del(tagKey);
-            await pipeline.exec();
-          }
-        }
-      } catch (err) {
-        console.warn('[Cache] Redis invalidateTags error:', err);
+          })().catch(() => {});
+        });
       }
     }
 
@@ -215,6 +234,7 @@ class DualTierCache {
       hitRatio,
       l1MemoryKeys: this.memoryStore.size,
       redisConnected: isRedisReady(),
+      circuitState: redisCircuitBreaker.getState(),
       invalidations: this.stats.invalidations,
       mode: isRedisReady() ? 'Dual-Tier (Memory L1 + Redis L2)' : 'In-Memory Fallback',
     };

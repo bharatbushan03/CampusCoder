@@ -1,3 +1,9 @@
+import dns from 'node:dns';
+
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const placeholderPattern = /placeholder|your[-_\s]|example|dummy|substitute/i;
 
 export function getSupabaseUrl() {

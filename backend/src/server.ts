@@ -1,4 +1,11 @@
+import dns from 'node:dns';
 import 'dotenv/config';
+
+// Force IPv4-first DNS resolution to prevent ConnectTimeoutError (UND_ERR_CONNECT_TIMEOUT)
+// when connecting to Supabase and other cloud services on networks with non-routable IPv6/NAT64.
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
