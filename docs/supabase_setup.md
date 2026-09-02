@@ -1,113 +1,85 @@
-# Supabase Setup Guide - CampusCoder
+# Supabase Database Setup & Migration Guide
 
-This guide walks you through applying the SQL schema, triggers, and Row Level Security (RLS) policies to your Supabase project.
+This guide walks you through applying all database migrations, configuring Row Level Security (RLS), setting up storage buckets, and configuring authentication triggers on your Supabase project.
 
 ---
 
-## 1. Apply Schema via Supabase SQL Editor
+## 1. Step-by-Step Migration Execution
 
-To apply the database schema, follow these steps in your Supabase project dashboard:
+To apply the database schema, follow these steps in your **Supabase Dashboard**:
 
-1. Go to your **Supabase Dashboard** -> Select your Project.
-2. Click on the **SQL Editor** tab from the left sidebar.
+1. Log into your **[Supabase Dashboard](https://app.supabase.com)** and open your project.
+2. Select the **SQL Editor** tab from the left sidebar.
 3. Click **New Query** -> **Blank Query**.
-4. Open the files in `supabase/migrations`.
-5. Copy and run each migration file in filename order, starting with `20260529000000_init_schema.sql`.
-6. Paste one migration at a time into the editor.
-7. Click **Run** (or press `Ctrl + Enter` / `Cmd + Enter`).
-8. You should see a success message such as `Success. No rows returned.` before running the next migration.
+4. Open the SQL files located in `backend/supabase/migrations/` in numerical order:
+
+| # | Migration File | Description |
+|---|---|---|
+| 1 | `20260529000000_init_schema.sql` | Core schema (`profiles`, `events`, `event_owners`, `registrations`, `community_links`, `announcements`), RLS policies, and profile trigger. |
+| 2 | `20260529000001_add_meeting_sent_at.sql` | Adds `meeting_link_sent_at` timestamp tracking to `events`. |
+| 3 | `20260529000002_add_resources_and_archive_fields.sql` | Adds `summary`, `recording_url` fields to `events` and creates `resources` table. |
+| 4 | `20260529000003_add_unique_registration.sql` | Adds unique constraint `(event_id, email)` to `registrations` to prevent duplicate RSVPs. |
+| 5 | `20260529000004_rls_hardening.sql` | Hardens RLS policies across all tables. |
+| 6 | `20260529000005_add_rate_limiting.sql` | Adds rate limiting support functions. |
+| 7 | `20260529000006_add_banner_storage_policies.sql` | Configures storage RLS policies for event banners. |
+| 8 | `20260716000001_move_dsa_challenge_to_past.sql` | Updates challenge event statuses to past/completed. |
+| 9 | `20260716203734_move_dsa_challenge_to_past_events.sql` | Synchronizes past event views. |
+| 10 | `20260716203735_remove_dsa_challenge_registrations.sql` | Cleans up legacy test registration entries. |
+| 11 | `20260717000000_allow_read_completed_events.sql` | Grants public read access for completed events in archive. |
+| 12 | `20260823000000_create_showcase_projects.sql` | Creates `showcase_projects` table for student portfolios with approval workflows. |
+| 13 | `20260823000001_create_email_otps.sql` | Creates `email_otps` table for secure password reset and OTP verification. |
+| 14 | `20260823000002_cascade_profile_deletions.sql` | Adds cascading deletion triggers for user profiles. |
+| 15 | `20260825000000_performance_indexes.sql` | Adds performance indexes on frequent filter columns (`slug`, `event_type`, `status`, `created_at`). |
+| 16 | `20260830000000_create_competitions.sql` | Creates `competitions` table for university coding challenges and hackathons. |
+| 17 | `20260830000001_create_notes.sql` | Creates `notes` table for engineering course handbooks and study notes. |
+| 18 | `20260902000000_add_event_photos.sql` | Adds `photos text[] DEFAULT '{}'` to `events` table for photo galleries. |
+
+5. Copy the SQL content from each file, paste it into the editor, and click **Run** (or `Ctrl + Enter`).
+6. Confirm `Success. No rows returned.` after each file before running the next.
 
 ---
 
-## 2. Dynamic Profiles Auto-Creation Trigger
+## 2. Storage Buckets Setup
 
-We have implemented an automatic database trigger `on_auth_user_created` that listens to user sign-ups in Supabase Auth.
-When a student registers an account:
-1. Supabase Auth creates an entry in the secure `auth.users` table.
-2. The trigger automatically creates a corresponding profile entry in the public `profiles` table.
-3. The default user role is set to `student`.
+Under **Supabase Dashboard** -> **Storage**:
 
-### How to customize roles during sign-up
-You can pass custom metadata from your frontend signup client (using the Supabase SDK) to specify fields:
-```javascript
-const { data, error } = await supabase.auth.signUp({
-  email: 'student@college.edu',
-  password: 'securepassword',
-  options: {
-    data: {
-      full_name: 'Jane Doe',
-      college: 'Engineering Campus',
-      branch: 'Computer Science',
-      year: '2028',
-      role: 'student' // 'student', 'admin', or 'organizer'
-    }
-  }
-});
-```
+1. Click **New Bucket**.
+2. Create the following buckets with **Public** access enabled:
+   - **`event-banners`**: Max file size: 5MB. Allowed MIME types: `image/png`, `image/jpeg`, `image/webp`.
+   - **`event-photos`**: Max file size: 10MB. Allowed MIME types: `image/png`, `image/jpeg`, `image/webp`.
+   - **`project-submissions`**: Max file size: 5MB. Allowed MIME types: `image/png`, `image/jpeg`, `image/webp`.
+   - **`notes-handbooks`**: Max file size: 25MB. Allowed MIME types: `application/pdf`, `image/png`, `image/jpeg`.
 
 ---
 
-## 3. Row Level Security (RLS) Policies Breakdown
+## 3. Row Level Security (RLS) Summary
 
-All tables have Row Level Security enabled by default. Only users meeting the policies below can query or modify entries.
-
-| Table | Operation | Allowed Role/Condition | Description |
+| Table | Operation | Target Role / Condition | Purpose |
 |---|---|---|---|
-| **profiles** | `SELECT` | User matches `id` OR Admin/Organizer | Students view their own profile; Admins see all. |
-| | `UPDATE` | User matches `id` | Students edit their own profile fields. |
-| | `ALL` | Admin/Organizer | Full console control. |
-| **events** | `SELECT` | Status is `'published'` OR Admin/Organizer | Public views live events; Admins see drafts. |
-| | `ALL` | Admin/Organizer | Edit or delete sprints. |
-| **event_owners** | `SELECT` | Public | View speaker panels. |
-| | `ALL` | Admin/Organizer | Add speakers. |
-| **registrations** | `INSERT` | Public | Any student can register/RSVP. |
-| | `SELECT` | Admin/Organizer OR Email matches Auth Email | Admins see all RSVPs; students see their own. |
-| **community_links**| `SELECT` | Active links | Public views active community links. |
-| | `ALL` | Admin/Organizer | Update discord/slack targets. |
-| **announcements** | `SELECT` | Public | Public reads notifications. |
-| | `ALL` | Admin/Organizer | Post new announcements. |
+| **`profiles`** | `SELECT` | `id = auth.uid()` OR `role IN ('admin', 'organizer')` | Students view own profile; admins view all. |
+| | `UPDATE` | `id = auth.uid()` | Students update own profile fields. |
+| | `ALL` | `role = 'admin'` | Full administrative control. |
+| **`events`** | `SELECT` | `status IN ('published', 'completed')` OR `role IN ('admin', 'organizer')` | Public views live & past events; admins view drafts. |
+| | `ALL` | `role IN ('admin', 'organizer')` | Organizers & admins create/modify events. |
+| **`registrations`** | `INSERT` | Public (`anon`, `authenticated`) | Anyone can register for open events. |
+| | `SELECT` | `email = auth.email()` OR `role IN ('admin', 'organizer')` | Students see own RSVPs; admins see all attendees. |
+| **`showcase_projects`** | `SELECT` | `status = 'approved'` OR `user_id = auth.uid()` OR `role = 'admin'` | Public sees approved projects; students see own drafts. |
+| | `INSERT` | `authenticated` | Logged-in students can submit projects. |
+| **`notes`** | `SELECT` | `is_verified = true` OR `role = 'admin'` | Public sees verified notes; admins manage all. |
+| **`community_links`** | `SELECT` | `is_active = true` | Public reads active Discord/social links. |
+| | `ALL` | `role = 'admin'` | Admin modifies socials. |
+| **`announcements`** | `SELECT` | Public | Public reads community announcements. |
+| | `ALL` | `role = 'admin'` | Admin broadcasts announcements. |
 
 ---
 
-## 4. Environment Variables Needed
+## 4. Promoting Your First Admin Account
 
-Create a `.env.local` file in your root folder (Next.js automatically loads it for local development, and it is excluded in `.gitignore`):
-
-```bash
-# Obtain these from Supabase Dashboard -> Connect or Project Settings -> API Keys
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-
-# Recommended current public key
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-
-# Server-only key for protected server actions. Never expose this publicly.
-SUPABASE_SECRET_KEY=sb_secret_...
-
-# Optional legacy names if your Supabase project only shows old JWT keys:
-# NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-# SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
-```
-
-*Warning: Never commit your `.env.local` file containing real credentials to GitHub. Always use `.env.example` as a template for other developers.*
-
-## 5. Auth Redirect URLs
-
-In Supabase Dashboard -> Authentication -> URL Configuration:
-
-1. Set **Site URL** to `http://localhost:3000` for local development.
-2. Add redirect URLs for local auth flows:
-   - `http://localhost:3000`
-   - `http://localhost:3000/reset-password`
-3. When deployed, add your production domain and production reset password URL too.
-
-## 6. Make Your First Admin
-
-After creating your first account through `/signup`, promote that profile to admin from Supabase SQL Editor:
-
-```sql
-update public.profiles
-set role = 'admin'
-where email = 'your-email@example.com';
-```
-
-Then sign out and sign in again before opening `/admin`.
+1. Sign up for a normal account on your app (`http://localhost:3000/signup`).
+2. In your Supabase Dashboard SQL Editor, run:
+   ```sql
+   UPDATE public.profiles
+   SET role = 'admin'
+   WHERE email = 'your-email@example.com';
+   ```
+3. Sign out and sign in again to receive the updated JWT claims and access the `/admin` portal.
