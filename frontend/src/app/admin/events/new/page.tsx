@@ -17,7 +17,11 @@ export default function CreateEventPage() {
     setErrorMsg('');
 
     try {
-      await createEvent(eventData, speakers);
+      const res = await createEvent(eventData, speakers);
+      if (!res.success) {
+        setErrorMsg(res.error || 'An error occurred while creating the event.');
+        return;
+      }
       router.push('/admin/events');
       router.refresh();
     } catch (err: any) {

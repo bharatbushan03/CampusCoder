@@ -376,11 +376,31 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
     created_by: adminId,
   };
 
-  const { data: insertedEvent, error: eventError } = await supabase
+  let insertedEvent: any = null;
+  let eventError: any = null;
+
+  const insertRes = await supabase
     .from('events')
     .insert(sanitizedEvent)
     .select()
     .single();
+
+  insertedEvent = insertRes.data;
+  eventError = insertRes.error;
+
+  // Graceful fallback if database migration for photos has not been applied yet
+  if (eventError && eventError.code === '42703') {
+    console.warn('[Admin] photos column missing in events table. Retrying insert without photos column.');
+    const fallbackEvent = { ...sanitizedEvent };
+    delete (fallbackEvent as any).photos;
+    const retryRes = await supabase
+      .from('events')
+      .insert(fallbackEvent)
+      .select()
+      .single();
+    insertedEvent = retryRes.data;
+    eventError = retryRes.error;
+  }
 
   if (eventError) {
     if (eventError.code === '23505') {
@@ -442,10 +462,23 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     banner_url: data.banner_url || null,
   };
 
-  const { error: updateError } = await supabase
+  let updateError: any = null;
+  const updateRes = await supabase
     .from('events')
     .update(sanitizedEvent)
     .eq('id', parsed.data);
+  updateError = updateRes.error;
+
+  if (updateError && updateError.code === '42703') {
+    console.warn('[Admin] photos column missing in events table. Retrying update without photos column.');
+    const fallbackEvent = { ...sanitizedEvent };
+    delete (fallbackEvent as any).photos;
+    const retryUpdate = await supabase
+      .from('events')
+      .update(fallbackEvent)
+      .eq('id', parsed.data);
+    updateError = retryUpdate.error;
+  }
 
   if (updateError) {
     if (updateError.code === '23505') {
