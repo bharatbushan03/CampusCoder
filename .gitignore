@@ -19,6 +19,8 @@ backend/package-lock.json
 /coverage
 /test-results
 /playwright-report
+/qa-screenshots
+vgrep_output.txt
 
 # next.js
 /.next/
