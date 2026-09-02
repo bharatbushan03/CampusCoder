@@ -45,7 +45,11 @@ export default function EditEventPage({ params }: PageProps) {
     setErrorMsg('');
 
     try {
-      await updateEvent(id, updatedEventData, updatedSpeakers);
+      const res = await updateEvent(id, updatedEventData, updatedSpeakers);
+      if (!res.success) {
+        setErrorMsg(res.error || 'An error occurred while updating the event.');
+        return;
+      }
       router.push('/admin/events');
       router.refresh();
     } catch (err: any) {

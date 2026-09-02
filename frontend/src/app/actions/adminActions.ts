@@ -22,21 +22,37 @@ type SpeakerPayload = {
 };
 
 export async function createEvent(payload: EventPayload, speakers: SpeakerPayload[]) {
-  const result = await serverApi<{ ok: boolean; success: boolean; eventId: string }>('/admin/events', {
-    method: 'POST',
-    body: JSON.stringify({ payload, speakers }),
-  });
+  try {
+    const result = await serverApi<{ ok: boolean; success: boolean; eventId: string }>('/admin/events', {
+      method: 'POST',
+      body: JSON.stringify({ payload, speakers }),
+    });
 
-  return { success: result.success, eventId: result.eventId };
+    return { success: result.success, eventId: result.eventId };
+  } catch (err: any) {
+    console.error('[createEvent action error]:', err);
+    return {
+      success: false,
+      error: err.message || 'Failed to create sprint event.',
+    };
+  }
 }
 
 export async function updateEvent(id: string, payload: EventPayload, speakers: SpeakerPayload[]) {
-  await serverApi(`/admin/events/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ payload, speakers }),
-  });
+  try {
+    await serverApi(`/admin/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ payload, speakers }),
+    });
 
-  return { success: true };
+    return { success: true };
+  } catch (err: any) {
+    console.error('[updateEvent action error]:', err);
+    return {
+      success: false,
+      error: err.message || 'Failed to update sprint event.',
+    };
+  }
 }
 
 export async function createAnnouncement(payload: z.infer<typeof announcementSchema>) {

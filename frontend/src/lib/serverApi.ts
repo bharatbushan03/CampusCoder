@@ -12,15 +12,26 @@ export async function serverApi<T>(path: string, options?: RequestInit): Promise
     .map((c) => `${c.name}=${c.value}`)
     .join('; ');
 
-  const res = await fetch(`${BACKEND_URL}/api${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      ...options?.headers,
-    },
-    cache: 'no-store',
-    ...options,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BACKEND_URL}/api${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+        ...options?.headers,
+      },
+      cache: 'no-store',
+      ...options,
+    });
+  } catch (fetchErr: any) {
+    const isConnRefused = fetchErr?.cause?.code === 'ECONNREFUSED' || fetchErr?.message?.includes('fetch failed');
+    throw new ApiError(
+      isConnRefused
+        ? 'Cannot connect to backend service (port 4000). Please ensure the backend server is running.'
+        : fetchErr?.message || 'Backend network request failed',
+      503
+    );
+  }
 
   const body = await res.json().catch(() => null);
 
