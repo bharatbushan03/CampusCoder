@@ -61,6 +61,7 @@ export type Database = {
           meeting_link_sent_at: string | null;
           summary: string | null;
           recording_url: string | null;
+          photos: string[] | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -83,6 +84,7 @@ export type Database = {
           meeting_link_sent_at?: string | null;
           summary?: string | null;
           recording_url?: string | null;
+          photos?: string[] | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -105,6 +107,7 @@ export type Database = {
           meeting_link_sent_at?: string | null;
           summary?: string | null;
           recording_url?: string | null;
+          photos?: string[] | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

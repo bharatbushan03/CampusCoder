@@ -344,11 +344,10 @@ export default function SignupPage() {
                       onChange={(e) => setYear(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
                     >
-                      <option value="2025">2025</option>
-                      <option value="2026">2026</option>
                       <option value="2027">2027</option>
                       <option value="2028">2028</option>
                       <option value="2029">2029</option>
+                      <option value="2030">2030</option>
                     </select>
                   </div>
                 </div>
@@ -369,7 +368,7 @@ export default function SignupPage() {
                       id="page-college-name"
                       type="text"
                       required
-                      placeholder="e.g. CEC Delhi"
+                      placeholder="e.g. MIET Jammu"
                       value={college}
                       onChange={(e) => setCollege(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"

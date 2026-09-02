@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 
-import { notesData as defaultNotesData, YearLevel } from '@/data/notesData';
+import { YearLevel } from '@/data/notesData';
 import { AnimatedCard } from '@/components/animations/ScrollAnimations';
 import { Button } from '@/components/ui/Button';
 
@@ -93,42 +93,11 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
           }));
           setDynamicNotes(mapped);
         } else {
-          // Map default fallback notes
-          const mappedDefaults: DisplayNote[] = defaultNotesData.map(n => ({
-            id: n.id,
-            title: n.title,
-            code: n.code,
-            subject: n.title,
-            year: n.year,
-            semester: n.semester,
-            branch: 'Engineering',
-            description: n.description,
-            pdfUrl: n.resources.cheatSheetUrl || n.resources.handwrittenNotesUrl || 'https://tutorial.math.lamar.edu/pdf/Calculus_Cheat_Sheet_All.pdf',
-            fileSize: '4.8 MB',
-            tags: n.tags,
-            topics: n.topics,
-            highlights: n.highlights
-          }));
-          setDynamicNotes(mappedDefaults);
+          setDynamicNotes([]);
         }
       } catch (err) {
         console.error('Error fetching notes:', err);
-        const mappedDefaults: DisplayNote[] = defaultNotesData.map(n => ({
-          id: n.id,
-          title: n.title,
-          code: n.code,
-          subject: n.title,
-          year: n.year,
-          semester: n.semester,
-          branch: 'Engineering',
-          description: n.description,
-          pdfUrl: n.resources.cheatSheetUrl || n.resources.handwrittenNotesUrl || 'https://tutorial.math.lamar.edu/pdf/Calculus_Cheat_Sheet_All.pdf',
-          fileSize: '4.8 MB',
-          tags: n.tags,
-          topics: n.topics,
-          highlights: n.highlights
-        }));
-        setDynamicNotes(mappedDefaults);
+        setDynamicNotes([]);
       } finally {
         setLoading(false);
       }
@@ -507,19 +476,30 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
           })}
         </div>
       ) : (
-        <div className="text-center py-16 bg-[#0e1422] border border-white/[0.08] rounded-2xl space-y-3">
-          <BookOpen className="h-8 w-8 text-slate-600 mx-auto" />
-          <p className="text-slate-400 font-mono text-xs">No notes match your current filter.</p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <button
-              onClick={() => {
-                setSelectedSemester('all');
-                setSearch('');
-              }}
-              className="px-3 py-1.5 rounded-lg bg-[#080b11] border border-white/[0.08] text-xs font-mono text-cyan-400 hover:text-white transition-colors cursor-pointer"
-            >
-              Clear Search & Filters
-            </button>
+        <div className="text-center py-16 bg-[#0e1422] border border-white/[0.08] rounded-2xl space-y-4 px-4">
+          <BookOpen className="h-10 w-10 text-slate-600 mx-auto" />
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-white font-mono">
+              {search || selectedSemester !== 'all' ? 'No Notes Found' : 'No Subject Notes Uploaded Yet'}
+            </h3>
+            <p className="text-slate-400 font-mono text-xs max-w-md mx-auto">
+              {search || selectedSemester !== 'all'
+                ? 'No subject notes match your current search or semester filter.'
+                : 'Verified subject handbooks and academic notes will be added soon!'}
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2 pt-1">
+            {(search || selectedSemester !== 'all') && (
+              <button
+                onClick={() => {
+                  setSelectedSemester('all');
+                  setSearch('');
+                }}
+                className="px-3 py-1.5 rounded-lg bg-[#080b11] border border-white/[0.08] text-xs font-mono text-cyan-400 hover:text-white transition-colors cursor-pointer"
+              >
+                Clear Search & Filters
+              </button>
+            )}
             {isAdminOrOrganizer && (
               <Link href="/admin/notes/new">
                 <Button size="sm" className="bg-emerald-500 text-slate-950 font-bold font-mono text-xs">

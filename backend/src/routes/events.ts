@@ -186,7 +186,7 @@ router.post('/registrations', registrationRateLimiter, async (req: Request, res:
 
   const { data: event, error: eventError } = await supabase
     .from('events')
-    .select('id, title, date, start_time, end_time, mode, registration_deadline, status')
+    .select('id, title, date, start_time, end_time, mode, registration_deadline, status, event_type, meeting_link, short_description')
     .eq('id', validatedEventId)
     .single();
 
@@ -250,10 +250,23 @@ router.post('/registrations', registrationRateLimiter, async (req: Request, res:
       {
         full_name: sanitizedData.full_name,
         email: sanitizedData.email,
+        phone: sanitizedData.phone,
         college: sanitizedData.college,
         branch: sanitizedData.branch,
+        year: sanitizedData.year,
+        coding_level: sanitizedData.coding_level,
+        preferred_language: sanitizedData.preferred_language,
       },
-      event
+      {
+        title: event.title,
+        date: event.date,
+        start_time: event.start_time,
+        end_time: event.end_time,
+        mode: event.mode,
+        event_type: event.event_type,
+        meeting_link: event.meeting_link,
+        short_description: event.short_description,
+      }
     );
   } catch (emailErr) {
     console.error('Non-critical: Background email dispatch notification:', emailErr);

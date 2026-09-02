@@ -11,6 +11,7 @@ import {
   MessageSquare,
   CalendarDays,
   AlertCircle,
+  Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -19,6 +20,8 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { api } from '@/lib/api';
 import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
+import { EventPhotoLightbox } from '@/components/events/EventPhotoLightbox';
+import { getEventPhotos } from '@/lib/eventPhotos';
 
 type EventRow = {
   id: string;
@@ -30,6 +33,7 @@ type EventRow = {
   mode: string;
   date: string;
   registration_deadline?: string | null;
+  photos?: string[] | null;
 };
 
 const eventTypeOptions = [
@@ -105,6 +109,7 @@ export default function EventsPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [modeFilter, setModeFilter] = useState('all');
+  const [activeGalleryEvent, setActiveGalleryEvent] = useState<{ title: string; photos: string[] } | null>(null);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -350,16 +355,37 @@ export default function EventsPage() {
                     </div>
 
                     {/* CTA */}
-                    <div className="pt-3 border-t border-slate-800/60 mt-auto">
-                      <Link href={`/events/${ev.slug}`}>
+                    <div className="pt-3 border-t border-slate-800/60 mt-auto flex items-center gap-2">
+                      <Link href={`/events/${ev.slug}`} className="flex-1">
                         <Button
                           variant={ev.status === 'published' ? 'primary' : 'outline'}
                           size="sm"
-                          className="w-full"
+                          className="w-full text-xs font-mono"
                         >
                           {ev.status === 'published' ? 'Register now' : 'View details'}
                         </Button>
                       </Link>
+
+                      {(() => {
+                        const eventPhotos = getEventPhotos(ev.photos, ev.event_type, ev.slug || ev.title);
+                        if (eventPhotos.length === 0) return null;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveGalleryEvent({
+                                title: ev.title,
+                                photos: eventPhotos,
+                              });
+                            }}
+                            className="px-2.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/40 text-slate-300 hover:text-emerald-400 text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="View Event Photos & Gallery"
+                          >
+                            <Camera className="size-3.5 text-emerald-400" />
+                            <span className="hidden sm:inline">Photos</span>
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </Card>
@@ -429,6 +455,16 @@ export default function EventsPage() {
           </div>
         </AnimatedSection>
       </div>
+
+      {/* Online Photo Lightbox Modal */}
+      {activeGalleryEvent && (
+        <EventPhotoLightbox
+          photos={activeGalleryEvent.photos}
+          eventTitle={activeGalleryEvent.title}
+          isOpen={!!activeGalleryEvent}
+          onClose={() => setActiveGalleryEvent(null)}
+        />
+      )}
     </div>
   );
 }

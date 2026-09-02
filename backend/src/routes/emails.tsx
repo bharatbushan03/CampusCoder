@@ -4,7 +4,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import { sendAppEmail } from '../lib/email';
 import { MeetingLinkEmail } from '../components/emails/MeetingLinkAnnouncement';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '../lib/eventSchedule';
+import { formatEventDate, formatEventTime } from '../lib/eventSchedule';
 import type { Database } from '../types/database.types';
 
 import { backgroundQueue } from '../lib/queue';
@@ -49,12 +49,15 @@ router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, error: 'No registrations found' });
     }
 
+    const formattedDate = formatEventDate(event.date);
+    const formattedTime = formatEventTime(event.start_time, event.end_time);
+
     // Queue batch emails into background queue with throttling
     for (const reg of registrations) {
       backgroundQueue.add(
         `meeting_link_${eventId}_${reg.email}`,
-        { reg, event },
-        async ({ reg: r, event: ev }) => {
+        { reg, event, formattedDate, formattedTime },
+        async ({ reg: r, event: ev, formattedDate: d, formattedTime: t }) => {
           await sendAppEmail({
             to: r.email,
             subject: `Meeting Link: ${ev.title}`,
@@ -62,8 +65,8 @@ router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
               <MeetingLinkEmail
                 studentName={r.full_name}
                 eventTitle={ev.title}
-                eventDate={EVENT_DATE_LABEL}
-                eventTime={EVENT_TIME_LABEL}
+                eventDate={d}
+                eventTime={t}
                 meetingLink={ev.meeting_link!}
               />
             ),
