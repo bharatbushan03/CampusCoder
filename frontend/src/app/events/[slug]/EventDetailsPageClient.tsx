@@ -27,6 +27,8 @@ import { Badge } from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
+import { EventPhotoGallery } from '@/components/events/EventPhotoGallery';
+import { getEventPhotos } from '@/lib/eventPhotos';
 
 type EventOwnerRow = {
   id: string;
@@ -58,6 +60,7 @@ type EventData = {
   status?: string | null;
   seatsTotal?: number | null;
   seatsRegistered?: number | null;
+  photos?: string[] | null;
   event_owners?: EventOwnerRow[] | null;
   speaker?: { name: string; role?: string; bio?: string } | null;
 } & Partial<CodingEvent>;
@@ -513,6 +516,14 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
                   </div>
                 </div>
               </Card>
+            </AnimatedSection>
+
+            {/* Event Photo Gallery */}
+            <AnimatedSection delay={0.16}>
+              <EventPhotoGallery
+                photos={getEventPhotos(event.photos, eventType, event.slug || event.title)}
+                eventTitle={event.title}
+              />
             </AnimatedSection>
 
           </div>

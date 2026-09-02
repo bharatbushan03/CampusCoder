@@ -121,4 +121,83 @@ router.post('/pdf', pdfUpload.single('file'), async (req: Request, res: Response
   }
 });
 
+const photoUpload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per photo
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG, JPG, WEBP, GIF, and AVIF images are allowed'));
+    }
+  },
+});
+
+router.post('/photo', photoUpload.single('file'), async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ ok: false, error: 'No image file uploaded' });
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const ext = req.file.mimetype.split('/')[1] || 'jpg';
+    const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
+
+    let bucketName = 'banners';
+    const { error } = await supabase.storage
+      .from(bucketName)
+      .upload(fileName, req.file.buffer, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: req.file.mimetype,
+      });
+
+    if (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
+    return res.json({ ok: true, url: data.publicUrl, fileName: req.file.originalname });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err.message || 'Photo upload failed' });
+  }
+});
+
+router.post('/photos', photoUpload.array('files', 20), async (req: Request, res: Response) => {
+  const files = req.files as Express.Multer.File[];
+  if (!files || files.length === 0) {
+    return res.status(400).json({ ok: false, error: 'No image files uploaded' });
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const uploadedUrls: string[] = [];
+
+    for (const file of files) {
+      const ext = file.mimetype.split('/')[1] || 'jpg';
+      const cleanName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from('banners')
+        .upload(fileName, file.buffer, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.mimetype,
+        });
+
+      if (!error) {
+        const { data } = supabase.storage.from('banners').getPublicUrl(fileName);
+        uploadedUrls.push(data.publicUrl);
+      }
+    }
+
+    return res.json({ ok: true, urls: uploadedUrls });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err.message || 'Photos batch upload failed' });
+  }
+});
+
 export { router as uploadRouter };

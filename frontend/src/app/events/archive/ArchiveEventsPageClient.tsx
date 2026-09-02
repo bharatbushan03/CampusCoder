@@ -9,12 +9,15 @@ import {
   Video,
   Search,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Camera
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
 import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+import { EventPhotoLightbox } from '@/components/events/EventPhotoLightbox';
+import { getEventPhotos } from '@/lib/eventPhotos';
 
 type EventRow = {
   id: string;
@@ -28,6 +31,7 @@ type EventRow = {
   banner_url?: string | null;
   recording_url?: string | null;
   registrations_count?: number;
+  photos?: string[] | null;
 };
 
 const generateEventSlug = (title: string | undefined | null, id: string | undefined | null): string => {
@@ -48,6 +52,7 @@ export default function EventArchivePage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [activeGalleryEvent, setActiveGalleryEvent] = useState<{ title: string; photos: string[] } | null>(null);
 
   useEffect(() => {
     const loadArchive = async () => {
@@ -150,7 +155,28 @@ export default function EventArchivePage() {
                       <Users className="size-3 text-emerald-500/50" /> {ev.registrations_count || 0} RSVPs
                     </span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const eventPhotos = getEventPhotos(ev.photos, ev.event_type, ev.slug || ev.title);
+                      if (eventPhotos.length === 0) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveGalleryEvent({
+                              title: ev.title,
+                              photos: eventPhotos,
+                            });
+                          }}
+                          className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/40 transition-colors flex items-center gap-1 cursor-pointer"
+                          title="View Event Photos & Gallery"
+                        >
+                          <Camera className="size-3.5 text-emerald-400" />
+                          <span className="text-[10px] font-mono hidden sm:inline">Photos</span>
+                        </button>
+                      );
+                    })()}
+
                     {ev.recording_url && (
                       <a href={ev.recording_url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-emerald-400 hover:bg-emerald-500/10 transition-colors" title="Watch Recording">
                         <Video className="size-3.5" />
@@ -171,6 +197,16 @@ export default function EventArchivePage() {
         <div className="text-center py-20 bg-slate-900/10 border border-slate-800 rounded-3xl">
           <p className="text-slate-500 font-mono">No past events match your search.</p>
         </div>
+      )}
+
+      {/* Online Photo Lightbox Modal */}
+      {activeGalleryEvent && (
+        <EventPhotoLightbox
+          photos={activeGalleryEvent.photos}
+          eventTitle={activeGalleryEvent.title}
+          isOpen={!!activeGalleryEvent}
+          onClose={() => setActiveGalleryEvent(null)}
+        />
       )}
     </div>
   );

@@ -6,7 +6,8 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
   Terminal, Lock, Unlock, Upload, X, Plus, Trash2, Mail, User, Users,
-  Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock, Link2, Info
+  Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock, Link2, Info,
+  Camera
 } from 'lucide-react';
 import { eventSchema } from '@/lib/validation';
 import { toast } from 'sonner';
@@ -82,6 +83,9 @@ export default function EventForm({
       : ''
   );
   const [bannerUrl, setBannerUrl] = useState(initialData?.banner_url || '');
+  const [photos, setPhotos] = useState<string[]>(initialData?.photos || []);
+  const [newPhotoUrl, setNewPhotoUrl] = useState('');
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [status, setStatus] = useState(initialData?.status || 'draft');
 
   const [speakers, setSpeakers] = useState<Speaker[]>(initialSpeakers);
@@ -98,6 +102,7 @@ export default function EventForm({
   const [uploadError, setUploadError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
@@ -187,6 +192,53 @@ export default function EventForm({
     setSpeakers(speakers.filter((_, i) => i !== index));
   };
 
+  const handleAddPhotoUrl = () => {
+    const trimmed = newPhotoUrl.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      toast.error('Please enter a valid HTTP/HTTPS image URL');
+      return;
+    }
+    setPhotos([...photos, trimmed]);
+    setNewPhotoUrl('');
+    toast.success('Photo added to gallery!');
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos(photos.filter((_, i) => i !== index));
+  };
+
+  const handlePhotoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingPhotos(true);
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+
+      const res = await fetch('/api/admin/upload/photos', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.ok && Array.isArray(data.urls)) {
+        setPhotos(prev => [...prev, ...data.urls]);
+        toast.success(`Uploaded ${data.urls.length} photos successfully!`);
+      } else {
+        throw new Error(data.error || 'Failed to upload photos');
+      }
+    } catch (err: any) {
+      toast.error('Upload failed: ' + (err.message || 'Error'));
+    } finally {
+      setUploadingPhotos(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -202,6 +254,7 @@ export default function EventForm({
       end_time: endTime,
       meeting_link: meetingLink?.trim() || null,
       registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
+      photos,
       status
     };
 
@@ -227,7 +280,7 @@ export default function EventForm({
     }
 
     try {
-      await onSubmit({ ...eventData, banner_url: finalBannerUrl }, speakers);
+      await onSubmit({ ...eventData, banner_url: finalBannerUrl, photos }, speakers);
     } catch (err: any) {
       toast.error(err.message || 'Failed to save event');
     } finally {
@@ -632,6 +685,113 @@ export default function EventForm({
           >
             <Plus className="size-3.5" /> Add Speaker
           </Button>
+        </div>
+      </Card>
+
+      {/* 4. Event Photo Gallery & Memories (Optional) */}
+      <Card hoverEffect={false} className="border-slate-900 bg-slate-950/20 p-6 md:p-8 space-y-6">
+        <SectionHeader
+          icon={Camera}
+          title="Event Photo Gallery &amp; Memories"
+          description="Upload event snapshots, coding session photos, and hackathon memories for students to view online and download."
+        />
+
+        {/* Existing Photos Grid */}
+        {photos.length > 0 ? (
+          <div className="space-y-3 pb-4 border-b border-slate-900/60">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+              <span>{photos.length} Photo{photos.length === 1 ? '' : 's'} in Gallery</span>
+              <span className="text-[11px] text-emerald-400">Available for online slideshow &amp; .ZIP download</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {photos.map((photoUrl, idx) => (
+                <div key={idx} className="relative group aspect-4/3 rounded-xl overflow-hidden border border-slate-800 bg-slate-900/40">
+                  <Image
+                    src={photoUrl}
+                    alt={`Event photo ${idx + 1}`}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(idx)}
+                      className="p-1.5 rounded-lg bg-rose-500/80 hover:bg-rose-500 text-white transition-colors cursor-pointer"
+                      title="Remove Photo"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                  <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-mono text-white">
+                    #{idx + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500 font-mono pb-2">
+            No custom photos added yet. Default curated tech photography will be shown if left blank.
+          </p>
+        )}
+
+        {/* Add Photos: 1) File Upload, 2) Direct URL */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* File Upload Zone */}
+          <div className="p-4 rounded-xl border border-dashed border-slate-800 hover:border-emerald-500/40 bg-slate-950/40 flex flex-col items-center justify-center text-center space-y-2 relative min-h-[120px]">
+            <input
+              ref={photoInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handlePhotoFileUpload}
+              disabled={uploadingPhotos}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
+            />
+            {uploadingPhotos ? (
+              <div className="flex flex-col items-center space-y-1">
+                <Loader2 className="size-6 text-emerald-400 animate-spin" />
+                <p className="text-xs font-mono text-slate-300">Uploading photos to storage...</p>
+              </div>
+            ) : (
+              <>
+                <div className="p-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <Upload className="size-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-200">Upload Photo Files</p>
+                  <p className="text-[10px] text-slate-500 font-mono">Select one or multiple images (PNG, JPG, WEBP)</p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Direct URL Input */}
+          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-2">
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400">
+              Or Add by Image URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                placeholder="https://images.unsplash.com/..."
+                value={newPhotoUrl}
+                onChange={(e) => setNewPhotoUrl(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500/50"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddPhotoUrl}
+                className="border-slate-700 text-xs font-mono text-emerald-400"
+              >
+                <Plus className="size-3.5 mr-1" /> Add
+              </Button>
+            </div>
+            <HelpText text="Paste high-res hosted URLs from Cloudinary, Imgur, or Unsplash" />
+          </div>
         </div>
       </Card>
 
