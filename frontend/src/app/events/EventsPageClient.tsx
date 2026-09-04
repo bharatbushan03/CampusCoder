@@ -19,9 +19,7 @@ import { Badge } from '@/components/ui/Badge';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { api } from '@/lib/api';
-import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
-import { EventPhotoLightbox } from '@/components/events/EventPhotoLightbox';
-import { getEventPhotos } from '@/lib/eventPhotos';
+import { EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 
 type EventRow = {
   id: string;
@@ -32,8 +30,12 @@ type EventRow = {
   status: string;
   mode: string;
   date: string;
+  start_time?: string | null;
+  end_time?: string | null;
   registration_deadline?: string | null;
   photos?: string[] | null;
+  photos_zip_url?: string | null;
+  photos_drive_url?: string | null;
 };
 
 const eventTypeOptions = [
@@ -109,8 +111,7 @@ export default function EventsPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [modeFilter, setModeFilter] = useState('all');
-  const [activeGalleryEvent, setActiveGalleryEvent] = useState<{ title: string; photos: string[] } | null>(null);
-
+  
   useEffect(() => {
     const loadEvents = async () => {
       try {
@@ -206,7 +207,7 @@ export default function EventsPage() {
                 <div className="md:w-2/5 bg-emerald-900/10 p-8 md:p-10 flex flex-col justify-center items-center md:items-start text-center md:text-left border-b md:border-b-0 md:border-r border-slate-800/60">
                   <Badge variant="accent" className="mb-4">Next event</Badge>
                   <div className="text-5xl md:text-6xl font-bold text-emerald-400 leading-none">
-                    {EVENT_DATE_LABEL}
+                    {featuredEvent.date}
                   </div>
                   <div className="text-base text-slate-400 mt-1">
                     {EVENT_TIME_LABEL}
@@ -235,7 +236,7 @@ export default function EventsPage() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Calendar className="size-3.5" />
-                      {EVENT_DATE_LABEL}
+                      {featuredEvent.date}
                     </span>
                     {featuredEvent.registration_deadline && (
                       <span className="flex items-center gap-1.5">
@@ -321,7 +322,7 @@ export default function EventsPage() {
                     {/* Date block */}
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                       <CalendarDays className="size-4 text-slate-600 shrink-0" />
-                      <span className="font-medium text-slate-300">{EVENT_DATE_LABEL}</span>
+                      <span className="font-medium text-slate-300">{ev.date ? ev.date : 'TBC'}</span>
                     </div>
 
                     {/* Title + Description */}
@@ -340,18 +341,18 @@ export default function EventsPage() {
                     <div className="space-y-1.5 text-xs text-slate-500">
                       <div className="flex items-center gap-1.5">
                         <Clock className="size-3.5 text-slate-600" />
-                        {EVENT_TIME_LABEL}
+                        {ev.start_time ? `${ev.start_time} – ${ev.end_time || ''}` : EVENT_TIME_LABEL}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <MapPin className="size-3.5 text-slate-600" />
                         {ev.mode}
                       </div>
-                      {ev.registration_deadline && (
-                        <div className="flex items-center gap-1.5">
-                          <AlertCircle className="size-3.5 text-slate-600" />
-                          Register by {EVENT_DEADLINE_LABEL}
-                        </div>
-                      )}
+{ev.registration_deadline && (
+                          <div className="flex items-center gap-1.5">
+                            <AlertCircle className="size-3.5 text-slate-600" />
+                            Register by {ev.registration_deadline}
+                          </div>
+                        )}
                     </div>
 
                     {/* CTA */}
@@ -367,23 +368,18 @@ export default function EventsPage() {
                       </Link>
 
                       {(() => {
-                        const eventPhotos = getEventPhotos(ev.photos, ev.event_type, ev.slug || ev.title);
-                        if (eventPhotos.length === 0) return null;
+                        if (!ev.photos_drive_url) return null;
                         return (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveGalleryEvent({
-                                title: ev.title,
-                                photos: eventPhotos,
-                              });
-                            }}
+                          <a
+                            href={ev.photos_drive_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="px-2.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/40 text-slate-300 hover:text-emerald-400 text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer"
-                            title="View Event Photos & Gallery"
+                            title="View Event Photos & Videos on Google Drive"
                           >
                             <Camera className="size-3.5 text-emerald-400" />
-                            <span className="hidden sm:inline">Photos</span>
-                          </button>
+                            <span className="hidden sm:inline">View Photos</span>
+                          </a>
                         );
                       })()}
                     </div>
@@ -455,16 +451,6 @@ export default function EventsPage() {
           </div>
         </AnimatedSection>
       </div>
-
-      {/* Online Photo Lightbox Modal */}
-      {activeGalleryEvent && (
-        <EventPhotoLightbox
-          photos={activeGalleryEvent.photos}
-          eventTitle={activeGalleryEvent.title}
-          isOpen={!!activeGalleryEvent}
-          onClose={() => setActiveGalleryEvent(null)}
-        />
-      )}
     </div>
   );
 }

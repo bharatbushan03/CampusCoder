@@ -10,13 +10,14 @@ import {
   Search,
   Layers,
   ArrowRight,
-  Camera
+  Camera,
+  X
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
-import { EVENT_DATE_LABEL } from '@/lib/eventSchedule';
+
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
-import { EventPhotoLightbox } from '@/components/events/EventPhotoLightbox';
+import { ZipPhotoViewer } from '@/components/events/ZipPhotoViewer';
 import { getEventPhotos } from '@/lib/eventPhotos';
 
 type EventRow = {
@@ -32,6 +33,8 @@ type EventRow = {
   recording_url?: string | null;
   registrations_count?: number;
   photos?: string[] | null;
+  photos_zip_url?: string | null;
+  photos_drive_url?: string | null;
 };
 
 const generateEventSlug = (title: string | undefined | null, id: string | undefined | null): string => {
@@ -52,7 +55,12 @@ export default function EventArchivePage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
-  const [activeGalleryEvent, setActiveGalleryEvent] = useState<{ title: string; photos: string[] } | null>(null);
+  const [activeGalleryEvent, setActiveGalleryEvent] = useState<{
+    title: string;
+    photos: string[];
+    photosZipUrl?: string | null;
+    photosDriveUrl?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const loadArchive = async () => {
@@ -141,7 +149,7 @@ export default function EventArchivePage() {
 
               <div className="p-5 gap-y-4 flex-1 flex flex-col">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-mono text-slate-500">{EVENT_DATE_LABEL}</p>
+                  <p className="text-[10px] font-mono text-slate-500">{ev.date ? ev.date : 'TBC'}</p>
                   <h3 className="text-lg font-bold text-white leading-tight group-hover:text-emerald-400 transition-colors">{ev.title || 'Untitled Event'}</h3>
                 </div>
 
@@ -158,7 +166,7 @@ export default function EventArchivePage() {
                   <div className="flex items-center gap-2">
                     {(() => {
                       const eventPhotos = getEventPhotos(ev.photos, ev.event_type, ev.slug || ev.title);
-                      if (eventPhotos.length === 0) return null;
+                      if (eventPhotos.length === 0 && !ev.photos_zip_url && !ev.photos_drive_url) return null;
                       return (
                         <button
                           type="button"
@@ -166,13 +174,17 @@ export default function EventArchivePage() {
                             setActiveGalleryEvent({
                               title: ev.title,
                               photos: eventPhotos,
+                              photosZipUrl: ev.photos_zip_url,
+                              photosDriveUrl: ev.photos_drive_url,
                             });
                           }}
                           className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/40 transition-colors flex items-center gap-1 cursor-pointer"
                           title="View Event Photos & Gallery"
                         >
                           <Camera className="size-3.5 text-emerald-400" />
-                          <span className="text-[10px] font-mono hidden sm:inline">Photos</span>
+                          <span className="text-[10px] font-mono hidden sm:inline">
+                            {ev.photos_zip_url ? 'Photos (.zip)' : 'Photos'}
+                          </span>
                         </button>
                       );
                     })()}
@@ -199,14 +211,25 @@ export default function EventArchivePage() {
         </div>
       )}
 
-      {/* Online Photo Lightbox Modal */}
+      {/* Online Photo / ZIP Viewer Modal */}
       {activeGalleryEvent && (
-        <EventPhotoLightbox
-          photos={activeGalleryEvent.photos}
-          eventTitle={activeGalleryEvent.title}
-          isOpen={!!activeGalleryEvent}
-          onClose={() => setActiveGalleryEvent(null)}
-        />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-md overflow-y-auto">
+          <div className="relative w-full max-w-5xl my-auto py-8">
+            <button
+              onClick={() => setActiveGalleryEvent(null)}
+              className="absolute top-0 right-0 p-2.5 rounded-xl bg-white/10 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 transition-all cursor-pointer z-50"
+              title="Close"
+            >
+              <X className="size-5" />
+            </button>
+            <ZipPhotoViewer
+              photos={activeGalleryEvent.photos}
+              photosZipUrl={activeGalleryEvent.photosZipUrl}
+              photosDriveUrl={activeGalleryEvent.photosDriveUrl}
+              eventTitle={activeGalleryEvent.title}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

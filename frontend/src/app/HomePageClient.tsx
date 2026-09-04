@@ -26,7 +26,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import { placeholderEvents } from '@/lib/placeholderData';
-import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
+import { EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CommunityHero } from '@/components/home/CommunityHero';
 
@@ -362,7 +362,7 @@ export default function HomePage() {
                     <div className="flex flex-wrap gap-4 text-xs text-slate-500">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="size-3.5 text-slate-600" />
-                        {EVENT_DATE_LABEL}
+                        {featuredEvent?.date}
                       </span>
                       <span className="flex items-center gap-1.5">
                         <Clock className="size-3.5 text-slate-600" />
@@ -420,7 +420,7 @@ export default function HomePage() {
                       {ev.short_description || 'No description available.'}
                     </p>
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-900 text-xs text-slate-500">
-                      <span>{ev.date ? EVENT_DATE_LABEL : ''}</span>
+                      <span>{ev.date ? ev.date : 'TBC'}</span>
                       <Link href={`/events/${ev.slug}`} className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
                         Details <ArrowRight className="size-3" />
                       </Link>
