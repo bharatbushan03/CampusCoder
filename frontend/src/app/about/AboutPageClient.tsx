@@ -46,9 +46,9 @@ const teamMembers = [
 ];
 
 const stats = [
-  { value: 30, suffix: '+', label: 'Active Members', icon: Users },
-  { value: 1, suffix: '', label: 'Events Organized', icon: Trophy },
-  { value: 5, suffix: '+', label: 'Mentors', icon: GraduationCap },
+  { value: 200, suffix: '+', label: 'Active Members', icon: Users },
+  { value: 2, suffix: '', label: 'Events Organized', icon: Trophy },
+  { value: 8, suffix: '+', label: 'Mentors', icon: GraduationCap },
 ];
 
 export default function AboutPageClient() {

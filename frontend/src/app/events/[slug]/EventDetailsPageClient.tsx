@@ -27,8 +27,6 @@ import { Badge } from '@/components/ui/Badge';
 import { api } from '@/lib/api';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
-import { EventPhotoGallery } from '@/components/events/EventPhotoGallery';
-import { getEventPhotos } from '@/lib/eventPhotos';
 
 type EventOwnerRow = {
   id: string;
@@ -61,6 +59,8 @@ type EventData = {
   seatsTotal?: number | null;
   seatsRegistered?: number | null;
   photos?: string[] | null;
+  photos_zip_url?: string | null;
+  photos_drive_url?: string | null;
   event_owners?: EventOwnerRow[] | null;
   speaker?: { name: string; role?: string; bio?: string } | null;
 } & Partial<CodingEvent>;
@@ -518,13 +518,52 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
               </Card>
             </AnimatedSection>
 
-            {/* Event Photo Gallery */}
-            <AnimatedSection delay={0.16}>
-              <EventPhotoGallery
-                photos={getEventPhotos(event.photos, eventType, event.slug || event.title)}
-                eventTitle={event.title}
-              />
-            </AnimatedSection>
+            {/* Event Photos & Videos - Google Drive Link */}
+            {event.photos_drive_url && (
+              <AnimatedSection delay={0.16}>
+                <Card hoverEffect className="p-6 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-slate-800 hover:border-emerald-500/40 transition-all shadow-xl">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 shadow-lg shadow-cyan-500/10 shrink-0">
+                        <svg className="size-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-mono text-[10px] font-bold flex items-center gap-1">
+                          <svg className="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                          </svg> Google Drive Connected
+                        </span>
+                        <h3 className="text-lg font-bold text-white font-mono mt-1.5">Event Photos &amp; Videos</h3>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
+                          Photos and videos are hosted in Google Drive. Click below to view them directly.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 w-full md:w-auto">
+                      <a
+                        href={event.photos_drive_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button
+                          variant="primary"
+                          size="md"
+                          className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 cursor-pointer py-2.5 px-5"
+                        >
+                          <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          <span>View on Google Drive</span>
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                </Card>
+              </AnimatedSection>
+            )}
 
           </div>
 

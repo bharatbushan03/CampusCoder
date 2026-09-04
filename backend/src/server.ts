@@ -1,5 +1,8 @@
 import dns from 'node:dns';
-import 'dotenv/config';
+import path from 'node:path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Force IPv4-first DNS resolution to prevent ConnectTimeoutError (UND_ERR_CONNECT_TIMEOUT)
 // when connecting to Supabase and other cloud services on networks with non-routable IPv6/NAT64.
@@ -19,6 +22,7 @@ import { showcaseRouter } from './routes/showcase';
 import { resourcesRouter } from './routes/resources';
 import { competitionsRouter } from './routes/competitions';
 import { notesRouter } from './routes/notes';
+import { driveRouter } from './routes/drive';
 import { globalRateLimiter } from './middleware/rateLimit';
 import { appCache } from './lib/cache';
 import { backgroundQueue } from './lib/queue';
@@ -115,6 +119,7 @@ app.use('/api/showcase', showcaseRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/emails', emailsRouter);
 app.use('/api/admin/upload', uploadRouter);
+app.use('/api/drive', driveRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ ok: false, error: 'Not Found' });

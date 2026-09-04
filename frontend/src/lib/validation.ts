@@ -29,6 +29,8 @@ export const eventSchema = z.object({
   registration_deadline: z.string().nullable().optional(),
   banner_url: z.url().or(z.literal('')).nullable().optional(),
   photos: z.array(z.string()).optional().default([]),
+  photos_zip_url: z.string().url().or(z.literal('')).nullable().optional(),
+  photos_drive_url: z.string().url().or(z.literal('')).nullable().optional(),
   status: z.enum(['draft', 'published', 'completed', 'cancelled']),
 }).refine((data) => data.end_time > data.start_time, {
   message: 'End time must be after start time',

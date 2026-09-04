@@ -62,6 +62,8 @@ export type Database = {
           summary: string | null;
           recording_url: string | null;
           photos: string[] | null;
+          photos_zip_url: string | null;
+          photos_drive_url: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -85,6 +87,8 @@ export type Database = {
           summary?: string | null;
           recording_url?: string | null;
           photos?: string[] | null;
+          photos_zip_url?: string | null;
+          photos_drive_url?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -108,6 +112,8 @@ export type Database = {
           summary?: string | null;
           recording_url?: string | null;
           photos?: string[] | null;
+          photos_zip_url?: string | null;
+          photos_drive_url?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

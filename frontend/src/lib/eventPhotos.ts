@@ -75,9 +75,5 @@ export function getEventPhotos(
     return customPhotos;
   }
 
-  if (Array.isArray(customPhotos) && customPhotos.length === 0) {
-    return [];
-  }
-
   return DEFAULT_EVENT_PHOTOS[eventType] || [];
 }

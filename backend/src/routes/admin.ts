@@ -30,6 +30,16 @@ type SpeakerPayload = {
   profile_image_url?: string;
 };
 
+const isColumnMissingErr = (err: any) =>
+  err &&
+  (err.code === '42703' ||
+    err.code === 'PGRST204' ||
+    err.code === 'PGRST205' ||
+    err.code?.startsWith('PGRST') ||
+    err.message?.includes('schema cache') ||
+    err.message?.includes('photos_drive_url') ||
+    err.message?.includes('photos_zip_url'));
+
 const speakerSchema = z.object({
   name: z.string().min(1),
   role: z.string().optional(),
@@ -373,6 +383,8 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
     banner_url: data.banner_url || null,
+    photos_zip_url: data.photos_zip_url || null,
+    photos_drive_url: data.photos_drive_url || null,
     created_by: adminId,
   };
 
@@ -388,11 +400,13 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
   insertedEvent = insertRes.data;
   eventError = insertRes.error;
 
-  // Graceful fallback if database migration for photos has not been applied yet
-  if (eventError && eventError.code === '42703') {
-    console.warn('[Admin] photos column missing in events table. Retrying insert without photos column.');
+  // Graceful fallback if database migration for photos, photos_zip_url, or photos_drive_url has not been applied yet
+  if (isColumnMissingErr(eventError)) {
+    console.warn('[Admin] photos_drive_url or photos_zip_url column missing in public.events table or schema cache not reloaded. Retrying insert without new columns.');
     const fallbackEvent = { ...sanitizedEvent };
     delete (fallbackEvent as any).photos;
+    delete (fallbackEvent as any).photos_zip_url;
+    delete (fallbackEvent as any).photos_drive_url;
     const retryRes = await supabase
       .from('events')
       .insert(fallbackEvent)
@@ -460,6 +474,8 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
     banner_url: data.banner_url || null,
+    photos_zip_url: data.photos_zip_url || null,
+    photos_drive_url: data.photos_drive_url || null,
   };
 
   let updateError: any = null;
@@ -469,10 +485,12 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     .eq('id', parsed.data);
   updateError = updateRes.error;
 
-  if (updateError && updateError.code === '42703') {
-    console.warn('[Admin] photos column missing in events table. Retrying update without photos column.');
+  if (isColumnMissingErr(updateError)) {
+    console.warn('[Admin] photos_drive_url or photos_zip_url column missing in public.events table or schema cache not reloaded. Retrying update without new columns.');
     const fallbackEvent = { ...sanitizedEvent };
     delete (fallbackEvent as any).photos;
+    delete (fallbackEvent as any).photos_zip_url;
+    delete (fallbackEvent as any).photos_drive_url;
     const retryUpdate = await supabase
       .from('events')
       .update(fallbackEvent)
