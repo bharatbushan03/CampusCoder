@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/Button';
 import {
   Terminal, Lock, Unlock, Upload, X, Plus, Trash2, Mail, User, Users,
   Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock, Link2, Info,
-  Camera
+  Camera, Archive, FileArchive, CheckCircle2, Download
 } from 'lucide-react';
+import JSZip from 'jszip';
 import { eventSchema } from '@/lib/validation';
 import { toast } from 'sonner';
+import { fetchDriveContents } from '@/lib/drivePhotosCache';
 
 interface Speaker {
   id?: string;
@@ -101,8 +103,26 @@ export default function EventForm({
   const [uploadProgress, setUploadProgress] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
+  const [photosZipUrl, setPhotosZipUrl] = useState(initialData?.photos_zip_url || '');
+  const [photosDriveUrl, setPhotosDriveUrl] = useState(initialData?.photos_drive_url || '');
+  const [isInspectingDrive, setIsInspectingDrive] = useState(false);
+  const [driveInspectionResult, setDriveInspectionResult] = useState<{
+    tested: boolean;
+    ok: boolean;
+    count?: number;
+    photoCount?: number;
+    videoCount?: number;
+    message?: string;
+  } | null>(null);
+  const [uploadingZip, setUploadingZip] = useState(false);
+  const [zipFileName, setZipFileName] = useState('');
+  const [zipFileSize, setZipFileSize] = useState(0);
+  const [zipImageCount, setZipImageCount] = useState(0);
+  const [isPackagingZip, setIsPackagingZip] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
 
   const handleTitleChange = (value: string) => {
     setTitle(value);
@@ -239,6 +259,142 @@ export default function EventForm({
     }
   };
 
+  const handleZipFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.zip') && file.type !== 'application/zip' && file.type !== 'application/x-zip-compressed') {
+      toast.error('Please upload a valid .zip archive file');
+      return;
+    }
+
+    setUploadingZip(true);
+    const toastId = toast.loading(`Reading & inspecting ZIP archive: ${file.name}...`);
+
+    try {
+      // 1. Client-side inspection and extraction preview using JSZip
+      const zip = await JSZip.loadAsync(file);
+      const imageNames: string[] = [];
+
+      zip.forEach((relativePath, zipEntry) => {
+        if (!zipEntry.dir && /\.(jpe?g|png|webp|gif|avif)$/i.test(relativePath)) {
+          imageNames.push(relativePath);
+        }
+      });
+
+      if (imageNames.length === 0) {
+        toast.warning('ZIP archive opened, but no image files (.jpg, .png, .webp, .gif) were found inside.', { id: toastId });
+      } else {
+        toast.loading(`Found ${imageNames.length} images! Uploading ZIP archive...`, { id: toastId });
+      }
+
+      // 2. Upload ZIP file to backend /api/admin/upload/zip
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/admin/upload/zip', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.ok && data.url) {
+        setPhotosZipUrl(data.url);
+        setZipFileName(file.name);
+        setZipFileSize(file.size);
+        setZipImageCount(imageNames.length);
+
+        toast.success(
+          `ZIP archive attached! (${imageNames.length} photos, ${(file.size / (1024 * 1024)).toFixed(1)} MB)`,
+          { id: toastId }
+        );
+      } else {
+        throw new Error(data.error || 'Failed to upload ZIP file');
+      }
+    } catch (err: any) {
+      console.error('ZIP upload error:', err);
+      toast.error('ZIP upload failed: ' + (err.message || 'Error reading archive'), { id: toastId });
+    } finally {
+      setUploadingZip(false);
+      if (zipInputRef.current) zipInputRef.current.value = '';
+    }
+  };
+
+  const handlePackageCurrentPhotosToZip = async () => {
+    if (photos.length === 0) {
+      toast.error('Add at least one photo before generating a ZIP archive.');
+      return;
+    }
+
+    setIsPackagingZip(true);
+    const toastId = toast.loading(`Packaging ${photos.length} photos into a ZIP archive...`);
+
+    try {
+      const zip = new JSZip();
+      const folderName = `${generateSlug(title || 'event')}-photos`;
+      const folder = zip.folder(folderName) || zip;
+
+      let fetchedCount = 0;
+      for (let i = 0; i < photos.length; i++) {
+        const photoUrl = photos[i];
+        try {
+          const res = await fetch(photoUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+            const padded = String(i + 1).padStart(2, '0');
+            folder.file(`photo-${padded}.${ext}`, blob);
+            fetchedCount++;
+          }
+        } catch (e) {
+          console.warn('Could not fetch photo for packaging:', e);
+        }
+      }
+
+      if (fetchedCount === 0) {
+        throw new Error('Could not download any photos to package. Try uploading a .ZIP file directly.');
+      }
+
+      toast.loading('Compressing ZIP archive...', { id: toastId });
+      const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      const zipFile = new File([zipBlob], `${generateSlug(title || 'event')}-photos.zip`, {
+        type: 'application/zip',
+      });
+
+      toast.loading('Uploading packaged ZIP to storage...', { id: toastId });
+      const formData = new FormData();
+      formData.append('file', zipFile);
+
+      const res = await fetch('/api/admin/upload/zip', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (res.ok && data.ok && data.url) {
+        setPhotosZipUrl(data.url);
+        setZipFileName(zipFile.name);
+        setZipFileSize(zipFile.size);
+        setZipImageCount(fetchedCount);
+        toast.success(`Packaged & attached ZIP archive with ${fetchedCount} photos!`, { id: toastId });
+      } else {
+        throw new Error(data.error || 'Failed to upload generated ZIP');
+      }
+    } catch (err: any) {
+      toast.error('Packaging ZIP failed: ' + (err.message || 'Error'), { id: toastId });
+    } finally {
+      setIsPackagingZip(false);
+    }
+  };
+
+  const handleRemoveZip = () => {
+    setPhotosZipUrl('');
+    setZipFileName('');
+    setZipFileSize(0);
+    setZipImageCount(0);
+    toast.success('ZIP archive removed from event.');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -255,6 +411,8 @@ export default function EventForm({
       meeting_link: meetingLink?.trim() || null,
       registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
       photos,
+      photos_zip_url: photosZipUrl?.trim() || null,
+      photos_drive_url: photosDriveUrl?.trim() || null,
       status
     };
 
@@ -280,7 +438,13 @@ export default function EventForm({
     }
 
     try {
-      await onSubmit({ ...eventData, banner_url: finalBannerUrl, photos }, speakers);
+      await onSubmit({
+        ...eventData,
+        banner_url: finalBannerUrl,
+        photos,
+        photos_zip_url: photosZipUrl?.trim() || null,
+        photos_drive_url: photosDriveUrl?.trim() || null,
+      }, speakers);
     } catch (err: any) {
       toast.error(err.message || 'Failed to save event');
     } finally {
@@ -701,7 +865,7 @@ export default function EventForm({
           <div className="space-y-3 pb-4 border-b border-slate-900/60">
             <div className="flex items-center justify-between text-xs font-mono text-slate-400">
               <span>{photos.length} Photo{photos.length === 1 ? '' : 's'} in Gallery</span>
-              <span className="text-[11px] text-emerald-400">Available for online slideshow &amp; .ZIP download</span>
+              <span className="text-[11px] text-emerald-400">Available for online viewing &amp; .ZIP download</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {photos.map((photoUrl, idx) => (
@@ -736,10 +900,120 @@ export default function EventForm({
           </p>
         )}
 
-        {/* Add Photos: 1) File Upload, 2) Direct URL */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* File Upload Zone */}
-          <div className="p-4 rounded-xl border border-dashed border-slate-800 hover:border-emerald-500/40 bg-slate-950/40 flex flex-col items-center justify-center text-center space-y-2 relative min-h-[120px]">
+        {/* Attached ZIP Archive Status Card (if present) */}
+        {photosZipUrl ? (
+          <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-950/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400">
+                <Archive className="size-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h5 className="text-xs font-bold text-white font-mono">
+                    Event Photos ZIP Archive Attached
+                  </h5>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <CheckCircle2 className="size-3" /> Ready for Students
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 font-mono mt-0.5 break-all">
+                  {zipFileName || 'photos.zip'}{' '}
+                  {zipFileSize > 0 && `(${(zipFileSize / (1024 * 1024)).toFixed(1)} MB)`}
+                  {zipImageCount > 0 && ` • ${zipImageCount} extracted images`}
+                </p>
+                <p className="text-[10px] text-emerald-500/80 font-mono mt-0.5">
+                  Students on the events page will view photos in ZIP format, with interactive client-side Unzip on view and Re-zip functionality.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={photosZipUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-emerald-400 text-xs font-mono transition-all flex items-center gap-1.5"
+                title="Download / Test ZIP"
+              >
+                <Download className="size-3.5" />
+                <span className="text-[11px]">Test ZIP</span>
+              </a>
+              <button
+                type="button"
+                onClick={handleRemoveZip}
+                className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-mono transition-all flex items-center gap-1 cursor-pointer"
+                title="Remove ZIP Archive"
+              >
+                <Trash2 className="size-3.5" />
+                <span className="text-[11px]">Remove</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          photos.length > 0 && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+              <div className="flex items-center gap-2">
+                <Archive className="size-4 text-emerald-400" />
+                <span className="text-xs font-mono text-slate-300">
+                  You have {photos.length} individual photo{photos.length === 1 ? '' : 's'}.
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handlePackageCurrentPhotosToZip}
+                disabled={isPackagingZip}
+                className="text-xs font-mono"
+              >
+                {isPackagingZip ? (
+                  <>
+                    <Loader2 className="size-3 animate-spin mr-1.5" /> Packaging...
+                  </>
+                ) : (
+                  <>
+                    <FileArchive className="size-3 mr-1.5 text-emerald-400" /> Package into .ZIP Archive
+                  </>
+                )}
+              </Button>
+            </div>
+          )
+        )}
+
+        {/* Upload Options: 1) ZIP File Upload, 2) Loose Photos Upload, 3) Image URL */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 1. Upload in ZIP Format */}
+          <div className="p-4 rounded-xl border border-dashed border-emerald-500/30 hover:border-emerald-400 bg-emerald-950/10 flex flex-col items-center justify-center text-center space-y-2 relative min-h-[130px] transition-colors">
+            <input
+              ref={zipInputRef}
+              type="file"
+              accept=".zip,application/zip,application/x-zip-compressed"
+              onChange={handleZipFileUpload}
+              disabled={uploadingZip}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
+            />
+            {uploadingZip ? (
+              <div className="flex flex-col items-center space-y-1">
+                <Loader2 className="size-6 text-emerald-400 animate-spin" />
+                <p className="text-xs font-mono text-slate-300">Processing &amp; uploading ZIP...</p>
+              </div>
+            ) : (
+              <>
+                <div className="p-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+                  <Archive className="size-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">Upload Photos as .ZIP</p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    Select a .ZIP file containing event photos
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 2. Loose Photos File Upload */}
+          <div className="p-4 rounded-xl border border-dashed border-slate-800 hover:border-slate-700 bg-slate-950/40 flex flex-col items-center justify-center text-center space-y-2 relative min-h-[130px] transition-colors">
             <input
               ref={photoInputRef}
               type="file"
@@ -756,19 +1030,21 @@ export default function EventForm({
               </div>
             ) : (
               <>
-                <div className="p-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                  <Upload className="size-4" />
+                <div className="p-2.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+                  <Upload className="size-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-200">Upload Photo Files</p>
-                  <p className="text-[10px] text-slate-500 font-mono">Select one or multiple images (PNG, JPG, WEBP)</p>
+                  <p className="text-xs font-bold text-slate-200">Upload Image Files</p>
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                    Select multiple images (PNG, JPG, WEBP)
+                  </p>
                 </div>
               </>
             )}
           </div>
 
-          {/* Direct URL Input */}
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-2">
+          {/* 3. Direct URL Input */}
+          <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-2 flex flex-col justify-center">
             <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400">
               Or Add by Image URL
             </label>
@@ -790,8 +1066,120 @@ export default function EventForm({
                 <Plus className="size-3.5 mr-1" /> Add
               </Button>
             </div>
-            <HelpText text="Paste high-res hosted URLs from Cloudinary, Imgur, or Unsplash" />
+            <HelpText text="Add direct links from cloud hosts" />
           </div>
+        </div>
+
+        {/* 4. Google Drive Photos & Videos Link Integration */}
+        <div className="pt-4 border-t border-slate-900/60 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-mono uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Globe className="size-3.5 text-cyan-400" />
+              Google Drive Photos &amp; Videos Link (Ephemeral On-Demand Streaming)
+            </label>
+            {photosDriveUrl && (
+              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <CheckCircle2 className="size-3" /> Drive Linked
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..."
+              value={photosDriveUrl}
+              onChange={(e) => {
+                setPhotosDriveUrl(e.target.value);
+                setDriveInspectionResult(null);
+              }}
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500/50"
+            />
+            {photosDriveUrl && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isInspectingDrive}
+                  onClick={async () => {
+                    if (!photosDriveUrl.trim()) return;
+                    setIsInspectingDrive(true);
+                    try {
+                      const res = await fetchDriveContents(photosDriveUrl);
+                      if (res.ok) {
+                        const pCount = res.items.filter(i => i.mediaType !== 'video').length;
+                        const vCount = res.items.filter(i => i.mediaType === 'video').length;
+                        setDriveInspectionResult({
+                          tested: true,
+                          ok: true,
+                          count: res.count,
+                          photoCount: pCount,
+                          videoCount: vCount,
+                          message: res.items.length > 0
+                            ? `Detected ${pCount} photo${pCount === 1 ? '' : 's'} and ${vCount} video${vCount === 1 ? '' : 's'}`
+                            : 'Folder verified for on-demand student streaming.'
+                        });
+                        toast.success('Drive link verified!');
+                      } else {
+                        setDriveInspectionResult({
+                          tested: true,
+                          ok: false,
+                          message: res.message || 'Could not verify folder contents. Ensure link is public.'
+                        });
+                        toast.error('Could not verify Drive link');
+                      }
+                    } catch (err: any) {
+                      setDriveInspectionResult({
+                        tested: true,
+                        ok: false,
+                        message: err.message || 'Failed to inspect link'
+                      });
+                    } finally {
+                      setIsInspectingDrive(false);
+                    }
+                  }}
+                  className="border-cyan-500/30 text-xs font-mono text-cyan-400 hover:bg-cyan-500/10"
+                >
+                  {isInspectingDrive ? (
+                    <>
+                      <Loader2 className="size-3 animate-spin mr-1" /> Checking...
+                    </>
+                  ) : (
+                    'Test Link'
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPhotosDriveUrl('');
+                    setDriveInspectionResult(null);
+                  }}
+                  className="border-slate-800 text-xs text-slate-400 hover:text-rose-400"
+                >
+                  Clear
+                </Button>
+              </>
+            )}
+          </div>
+
+          {driveInspectionResult && (
+            <div className={`p-2.5 rounded-lg text-xs font-mono flex items-center gap-2 border ${
+              driveInspectionResult.ok
+                ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400'
+                : 'bg-rose-950/20 border-rose-500/30 text-rose-400'
+            }`}>
+              {driveInspectionResult.ok ? (
+                <CheckCircle2 className="size-3.5 shrink-0" />
+              ) : (
+                <AlertTriangle className="size-3.5 shrink-0" />
+              )}
+              <span>{driveInspectionResult.message}</span>
+            </div>
+          )}
+
+          <HelpText text="Photos and videos are streamed on-demand directly from Google Drive and never saved to Supabase storage. Ensure folder sharing is set to 'Anyone with the link can view'." />
         </div>
       </Card>
 

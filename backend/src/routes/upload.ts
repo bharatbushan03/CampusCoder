@@ -145,7 +145,7 @@ router.post('/photo', photoUpload.single('file'), async (req: Request, res: Resp
     const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
     const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
 
-    let bucketName = 'banners';
+    const bucketName = 'banners';
     const { error } = await supabase.storage
       .from(bucketName)
       .upload(fileName, req.file.buffer, {
@@ -197,6 +197,57 @@ router.post('/photos', photoUpload.array('files', 20), async (req: Request, res:
     return res.json({ ok: true, urls: uploadedUrls });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'Photos batch upload failed' });
+  }
+});
+
+const zipUpload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB for ZIP archive
+  fileFilter: (_req, file, cb) => {
+    const isZip =
+      file.mimetype === 'application/zip' ||
+      file.mimetype === 'application/x-zip-compressed' ||
+      file.mimetype === 'application/octet-stream' ||
+      file.originalname.toLowerCase().endsWith('.zip');
+    if (isZip) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .ZIP archive files are allowed'));
+    }
+  },
+});
+
+router.post('/zip', zipUpload.single('file'), async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ ok: false, error: 'No ZIP file uploaded' });
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `event-zips/${Date.now()}-${cleanName.toLowerCase().endsWith('.zip') ? cleanName : `${cleanName}.zip`}`;
+
+    const { error } = await supabase.storage
+      .from('banners')
+      .upload(fileName, req.file.buffer, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: 'application/zip',
+      });
+
+    if (error) {
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    const { data } = supabase.storage.from('banners').getPublicUrl(fileName);
+    return res.json({
+      ok: true,
+      url: data.publicUrl,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err.message || 'ZIP upload failed' });
   }
 });
 
