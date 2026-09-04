@@ -1327,6 +1327,27 @@ router.post('/resources/seed', async (_req: Request, res: Response) => {
       is_active: true,
     },
     {
+      title: 'Love Babbar DSA Sheet',
+      description: 'Comprehensive DSA sheet covering 550+ interview questions with explanations, widely followed by placement aspirants.',
+      link: 'https://www.lbdsheet.com/',
+      category: 'dsa',
+      is_active: true,
+    },
+    {
+      title: 'GFG DSA Roadmap',
+      description: 'GeeksforGeeks structured roadmap for learning Data Structures and Algorithms from basic to advanced level.',
+      link: 'https://www.geeksforgeeks.org/data-structures/',
+      category: 'dsa',
+      is_active: true,
+    },
+    {
+      title: 'CodeSignal DSA',
+      description: 'Practice DSA problems with interactive coding environment and skill assessment tests.',
+      link: 'https:// computerscience.signald.com/',
+      category: 'dsa',
+      is_active: true,
+    },
+    {
       title: 'Roadmap.sh Interactive Developer Roadmaps',
       description: 'Community-driven interactive roadmaps, best practices, and career guides for frontend, backend, devops, and AI.',
       link: 'https://roadmap.sh/',
