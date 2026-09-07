@@ -25,6 +25,19 @@ type EventOption = {
 
 const codingLevels = ['Beginner', 'Intermediate', 'Advanced'];
 const programmingLanguages = ['JavaScript/TypeScript', 'Python', 'C/C++', 'Java', 'Go/Rust'];
+const COLLEGES = ['MIET Jammu'];
+const BRANCHES = [
+  'CSC',
+  'AIML',
+  'Cyber Security',
+  'ECE',
+  'CSE',
+  'IT',
+  'Mechanical',
+  'Civil',
+  'Electrical',
+  'EEE',
+];
 
 function toEventOption(event: CodingEvent): EventOption {
   const [startTime, endTime] = event.time.split('-').map((part) => part.trim());
@@ -46,8 +59,8 @@ function RegisterForm() {
     fullName: '',
     email: '',
     phone: '',
-    college: 'Campus Engineering College',
-    branch: 'Computer Science',
+    college: COLLEGES[0],
+    branch: BRANCHES[0],
     year: '2027',
     eventId: initialEventId || '',
     codingLevel: 'Intermediate',
@@ -256,13 +269,16 @@ function RegisterForm() {
               <label htmlFor="page-college-institute-name" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
                 College/Institute Name <span className="text-emerald-500">*</span>
               </label>
-              <input id="page-college-institute-name"
-                type="text"
+              <select id="page-college-institute-name"
                 required
                 value={formData.college}
                 onChange={(e) => setFormData({ ...formData, college: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-              />
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+              >
+                {COLLEGES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
 
             {/* Branch/Stream */}
@@ -270,13 +286,16 @@ function RegisterForm() {
               <label htmlFor="page-department-branch" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
                 Department/Branch <span className="text-emerald-500">*</span>
               </label>
-              <input id="page-department-branch"
-                type="text"
+              <select id="page-department-branch"
                 required
                 value={formData.branch}
                 onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-              />
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+              >
+                {BRANCHES.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
             </div>
           </div>
 
