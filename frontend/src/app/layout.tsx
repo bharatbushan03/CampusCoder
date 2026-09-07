@@ -21,8 +21,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CampusCoder - Student Coding Community",
+  title: {
+    default: "CampusCoder - Student Coding Community",
+    template: "%s | CampusCoder",
+  },
   description: "A student coding community for workshops, coding practice, placement preparation, and peer learning.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-icon.svg" },
+    ],
+  },
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#080b11" },
+    { media: "(prefers-color-scheme: light)", color: "#0f172a" },
+  ],
+  openGraph: {
+    title: "CampusCoder - Student Coding Community",
+    description: "A student coding community for workshops, coding practice, placement preparation, and peer learning.",
+    type: "website",
+    siteName: "CampusCoder",
+  },
 };
 
 export default function RootLayout({
