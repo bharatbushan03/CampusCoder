@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@/lib/suppress-deprecations";
@@ -34,16 +34,19 @@ export const metadata: Metadata = {
       { url: "/apple-icon.svg" },
     ],
   },
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#080b11" },
-    { media: "(prefers-color-scheme: light)", color: "#0f172a" },
-  ],
   openGraph: {
     title: "CampusCoder - Student Coding Community",
     description: "A student coding community for workshops, coding practice, placement preparation, and peer learning.",
     type: "website",
     siteName: "CampusCoder",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#080b11" },
+    { media: "(prefers-color-scheme: light)", color: "#0f172a" },
+  ],
 };
 
 export default function RootLayout({

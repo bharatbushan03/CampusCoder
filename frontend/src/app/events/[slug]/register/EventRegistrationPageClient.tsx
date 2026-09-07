@@ -49,6 +49,19 @@ type CommunityLinkItem = { id?: string; platform: string; url: string; is_active
 
 const codingLevels = ['Beginner', 'Intermediate', 'Advanced', 'Not started yet'];
 const languages = ['C', 'C++', 'Java', 'Python', 'JavaScript', 'Not sure yet', 'Other'];
+const COLLEGES = ['MIET Jammu'];
+const BRANCHES = [
+  'CSC',
+  'AIML',
+  'Cyber Security',
+  'ECE',
+  'CSE',
+  'IT',
+  'Mechanical',
+  'Civil',
+  'Electrical',
+  'EEE',
+];
 
 function getSlug(title: string) {
   return title
@@ -73,8 +86,8 @@ export default function EventRegistrationPage() {
     fullName: '',
     email: '',
     phone: '',
-    college: 'Campus Engineering College',
-    branch: '',
+    college: COLLEGES[0],
+    branch: BRANCHES[0],
     year: '2nd Year (Sem 3-4)',
     codingLevel: 'Intermediate',
     preferredLanguage: 'JavaScript',
@@ -530,17 +543,20 @@ export default function EventRegistrationPage() {
                     <label htmlFor="college" className="block text-xs font-medium text-slate-400 mb-1.5">
                       College Name <span className="text-emerald-500">*</span>
                     </label>
-                    <input
+                    <select
                       id="college"
-                      type="text"
                       required
                       value={formData.college}
                       onChange={(e) => updateField('college', e.target.value)}
                       onBlur={(e) => validateField('college', e.target.value)}
                       className={`w-full bg-slate-900 border ${
                         fieldErrors.college ? 'border-red-500/50 shake' : 'border-slate-800'
-                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
-                    />
+                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none`}
+                    >
+                      {COLLEGES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
                     {fieldErrors.college && (
                       <p className="text-xs text-red-400 mt-1">{fieldErrors.college}</p>
                     )}
@@ -549,22 +565,23 @@ export default function EventRegistrationPage() {
                     <label htmlFor="branch" className="block text-xs font-medium text-slate-400 mb-1.5">
                       Branch / Department <span className="text-emerald-500">*</span>
                     </label>
-                    <input
+                    <select
                       id="branch"
-                      type="text"
                       required
-                      placeholder="e.g. Computer Science"
                       value={formData.branch}
                       onChange={(e) => updateField('branch', e.target.value)}
                       onBlur={(e) => validateField('branch', e.target.value)}
                       className={`w-full bg-slate-900 border ${
                         fieldErrors.branch ? 'border-red-500/50 shake' : 'border-slate-800'
-                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
-                    />
+                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none`}
+                    >
+                      {BRANCHES.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
                     {fieldErrors.branch && (
                       <p className="text-xs text-red-400 mt-1">{fieldErrors.branch}</p>
                     )}
-                    <p className="text-[10px] text-slate-600 mt-1">e.g. CSE, IT, ECE, Mechanical</p>
                   </div>
                 </div>
 

@@ -7,6 +7,20 @@ import { Loader2, Save, User, Mail, School, GraduationCap, Shield, Info } from '
 import { studentUpdateSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 
+const COLLEGES = ['MIET Jammu'];
+const BRANCHES = [
+  'CSC',
+  'AIML',
+  'Cyber Security',
+  'ECE',
+  'CSE',
+  'IT',
+  'Mechanical',
+  'Civil',
+  'Electrical',
+  'EEE',
+];
+
 export type StudentProfileData = {
   id: string;
   full_name: string | null;
@@ -125,13 +139,16 @@ export default function StudentForm({
             <label htmlFor="studentform-college" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
               <School className="size-3 text-emerald-400" /> College
             </label>
-            <input id="studentform-college"
-              type="text"
-              placeholder="Delhi Engineering College"
+            <select
+              id="studentform-college"
               value={college}
               onChange={(e) => setCollege(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-            />
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+            >
+              {COLLEGES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -139,26 +156,37 @@ export default function StudentForm({
               <label htmlFor="studentform-branch" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                 <GraduationCap className="size-3 text-emerald-400" /> Branch / Stream
               </label>
-              <input id="studentform-branch"
-                type="text"
-                placeholder="Computer Science"
+              <select
+                id="studentform-branch"
                 value={branch}
                 onChange={(e) => setBranch(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-              />
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+              >
+                <option value="">Select branch</option>
+                {BRANCHES.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-2">
               <label htmlFor="studentform-year" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                 <GraduationCap className="size-3 text-emerald-400" /> Passing Year / Batch
               </label>
-              <input id="studentform-year"
-                type="text"
-                placeholder="2027"
+              <select
+                id="studentform-year"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors font-mono"
-              />
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none font-mono"
+              >
+                <option value="">Select year</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="2028">2028</option>
+                <option value="2029">2029</option>
+                <option value="2030">2030</option>
+                <option value="2031">2031</option>
+              </select>
             </div>
           </div>
 

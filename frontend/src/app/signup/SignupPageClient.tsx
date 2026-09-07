@@ -30,10 +30,18 @@ export default function SignupPage() {
   const redirectParam = searchParams ? searchParams.get('redirect') || searchParams.get('from') : null;
 
   // Form State (Step 1)
+  const COLLEGES = ['MIET'];
+  const BRANCHES = [
+    'AIML',
+    'Cyber Security',
+    'ECE',
+    'CSE'
+  ];
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [college, setCollege] = useState('');
+  const [college, setCollege] = useState(COLLEGES[0]);
   const [branch, setBranch] = useState('');
   const [year, setYear] = useState('2027');
 
@@ -364,15 +372,17 @@ export default function SignupPage() {
                   </label>
                   <div className="relative">
                     <School className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-                    <input
+                    <select
                       id="page-college-name"
-                      type="text"
                       required
-                      placeholder="e.g. MIET Jammu"
                       value={college}
                       onChange={(e) => setCollege(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                    />
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+                    >
+                      {COLLEGES.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -386,15 +396,18 @@ export default function SignupPage() {
                   </label>
                   <div className="relative">
                     <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-                    <input
+                    <select
                       id="page-branch-department"
-                      type="text"
                       required
-                      placeholder="e.g. Computer Science"
                       value={branch}
                       onChange={(e) => setBranch(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
-                    />
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+                    >
+                      <option value="">Select your branch</option>
+                      {BRANCHES.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
