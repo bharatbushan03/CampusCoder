@@ -9,6 +9,7 @@ import { ProjectSubmissionReceiptEmail } from '../components/emails/ProjectSubmi
 import { appCache, cacheRoute } from '../lib/cache';
 import { likeRateLimiter } from '../middleware/rateLimit';
 import { backgroundQueue } from '../lib/queue';
+import { queryAzure, executeAzure, upsertAzure } from '../lib/azureDb';
 
 const router = Router();
 
@@ -59,9 +60,25 @@ function mapDbRowToProject(row: any): ShowcaseProject {
   };
 }
 
-// GET /api/showcase/projects - List all approved projects from database (Cached for 60s)
+// GET /api/showcase/projects - List all approved projects (Cached for 60s)
 router.get('/projects', cacheRoute(60, ['showcase'], 30), async (_req: Request, res: Response) => {
   try {
+    // 1. Try Azure Database first if configured & healthy
+    const azureRows = await queryAzure(`
+      SELECT * FROM public.showcase_projects
+      WHERE status != 'rejected'
+      ORDER BY featured DESC, created_at DESC
+    `);
+
+    if (azureRows !== null && azureRows.length > 0) {
+      return res.json({
+        ok: true,
+        projects: azureRows.map(mapDbRowToProject),
+        source: 'azure',
+      });
+    }
+
+    // 2. Resilient Supabase fallback
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('showcase_projects')
@@ -82,6 +99,7 @@ router.get('/projects', cacheRoute(60, ['showcase'], 30), async (_req: Request, 
     return res.json({
       ok: true,
       projects,
+      source: 'supabase',
     });
   } catch (err: any) {
     console.error('[Showcase] Error fetching projects:', err);
@@ -166,6 +184,8 @@ router.post('/submit', requireAuth, async (req: AuthedRequest, res: Response) =>
 
     savedProject = mapDbRowToProject(insertedData);
     appCache.invalidateTags(['showcase']);
+
+    await upsertAzure('showcase_projects', insertedData);
   } catch (dbErr: any) {
     console.error('[Showcase] Supabase insert exception:', dbErr);
     return res.status(500).json({
@@ -253,6 +273,7 @@ router.post('/:id/like', likeRateLimiter, async (req: Request, res: Response) =>
     });
 
     if (!rpcErr && typeof rpcStars === 'number') {
+      await executeAzure(`UPDATE public.showcase_projects SET stars = $2 WHERE id = $1`, [id, rpcStars]);
       appCache.invalidateTags(['showcase']);
       return res.json({ ok: true, stars: rpcStars });
     }
@@ -278,6 +299,7 @@ router.post('/:id/like', likeRateLimiter, async (req: Request, res: Response) =>
       return res.status(500).json({ ok: false, error: updateErr.message });
     }
 
+    await executeAzure(`UPDATE public.showcase_projects SET stars = $2 WHERE id = $1`, [id, newStars]);
     appCache.invalidateTags(['showcase']);
     return res.json({ ok: true, stars: newStars });
   } catch (err: any) {

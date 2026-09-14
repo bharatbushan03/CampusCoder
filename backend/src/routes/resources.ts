@@ -1,13 +1,32 @@
 import { Router, type Request, type Response } from 'express';
 import { createAnonClient } from '../middleware/auth';
 import { cacheRoute } from '../lib/cache';
+import { queryAzure } from '../lib/azureDb';
 
 const router = Router();
 
 router.get('/', cacheRoute(60, ['resources'], 30), async (req: Request, res: Response) => {
-  const supabase = createAnonClient();
   const { category, search } = req.query;
+  const conditions: string[] = ['is_active = true'];
+  const params: any[] = [];
+  let paramIdx = 1;
 
+  if (category && typeof category === 'string' && category !== 'all') {
+    conditions.push(`category = $${paramIdx++}`);
+    params.push(category);
+  }
+
+  if (search && typeof search === 'string' && search.trim()) {
+    conditions.push(`(title ILIKE $${paramIdx} OR description ILIKE $${paramIdx})`);
+    params.push(`%${search.trim()}%`);
+  }
+
+  const azureResources = await queryAzure(`SELECT * FROM public.resources WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`, params);
+  if (azureResources !== null) {
+    return res.json({ ok: true, resources: azureResources, source: 'azure' });
+  }
+
+  const supabase = createAnonClient();
   let query = supabase
     .from('resources')
     .select('*, events(title)')
@@ -33,7 +52,7 @@ router.get('/', cacheRoute(60, ['resources'], 30), async (req: Request, res: Res
     return res.status(500).json({ ok: false, error: 'Failed to load resources' });
   }
 
-  return res.json({ ok: true, resources: data || [] });
+  return res.json({ ok: true, resources: data || [], source: 'supabase' });
 });
 
 export { router as resourcesRouter };
