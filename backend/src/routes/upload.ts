@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
+import { isAzureStorageConfigured, uploadToAzureBlob } from '../lib/azureStorage';
 
 const router = Router();
 
@@ -26,11 +27,24 @@ router.post('/banner', upload.single('file'), async (req: Request, res: Response
     return res.status(400).json({ ok: false, error: 'No file uploaded' });
   }
 
+  const ext = req.file.mimetype.split('/')[1] || 'png';
+  const fileName = `banners/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+
+  // 1. Try Azure Blob Storage if configured
+  if (isAzureStorageConfigured()) {
+    try {
+      const azureUrl = await uploadToAzureBlob('event-banners', fileName, req.file.buffer, req.file.mimetype);
+      if (azureUrl) {
+        return res.json({ ok: true, url: azureUrl, provider: 'azure' });
+      }
+    } catch (azErr: any) {
+      console.warn('[Upload] Azure Banner upload failed, falling back to Supabase:', azErr.message);
+    }
+  }
+
+  // 2. Supabase Storage fallback
   try {
     const supabase = createAdminClient();
-    const ext = req.file.mimetype.split('/')[1] || 'png';
-    const fileName = `banners/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
     const { error } = await supabase.storage
       .from('banners')
       .upload(fileName, req.file.buffer, {
@@ -44,7 +58,7 @@ router.post('/banner', upload.single('file'), async (req: Request, res: Response
     }
 
     const { data } = supabase.storage.from('banners').getPublicUrl(fileName);
-    return res.json({ ok: true, url: data.publicUrl });
+    return res.json({ ok: true, url: data.publicUrl, provider: 'supabase' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'Upload failed' });
   }
@@ -71,19 +85,45 @@ function formatBytes(bytes: number, decimals = 1) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+function safeBaseName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[a-z0-9]+$/i, '');
+}
+
+function imageExt(mimetype: string) {
+  return mimetype === 'image/jpeg' ? 'jpg' : (mimetype.split('/')[1] || 'jpg');
+}
+
 router.post('/pdf', pdfUpload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ ok: false, error: 'No PDF file uploaded' });
   }
 
+  const cleanOriginalName = req.file.originalname
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/\.pdf$/i, '');
+  const fileName = `notes/${Date.now()}-${cleanOriginalName}.pdf`;
+
+  // 1. Try Azure Blob Storage if configured
+  if (isAzureStorageConfigured()) {
+    try {
+      const azureUrl = await uploadToAzureBlob('documents', fileName, req.file.buffer, 'application/pdf');
+      if (azureUrl) {
+        return res.json({
+          ok: true,
+          url: azureUrl,
+          fileName: req.file.originalname,
+          fileSize: formatBytes(req.file.size),
+          provider: 'azure',
+        });
+      }
+    } catch (azErr: any) {
+      console.warn('[Upload] Azure PDF upload failed, falling back to Supabase:', azErr.message);
+    }
+  }
+
+  // 2. Supabase Storage fallback
   try {
     const supabase = createAdminClient();
-    const cleanOriginalName = req.file.originalname
-      .replace(/[^a-zA-Z0-9._-]/g, '_')
-      .replace(/\.pdf$/i, '');
-    const fileName = `notes/${Date.now()}-${cleanOriginalName}.pdf`;
-
-    // Try uploading to 'documents' bucket or fallback to 'banners' if 'documents' not created
     let bucketName = 'documents';
     let { error } = await supabase.storage
       .from(bucketName)
@@ -115,6 +155,7 @@ router.post('/pdf', pdfUpload.single('file'), async (req: Request, res: Response
       url: data.publicUrl,
       fileName: req.file.originalname,
       fileSize: formatBytes(req.file.size),
+      provider: 'supabase',
     });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'PDF upload failed' });
@@ -134,17 +175,43 @@ const photoUpload = multer({
   },
 });
 
-router.post('/photo', photoUpload.single('file'), async (req: Request, res: Response) => {
+const videoUpload = multer({
+  storage,
+  limits: { fileSize: 250 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only MP4, WEBM, OGG, and MOV videos are allowed'));
+    }
+  },
+});
+
+router.post('/photo', requireRole('admin'), photoUpload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ ok: false, error: 'No image file uploaded' });
   }
 
+  const ext = imageExt(req.file.mimetype);
+  const cleanName = safeBaseName(req.file.originalname);
+  const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
+
+  // 1. Try Azure Blob Storage if configured
+  if (isAzureStorageConfigured()) {
+    try {
+      const azureUrl = await uploadToAzureBlob('event-photos', fileName, req.file.buffer, req.file.mimetype);
+      if (azureUrl) {
+        return res.json({ ok: true, url: azureUrl, fileName: req.file.originalname, provider: 'azure' });
+      }
+    } catch (azErr: any) {
+      console.warn('[Upload] Azure Photo upload failed, falling back to Supabase:', azErr.message);
+    }
+  }
+
+  // 2. Supabase Storage fallback
   try {
     const supabase = createAdminClient();
-    const ext = req.file.mimetype.split('/')[1] || 'jpg';
-    const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
-
     const bucketName = 'banners';
     const { error } = await supabase.storage
       .from(bucketName)
@@ -159,25 +226,46 @@ router.post('/photo', photoUpload.single('file'), async (req: Request, res: Resp
     }
 
     const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
-    return res.json({ ok: true, url: data.publicUrl, fileName: req.file.originalname });
+    return res.json({ ok: true, url: data.publicUrl, fileName: req.file.originalname, provider: 'supabase' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'Photo upload failed' });
   }
 });
 
-router.post('/photos', photoUpload.array('files', 20), async (req: Request, res: Response) => {
+router.post('/photos', requireRole('admin'), photoUpload.array('files', 20), async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
   if (!files || files.length === 0) {
     return res.status(400).json({ ok: false, error: 'No image files uploaded' });
   }
 
+  const uploadedUrls: string[] = [];
+
+  // If Azure Storage configured, try uploading batch to Azure
+  if (isAzureStorageConfigured()) {
+    try {
+      const azureUrls: string[] = [];
+      for (const file of files) {
+        const ext = imageExt(file.mimetype);
+        const cleanName = safeBaseName(file.originalname);
+        const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
+        const azUrl = await uploadToAzureBlob('event-photos', fileName, file.buffer, file.mimetype);
+        if (!azUrl) {
+          throw new Error(`Azure upload failed for ${file.originalname}`);
+        }
+        azureUrls.push(azUrl);
+      }
+      return res.json({ ok: true, urls: azureUrls, provider: 'azure' });
+    } catch (azErr: any) {
+      console.warn('[Upload] Azure batch photos upload failed, falling back to Supabase:', azErr.message);
+    }
+  }
+
+  // Supabase Storage fallback
   try {
     const supabase = createAdminClient();
-    const uploadedUrls: string[] = [];
-
     for (const file of files) {
-      const ext = file.mimetype.split('/')[1] || 'jpg';
-      const cleanName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const ext = imageExt(file.mimetype);
+      const cleanName = safeBaseName(file.originalname);
       const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
 
       const { error } = await supabase.storage
@@ -194,9 +282,63 @@ router.post('/photos', photoUpload.array('files', 20), async (req: Request, res:
       }
     }
 
-    return res.json({ ok: true, urls: uploadedUrls });
+    return res.json({ ok: true, urls: uploadedUrls, provider: 'supabase' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'Photos batch upload failed' });
+  }
+});
+
+router.post('/videos', requireRole('admin'), videoUpload.array('files', 5), async (req: Request, res: Response) => {
+  const files = req.files as Express.Multer.File[];
+  if (!files || files.length === 0) {
+    return res.status(400).json({ ok: false, error: 'No video files uploaded' });
+  }
+
+  const uploadedUrls: string[] = [];
+
+  if (isAzureStorageConfigured()) {
+    try {
+      const azureUrls: string[] = [];
+      for (const file of files) {
+        const ext = file.mimetype === 'video/quicktime' ? 'mov' : (file.mimetype.split('/')[1] || 'mp4');
+        const cleanName = safeBaseName(file.originalname);
+        const fileName = `event-videos/${Date.now()}-${cleanName}.${ext}`;
+        const azUrl = await uploadToAzureBlob('event-videos', fileName, file.buffer, file.mimetype);
+        if (!azUrl) {
+          throw new Error(`Azure upload failed for ${file.originalname}`);
+        }
+        azureUrls.push(azUrl);
+      }
+      return res.json({ ok: true, urls: azureUrls, provider: 'azure' });
+    } catch (azErr: any) {
+      console.warn('[Upload] Azure videos upload failed, falling back to Supabase:', azErr.message);
+    }
+  }
+
+  try {
+    const supabase = createAdminClient();
+    for (const file of files) {
+      const ext = file.mimetype === 'video/quicktime' ? 'mov' : (file.mimetype.split('/')[1] || 'mp4');
+      const cleanName = safeBaseName(file.originalname);
+      const fileName = `event-videos/${Date.now()}-${cleanName}.${ext}`;
+
+      const { error } = await supabase.storage
+        .from('banners')
+        .upload(fileName, file.buffer, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.mimetype,
+        });
+
+      if (!error) {
+        const { data } = supabase.storage.from('banners').getPublicUrl(fileName);
+        uploadedUrls.push(data.publicUrl);
+      }
+    }
+
+    return res.json({ ok: true, urls: uploadedUrls, provider: 'supabase' });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err.message || 'Videos upload failed' });
   }
 });
 
@@ -217,16 +359,35 @@ const zipUpload = multer({
   },
 });
 
-router.post('/zip', zipUpload.single('file'), async (req: Request, res: Response) => {
+router.post('/zip', requireRole('admin'), zipUpload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ ok: false, error: 'No ZIP file uploaded' });
   }
 
+  const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const fileName = `event-zips/${Date.now()}-${cleanName.toLowerCase().endsWith('.zip') ? cleanName : `${cleanName}.zip`}`;
+
+  // 1. Try Azure Blob Storage if configured
+  if (isAzureStorageConfigured()) {
+    try {
+      const azureUrl = await uploadToAzureBlob('event-zips', fileName, req.file.buffer, 'application/zip');
+      if (azureUrl) {
+        return res.json({
+          ok: true,
+          url: azureUrl,
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          provider: 'azure',
+        });
+      }
+    } catch (azErr: any) {
+      console.warn('[Upload] Azure ZIP upload failed, falling back to Supabase:', azErr.message);
+    }
+  }
+
+  // 2. Supabase Storage fallback
   try {
     const supabase = createAdminClient();
-    const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const fileName = `event-zips/${Date.now()}-${cleanName.toLowerCase().endsWith('.zip') ? cleanName : `${cleanName}.zip`}`;
-
     const { error } = await supabase.storage
       .from('banners')
       .upload(fileName, req.file.buffer, {
@@ -245,6 +406,7 @@ router.post('/zip', zipUpload.single('file'), async (req: Request, res: Response
       url: data.publicUrl,
       fileName: req.file.originalname,
       fileSize: req.file.size,
+      provider: 'supabase',
     });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'ZIP upload failed' });

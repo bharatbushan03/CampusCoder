@@ -33,8 +33,8 @@ type EventRow = {
   recording_url?: string | null;
   registrations_count?: number;
   photos?: string[] | null;
+  videos?: string[] | null;
   photos_zip_url?: string | null;
-  photos_drive_url?: string | null;
 };
 
 const generateEventSlug = (title: string | undefined | null, id: string | undefined | null): string => {
@@ -58,8 +58,8 @@ export default function EventArchivePage() {
   const [activeGalleryEvent, setActiveGalleryEvent] = useState<{
     title: string;
     photos: string[];
+    videos: string[];
     photosZipUrl?: string | null;
-    photosDriveUrl?: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -166,7 +166,7 @@ export default function EventArchivePage() {
                   <div className="flex items-center gap-2">
                     {(() => {
                       const eventPhotos = getEventPhotos(ev.photos, ev.event_type, ev.slug || ev.title);
-                      if (eventPhotos.length === 0 && !ev.photos_zip_url && !ev.photos_drive_url) return null;
+                      if (eventPhotos.length === 0 && !(ev.videos?.length) && !ev.photos_zip_url) return null;
                       return (
                         <button
                           type="button"
@@ -174,8 +174,8 @@ export default function EventArchivePage() {
                             setActiveGalleryEvent({
                               title: ev.title,
                               photos: eventPhotos,
+                              videos: ev.videos || [],
                               photosZipUrl: ev.photos_zip_url,
-                              photosDriveUrl: ev.photos_drive_url,
                             });
                           }}
                           className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/40 transition-colors flex items-center gap-1 cursor-pointer"
@@ -224,8 +224,8 @@ export default function EventArchivePage() {
             </button>
             <ZipPhotoViewer
               photos={activeGalleryEvent.photos}
+              videos={activeGalleryEvent.videos}
               photosZipUrl={activeGalleryEvent.photosZipUrl}
-              photosDriveUrl={activeGalleryEvent.photosDriveUrl}
               eventTitle={activeGalleryEvent.title}
             />
           </div>
