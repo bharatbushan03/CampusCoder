@@ -12,7 +12,6 @@ import {
 import JSZip from 'jszip';
 import { eventSchema } from '@/lib/validation';
 import { toast } from 'sonner';
-import { fetchDriveContents } from '@/lib/drivePhotosCache';
 
 interface Speaker {
   id?: string;
@@ -86,8 +85,10 @@ export default function EventForm({
   );
   const [bannerUrl, setBannerUrl] = useState(initialData?.banner_url || '');
   const [photos, setPhotos] = useState<string[]>(initialData?.photos || []);
+  const [videos, setVideos] = useState<string[]>(initialData?.videos || []);
   const [newPhotoUrl, setNewPhotoUrl] = useState('');
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingVideos, setUploadingVideos] = useState(false);
   const [status, setStatus] = useState(initialData?.status || 'draft');
 
   const [speakers, setSpeakers] = useState<Speaker[]>(initialSpeakers);
@@ -104,16 +105,6 @@ export default function EventForm({
   const [uploadError, setUploadError] = useState('');
 
   const [photosZipUrl, setPhotosZipUrl] = useState(initialData?.photos_zip_url || '');
-  const [photosDriveUrl, setPhotosDriveUrl] = useState(initialData?.photos_drive_url || '');
-  const [isInspectingDrive, setIsInspectingDrive] = useState(false);
-  const [driveInspectionResult, setDriveInspectionResult] = useState<{
-    tested: boolean;
-    ok: boolean;
-    count?: number;
-    photoCount?: number;
-    videoCount?: number;
-    message?: string;
-  } | null>(null);
   const [uploadingZip, setUploadingZip] = useState(false);
   const [zipFileName, setZipFileName] = useState('');
   const [zipFileSize, setZipFileSize] = useState(0);
@@ -122,6 +113,7 @@ export default function EventForm({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
 
   const handleTitleChange = (value: string) => {
@@ -256,6 +248,26 @@ export default function EventForm({
     } finally {
       setUploadingPhotos(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadingVideos(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach((file) => formData.append('files', file));
+      const res = await fetch('/api/admin/upload/videos', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok || !data.ok || !Array.isArray(data.urls)) throw new Error(data.error || 'Failed to upload videos');
+      setVideos((current) => [...current, ...data.urls]);
+      toast.success(`Uploaded ${data.urls.length} video${data.urls.length === 1 ? '' : 's'} successfully!`);
+    } catch (err: any) {
+      toast.error('Video upload failed: ' + (err.message || 'Error'));
+    } finally {
+      setUploadingVideos(false);
+      if (videoInputRef.current) videoInputRef.current.value = '';
     }
   };
 
@@ -411,8 +423,8 @@ export default function EventForm({
       meeting_link: meetingLink?.trim() || null,
       registration_deadline: registrationDeadline ? new Date(registrationDeadline).toISOString() : null,
       photos,
+      videos,
       photos_zip_url: photosZipUrl?.trim() || null,
-      photos_drive_url: photosDriveUrl?.trim() || null,
       status
     };
 
@@ -442,8 +454,8 @@ export default function EventForm({
         ...eventData,
         banner_url: finalBannerUrl,
         photos,
+        videos,
         photos_zip_url: photosZipUrl?.trim() || null,
-        photos_drive_url: photosDriveUrl?.trim() || null,
       }, speakers);
     } catch (err: any) {
       toast.error(err.message || 'Failed to save event');
@@ -1043,6 +1055,15 @@ export default function EventForm({
             )}
           </div>
 
+          <div className="p-4 rounded-xl border border-dashed border-slate-800 hover:border-slate-700 bg-slate-950/40 flex flex-col items-center justify-center text-center space-y-2 relative min-h-[130px] transition-colors">
+            <input ref={videoInputRef} type="file" multiple accept="video/mp4,video/webm,video/ogg,video/quicktime" onChange={handleVideoFileUpload} disabled={uploadingVideos} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed" />
+            {uploadingVideos ? <Loader2 className="size-6 text-emerald-400 animate-spin" /> : <Upload className="size-5 text-slate-300" />}
+            <div>
+              <p className="text-xs font-bold text-slate-200">Upload Video Files</p>
+              <p className="text-[10px] text-slate-500 font-mono mt-0.5">MP4, WEBM, OGG, or MOV</p>
+            </div>
+          </div>
+
           {/* 3. Direct URL Input */}
           <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/40 space-y-2 flex flex-col justify-center">
             <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400">
@@ -1070,117 +1091,6 @@ export default function EventForm({
           </div>
         </div>
 
-        {/* 4. Google Drive Photos & Videos Link Integration */}
-        <div className="pt-4 border-t border-slate-900/60 space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-mono uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-              <Globe className="size-3.5 text-cyan-400" />
-              Google Drive Photos &amp; Videos Link (Ephemeral On-Demand Streaming)
-            </label>
-            {photosDriveUrl && (
-              <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <CheckCircle2 className="size-3" /> Drive Linked
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..."
-              value={photosDriveUrl}
-              onChange={(e) => {
-                setPhotosDriveUrl(e.target.value);
-                setDriveInspectionResult(null);
-              }}
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500/50"
-            />
-            {photosDriveUrl && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isInspectingDrive}
-                  onClick={async () => {
-                    if (!photosDriveUrl.trim()) return;
-                    setIsInspectingDrive(true);
-                    try {
-                      const res = await fetchDriveContents(photosDriveUrl);
-                      if (res.ok) {
-                        const pCount = res.items.filter(i => i.mediaType !== 'video').length;
-                        const vCount = res.items.filter(i => i.mediaType === 'video').length;
-                        setDriveInspectionResult({
-                          tested: true,
-                          ok: true,
-                          count: res.count,
-                          photoCount: pCount,
-                          videoCount: vCount,
-                          message: res.items.length > 0
-                            ? `Detected ${pCount} photo${pCount === 1 ? '' : 's'} and ${vCount} video${vCount === 1 ? '' : 's'}`
-                            : 'Folder verified for on-demand student streaming.'
-                        });
-                        toast.success('Drive link verified!');
-                      } else {
-                        setDriveInspectionResult({
-                          tested: true,
-                          ok: false,
-                          message: res.message || 'Could not verify folder contents. Ensure link is public.'
-                        });
-                        toast.error('Could not verify Drive link');
-                      }
-                    } catch (err: any) {
-                      setDriveInspectionResult({
-                        tested: true,
-                        ok: false,
-                        message: err.message || 'Failed to inspect link'
-                      });
-                    } finally {
-                      setIsInspectingDrive(false);
-                    }
-                  }}
-                  className="border-cyan-500/30 text-xs font-mono text-cyan-400 hover:bg-cyan-500/10"
-                >
-                  {isInspectingDrive ? (
-                    <>
-                      <Loader2 className="size-3 animate-spin mr-1" /> Checking...
-                    </>
-                  ) : (
-                    'Test Link'
-                  )}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setPhotosDriveUrl('');
-                    setDriveInspectionResult(null);
-                  }}
-                  className="border-slate-800 text-xs text-slate-400 hover:text-rose-400"
-                >
-                  Clear
-                </Button>
-              </>
-            )}
-          </div>
-
-          {driveInspectionResult && (
-            <div className={`p-2.5 rounded-lg text-xs font-mono flex items-center gap-2 border ${
-              driveInspectionResult.ok
-                ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400'
-                : 'bg-rose-950/20 border-rose-500/30 text-rose-400'
-            }`}>
-              {driveInspectionResult.ok ? (
-                <CheckCircle2 className="size-3.5 shrink-0" />
-              ) : (
-                <AlertTriangle className="size-3.5 shrink-0" />
-              )}
-              <span>{driveInspectionResult.message}</span>
-            </div>
-          )}
-
-          <HelpText text="Photos and videos are streamed on-demand directly from Google Drive and never saved to Supabase storage. Ensure folder sharing is set to 'Anyone with the link can view'." />
-        </div>
       </Card>
 
       {/* Footer Actions */}

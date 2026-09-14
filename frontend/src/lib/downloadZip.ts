@@ -48,6 +48,34 @@ export async function downloadSinglePhoto(
   }
 }
 
+export async function downloadSingleMedia(url: string, filename?: string): Promise<void> {
+  const toastId = toast.loading('Preparing media download...');
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch media (${response.statusText})`);
+    const blob = await response.blob();
+    const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'mp4';
+    const link = document.createElement('a');
+    const blobUrl = URL.createObjectURL(blob);
+    link.href = blobUrl;
+    link.download = filename || `event-media-${Date.now()}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+    toast.success('Media downloaded successfully!', { id: toastId });
+  } catch (error) {
+    console.error('Error downloading media:', error);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || 'event-media';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.click();
+    toast.success('Opening media for download...', { id: toastId });
+  }
+}
+
 /**
  * Downloads all event photos packaged into a single .zip file client-side.
  */
@@ -124,5 +152,44 @@ export async function downloadEventPhotosZip(
   } catch (err: any) {
     console.error('Error generating zip:', err);
     toast.error(err.message || 'Failed to generate ZIP file.', { id: toastId });
+  }
+}
+
+export async function downloadEventMediaZip(
+  photos: string[],
+  videos: string[],
+  eventTitle: string,
+): Promise<void> {
+  const media = [...photos.map((url) => ({ url, folder: 'photos' })), ...videos.map((url) => ({ url, folder: 'videos' }))];
+  if (media.length === 0) {
+    toast.error('No event media available to download.');
+    return;
+  }
+
+  const safeSlug = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'event';
+  const toastId = toast.loading(`Preparing ZIP archive for ${media.length} media files...`);
+  try {
+    const zip = new JSZip();
+    let successfulDownloads = 0;
+    for (let index = 0; index < media.length; index++) {
+      const item = media[index];
+      const response = await fetch(item.url);
+      if (response.ok) {
+        const blob = await response.blob();
+        const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || (item.folder === 'videos' ? 'mp4' : 'jpg');
+        zip.file(`${safeSlug}-${item.folder}/${item.folder.slice(0, -1)}-${String(index + 1).padStart(2, '0')}.${extension}`, blob);
+        successfulDownloads++;
+      }
+      toast.loading(`Gathering media: ${index + 1}/${media.length}...`, { id: toastId });
+    }
+    if (!successfulDownloads) throw new Error('Unable to download event media.');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${safeSlug}-media.zip`;
+    link.click();
+    toast.success(`Downloaded ${successfulDownloads} media files as ZIP!`, { id: toastId });
+  } catch (error: any) {
+    toast.error(error.message || 'Failed to generate ZIP file.', { id: toastId });
   }
 }

@@ -5,28 +5,28 @@ import { ZipPhotoViewer } from './ZipPhotoViewer';
 
 interface EventPhotoGalleryProps {
   photos?: string[];
+  videos?: string[];
   photosZipUrl?: string | null;
-  photosDriveUrl?: string | null;
   eventTitle: string;
   className?: string;
 }
 
 export function EventPhotoGallery({
   photos = [],
+  videos = [],
   photosZipUrl,
-  photosDriveUrl,
   eventTitle,
   className = '',
 }: EventPhotoGalleryProps) {
-  if ((!photos || photos.length === 0) && !photosZipUrl && !photosDriveUrl) {
+  if ((!photos || photos.length === 0) && (!videos || videos.length === 0) && !photosZipUrl) {
     return null;
   }
 
   return (
     <ZipPhotoViewer
       photos={photos}
+      videos={videos}
       photosZipUrl={photosZipUrl}
-      photosDriveUrl={photosDriveUrl}
       eventTitle={eventTitle}
       className={className}
     />

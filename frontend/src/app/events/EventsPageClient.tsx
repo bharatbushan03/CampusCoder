@@ -11,7 +11,6 @@ import {
   MessageSquare,
   CalendarDays,
   AlertCircle,
-  Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -34,8 +33,8 @@ type EventRow = {
   end_time?: string | null;
   registration_deadline?: string | null;
   photos?: string[] | null;
+  videos?: string[] | null;
   photos_zip_url?: string | null;
-  photos_drive_url?: string | null;
 };
 
 const eventTypeOptions = [
@@ -367,21 +366,6 @@ export default function EventsPage() {
                         </Button>
                       </Link>
 
-                      {(() => {
-                        if (!ev.photos_drive_url) return null;
-                        return (
-                          <a
-                            href={ev.photos_drive_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2.5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/40 text-slate-300 hover:text-emerald-400 text-xs font-mono transition-all flex items-center gap-1.5 cursor-pointer"
-                            title="View Event Photos & Videos on Google Drive"
-                          >
-                            <Camera className="size-3.5 text-emerald-400" />
-                            <span className="hidden sm:inline">View Photos</span>
-                          </a>
-                        );
-                      })()}
                     </div>
                   </div>
                 </Card>

@@ -22,11 +22,12 @@ import { showcaseRouter } from './routes/showcase';
 import { resourcesRouter } from './routes/resources';
 import { competitionsRouter } from './routes/competitions';
 import { notesRouter } from './routes/notes';
-import { driveRouter } from './routes/drive';
 import { globalRateLimiter } from './middleware/rateLimit';
 import { appCache } from './lib/cache';
 import { backgroundQueue } from './lib/queue';
 import { pingRedis } from './lib/redis';
+import { checkAzureDb, initAzureTables, isAzureDbConfigured } from './lib/azureDb';
+import { isAzureStorageConfigured } from './lib/azureStorage';
 
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
 const startTime = Date.now();
@@ -90,6 +91,7 @@ app.use('/health', async (_req: Request, res: Response) => {
   const mem = process.memoryUsage();
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
   const redisHealth = await pingRedis();
+  const azureDbHealth = await checkAzureDb();
 
   res.json({
     ok: true,
@@ -105,6 +107,8 @@ app.use('/health', async (_req: Request, res: Response) => {
     },
     cache: appCache.getStats(),
     redis: redisHealth,
+    azureDb: azureDbHealth,
+    azureStorage: { configured: isAzureStorageConfigured() },
     queue: backgroundQueue.getStats(),
   });
 });
@@ -119,7 +123,6 @@ app.use('/api/showcase', showcaseRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/admin/emails', emailsRouter);
 app.use('/api/admin/upload', uploadRouter);
-app.use('/api/drive', driveRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ ok: false, error: 'Not Found' });
@@ -135,6 +138,18 @@ app.use((err: any, _req: Request, res: Response, _next: any) => {
 
 app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`CampusCoder Backend running on http://localhost:${PORT}`);
+  if (isAzureDbConfigured()) {
+    checkAzureDb().then(async (status) => {
+      if (status.connected) {
+        console.log(`[Azure DB] Connected successfully (${status.latencyMs}ms)`);
+        await initAzureTables();
+      } else {
+        console.warn(`[Azure DB] Status: ${status.error || 'unreachable'}. Resilient Supabase fallback active.`);
+      }
+    });
+  } else {
+    console.log('[Azure DB] Not configured; using Supabase.');
+  }
 });
 
 export default app;

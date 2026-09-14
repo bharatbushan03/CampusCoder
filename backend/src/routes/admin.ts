@@ -12,6 +12,7 @@ import {
   competitionSchema,
   noteSchema,
 } from '../lib/validation';
+import { deleteAzure, upsertAzure, upsertManyAzure } from '../lib/azureDb';
 
 const router = Router();
 
@@ -37,7 +38,7 @@ const isColumnMissingErr = (err: any) =>
     err.code === 'PGRST205' ||
     err.code?.startsWith('PGRST') ||
     err.message?.includes('schema cache') ||
-    err.message?.includes('photos_drive_url') ||
+    err.message?.includes('videos') ||
     err.message?.includes('photos_zip_url'));
 
 const speakerSchema = z.object({
@@ -374,6 +375,9 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
   }
 
   const data = validation.data;
+  if (req.profile?.role !== 'admin' && ((data.photos?.length ?? 0) > 0 || (data.videos?.length ?? 0) > 0 || data.photos_zip_url)) {
+    return res.status(403).json({ ok: false, error: 'Only admins can add event photos or videos.' });
+  }
   const adminId = req.user?.id;
 
   const supabase = createAdminClient();
@@ -383,8 +387,8 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
     banner_url: data.banner_url || null,
+    videos: data.videos || [],
     photos_zip_url: data.photos_zip_url || null,
-    photos_drive_url: data.photos_drive_url || null,
     created_by: adminId,
   };
 
@@ -400,13 +404,13 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
   insertedEvent = insertRes.data;
   eventError = insertRes.error;
 
-  // Graceful fallback if database migration for photos, photos_zip_url, or photos_drive_url has not been applied yet
+  // Graceful fallback if database migration for photos, videos, or photos_zip_url has not been applied yet
   if (isColumnMissingErr(eventError)) {
-    console.warn('[Admin] photos_drive_url or photos_zip_url column missing in public.events table or schema cache not reloaded. Retrying insert without new columns.');
+    console.warn('[Admin] media columns missing in public.events table or schema cache not reloaded. Retrying insert without new columns.');
     const fallbackEvent = { ...sanitizedEvent };
     delete (fallbackEvent as any).photos;
+    delete (fallbackEvent as any).videos;
     delete (fallbackEvent as any).photos_zip_url;
-    delete (fallbackEvent as any).photos_drive_url;
     const retryRes = await supabase
       .from('events')
       .insert(fallbackEvent)
@@ -466,6 +470,9 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   }
 
   const data = validation.data;
+  if ((req as AuthedRequest).profile?.role !== 'admin' && ((data.photos?.length ?? 0) > 0 || (data.videos?.length ?? 0) > 0 || data.photos_zip_url)) {
+    return res.status(403).json({ ok: false, error: 'Only admins can add event photos or videos.' });
+  }
   const supabase = createAdminClient();
 
   const sanitizedEvent = {
@@ -474,8 +481,8 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
     banner_url: data.banner_url || null,
+    videos: data.videos || [],
     photos_zip_url: data.photos_zip_url || null,
-    photos_drive_url: data.photos_drive_url || null,
   };
 
   let updateError: any = null;
@@ -486,11 +493,11 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   updateError = updateRes.error;
 
   if (isColumnMissingErr(updateError)) {
-    console.warn('[Admin] photos_drive_url or photos_zip_url column missing in public.events table or schema cache not reloaded. Retrying update without new columns.');
+    console.warn('[Admin] media columns missing in public.events table or schema cache not reloaded. Retrying update without new columns.');
     const fallbackEvent = { ...sanitizedEvent };
     delete (fallbackEvent as any).photos;
+    delete (fallbackEvent as any).videos;
     delete (fallbackEvent as any).photos_zip_url;
-    delete (fallbackEvent as any).photos_drive_url;
     const retryUpdate = await supabase
       .from('events')
       .update(fallbackEvent)
@@ -1198,19 +1205,22 @@ router.post('/resources', async (req: Request, res: Response) => {
 
   const data = validation.data;
   const supabase = createAdminClient();
-  const { error } = await supabase.from('resources').insert({
+  const { data: resource, error } = await supabase.from('resources').insert({
     ...data,
     title: sanitizeText(data.title),
     description: data.description ? sanitizeText(data.description) : null,
     link: data.link.toLowerCase().trim(),
-  });
+  }).select().single();
 
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to create resource' });
   }
 
+  if (resource) {
+    await upsertAzure('resources', resource);
+  }
   appCache.invalidateTags(['resources']);
-  return res.json({ ok: true, success: true });
+  return res.json({ ok: true, success: true, resource });
 });
 
 router.put('/resources/:id', async (req: Request, res: Response) => {
@@ -1226,7 +1236,7 @@ router.put('/resources/:id', async (req: Request, res: Response) => {
 
   const data = validation.data;
   const supabase = createAdminClient();
-  const { error } = await supabase
+  const { data: resource, error } = await supabase
     .from('resources')
     .update({
       ...data,
@@ -1234,12 +1244,17 @@ router.put('/resources/:id', async (req: Request, res: Response) => {
       description: data.description ? sanitizeText(data.description) : null,
       link: data.link.toLowerCase().trim(),
     })
-    .eq('id', parsed.data);
+    .eq('id', parsed.data)
+    .select()
+    .single();
 
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update resource' });
   }
 
+  if (resource) {
+    await upsertAzure('resources', resource);
+  }
   appCache.invalidateTags(['resources']);
   return res.json({ ok: true });
 });
@@ -1266,6 +1281,7 @@ router.patch('/resources/:id/toggle', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to toggle resource' });
   }
 
+  await upsertAzure('resources', { id: parsed.data, is_active: !current?.is_active });
   appCache.invalidateTags(['resources']);
   return res.json({ ok: true });
 });
@@ -1283,6 +1299,7 @@ router.delete('/resources/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to delete resource' });
   }
 
+  await deleteAzure('resources', parsed.data);
   appCache.invalidateTags(['resources']);
   return res.json({ ok: true });
 });
@@ -1398,13 +1415,14 @@ router.post('/resources/seed', async (_req: Request, res: Response) => {
     },
   ];
 
-  const { error } = await supabase.from('resources').insert(seedResources);
+  const { data, error } = await supabase.from('resources').insert(seedResources).select();
 
   if (error) {
     console.error('Error seeding resources:', error);
     return res.status(500).json({ ok: false, error: 'Failed to seed resources' });
   }
 
+  await upsertManyAzure('resources', data || []);
   appCache.invalidateTags(['resources']);
   return res.json({ ok: true, message: `Successfully seeded ${seedResources.length} curated resources!` });
 });
@@ -1447,18 +1465,23 @@ router.patch('/showcase/:id', async (req: Request, res: Response) => {
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('showcase_projects')
     .update({
       ...parsedBody.data,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', parsedId.data);
+    .eq('id', parsedId.data)
+    .select()
+    .single();
 
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to update showcase project' });
   }
 
+  if (data) {
+    await upsertAzure('showcase_projects', data);
+  }
   appCache.invalidateTags(['showcase']);
   return res.json({ ok: true });
 });
@@ -1479,6 +1502,7 @@ router.delete('/showcase/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to delete showcase project' });
   }
 
+  await deleteAzure('showcase_projects', parsedId.data);
   appCache.invalidateTags(['showcase']);
   return res.json({ ok: true });
 });
@@ -1542,6 +1566,9 @@ router.post('/competitions', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to create competition' });
   }
 
+  if (data) {
+    await upsertAzure('competitions', data);
+  }
   appCache.invalidateTags(['competitions']);
   return res.status(201).json({ ok: true, competition: data });
 });
@@ -1570,6 +1597,9 @@ router.put('/competitions/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to update competition' });
   }
 
+  if (data) {
+    await upsertAzure('competitions', data);
+  }
   appCache.invalidateTags(['competitions']);
   return res.json({ ok: true, competition: data });
 });
@@ -1600,6 +1630,7 @@ router.patch('/competitions/:id/toggle', async (req: Request, res: Response) => 
     return res.status(500).json({ ok: false, error: 'Failed to toggle competition status' });
   }
 
+  await upsertAzure('competitions', { id: parsedId.data, is_active: !current.is_active });
   appCache.invalidateTags(['competitions']);
   return res.json({ ok: true, is_active: !current.is_active });
 });
@@ -1621,6 +1652,7 @@ router.delete('/competitions/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to delete competition' });
   }
 
+  await deleteAzure('competitions', parsedId.data);
   appCache.invalidateTags(['competitions']);
   return res.json({ ok: true });
 });
@@ -1725,13 +1757,14 @@ router.post('/competitions/seed', async (_req: Request, res: Response) => {
     }
   ];
 
-  const { error } = await supabase.from('competitions').insert(seedCompetitions);
+  const { data, error } = await supabase.from('competitions').insert(seedCompetitions).select();
 
   if (error) {
     console.error('Error seeding competitions:', error);
     return res.status(500).json({ ok: false, error: 'Failed to seed competitions' });
   }
 
+  await upsertManyAzure('competitions', data || []);
   appCache.invalidateTags(['competitions']);
   return res.json({ ok: true, message: `Successfully seeded ${seedCompetitions.length} competitions!` });
 });
@@ -1795,6 +1828,9 @@ router.post('/notes', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to create note' });
   }
 
+  if (data) {
+    await upsertAzure('notes', data);
+  }
   appCache.invalidateTags(['notes']);
   return res.status(201).json({ ok: true, note: data });
 });
@@ -1823,6 +1859,9 @@ router.put('/notes/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to update note' });
   }
 
+  if (data) {
+    await upsertAzure('notes', data);
+  }
   appCache.invalidateTags(['notes']);
   return res.json({ ok: true, note: data });
 });
@@ -1853,6 +1892,7 @@ router.patch('/notes/:id/toggle', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to toggle note status' });
   }
 
+  await upsertAzure('notes', { id: parsedId.data, is_active: !current.is_active });
   appCache.invalidateTags(['notes']);
   return res.json({ ok: true, is_active: !current.is_active });
 });
@@ -1874,6 +1914,7 @@ router.delete('/notes/:id', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to delete note' });
   }
 
+  await deleteAzure('notes', parsedId.data);
   appCache.invalidateTags(['notes']);
   return res.json({ ok: true });
 });
@@ -1968,13 +2009,14 @@ router.post('/notes/seed', async (_req: Request, res: Response) => {
     }
   ];
 
-  const { error } = await supabase.from('notes').insert(seedNotes);
+  const { data, error } = await supabase.from('notes').insert(seedNotes).select();
 
   if (error) {
     console.error('Error seeding notes:', error);
     return res.status(500).json({ ok: false, error: 'Failed to seed notes' });
   }
 
+  await upsertManyAzure('notes', data || []);
   appCache.invalidateTags(['notes']);
   return res.json({ ok: true, message: `Successfully seeded ${seedNotes.length} engineering subject handbooks!` });
 });
