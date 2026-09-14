@@ -1,13 +1,40 @@
 import { Router, type Request, type Response } from 'express';
 import { createAnonClient } from '../middleware/auth';
 import { cacheRoute } from '../lib/cache';
+import { queryAzure } from '../lib/azureDb';
 
 const router = Router();
 
 router.get('/', cacheRoute(60, ['competitions'], 30), async (req: Request, res: Response) => {
-  const supabase = createAnonClient();
   const { type, status, search } = req.query;
 
+  // 1. Try Azure Database first if configured & healthy
+  const conditions: string[] = ['is_active = true'];
+  const params: any[] = [];
+  let paramIdx = 1;
+
+  if (type && typeof type === 'string' && type !== 'all') {
+    conditions.push(`type = $${paramIdx++}`);
+    params.push(type);
+  }
+  if (status && typeof status === 'string' && status !== 'all') {
+    conditions.push(`status = $${paramIdx++}`);
+    params.push(status);
+  }
+  if (search && typeof search === 'string' && search.trim()) {
+    conditions.push(`(title ILIKE $${paramIdx} OR description ILIKE $${paramIdx} OR platform ILIKE $${paramIdx})`);
+    params.push(`%${search.trim()}%`);
+    paramIdx++;
+  }
+
+  const azureSql = `SELECT * FROM public.competitions WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`;
+  const azureCompetitions = await queryAzure(azureSql, params);
+  if (azureCompetitions !== null) {
+    return res.json({ ok: true, competitions: azureCompetitions, source: 'azure' });
+  }
+
+  // 2. Resilient Supabase fallback
+  const supabase = createAnonClient();
   let query = supabase
     .from('competitions')
     .select('*')
@@ -37,7 +64,8 @@ router.get('/', cacheRoute(60, ['competitions'], 30), async (req: Request, res: 
     return res.status(500).json({ ok: false, error: 'Failed to load competitions' });
   }
 
-  return res.json({ ok: true, competitions: data || [] });
+  return res.json({ ok: true, competitions: data || [], source: 'supabase' });
 });
 
 export { router as competitionsRouter };
+
