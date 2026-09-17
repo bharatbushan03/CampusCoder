@@ -170,7 +170,7 @@ router.get('/', cacheRoute(60, ['notes'], 30), async (req: Request, res: Respons
     return res.status(500).json({ ok: false, error: 'Failed to load notes' });
   }
 
-  const resultNotes = (data && data.length > 0) ? data : fallbackSeedNotes;
+  const resultNotes = data || [];
   return res.json({ ok: true, notes: resultNotes, source: (data && data.length > 0) ? 'supabase' : 'fallback' });
 });
 
