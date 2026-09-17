@@ -6,6 +6,7 @@ import { clearSessionCookies, REFRESH_COOKIE, SESSION_COOKIE, setSessionCookies 
 
 import { createAdminClient } from '../utils/supabase/admin';
 import { appCache } from '../lib/cache';
+import { fetchWithTimeout } from '../utils/supabase/fetch';
 
 export interface AuthedRequest extends Request {
   user?: {
@@ -31,6 +32,7 @@ export function createAnonClient() {
       persistSession: false,
       autoRefreshToken: false,
     },
+    global: { fetch: fetchWithTimeout },
   });
   return anonClientInstance;
 }
@@ -53,6 +55,7 @@ export function createUserClient(accessToken: string) {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      fetch: fetchWithTimeout,
     },
   });
 }

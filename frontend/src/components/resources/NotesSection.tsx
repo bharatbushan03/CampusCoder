@@ -1,17 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { 
   BookOpen, 
   Search, 
-  Download, 
-  CheckCircle2, 
-  Circle, 
-  ChevronDown, 
-  ChevronUp, 
-  Eye, 
+  FileText,
   Loader2 
 } from 'lucide-react';
 
@@ -22,7 +16,6 @@ import { Button } from '@/components/ui/Button';
 
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
-import { PdfViewerModal, PdfViewerData } from '@/components/resources/PdfViewerModal';
 
 export interface DisplayNote {
   id: string;
@@ -43,22 +36,20 @@ export interface DisplayNote {
 }
 
 interface NotesSectionProps {
-  initialYear?: YearLevel;
+  initialYear?: YearLevel | 'all';
   initialSearch?: string;
+  showAdminActions?: boolean;
 }
 
-export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: NotesSectionProps) {
+export function NotesSection({ initialYear = 'all', initialSearch = '', showAdminActions = true }: NotesSectionProps) {
   const { user, profile } = useAuth();
   const isAdminOrOrganizer = user && profile && (profile.role === 'admin' || profile.role === 'organizer');
 
   const [selectedYear, setSelectedYear] = useState<string>(initialYear);
   const [selectedSemester, setSelectedSemester] = useState<string>('all');
   const [search, setSearch] = useState(initialSearch);
-  const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
-  const [completedSubjects, setCompletedSubjects] = useState<Record<string, boolean>>({});
   const [dynamicNotes, setDynamicNotes] = useState<DisplayNote[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activePdfNote, setActivePdfNote] = useState<PdfViewerData | null>(null);
 
   // Sync initialYear if changed from parent
   useEffect(() => {
@@ -106,34 +97,28 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
     void loadNotes();
   }, []);
 
-  // Load completed/revised subjects from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('cc_notes_revised');
-      if (saved) {
-        setCompletedSubjects(JSON.parse(saved));
+  const yearCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: dynamicNotes.length,
+      '1st-year': 0,
+      '2nd-year': 0,
+      '3rd-year': 0,
+      '4th-year': 0,
+    };
+    dynamicNotes.forEach(n => {
+      if (counts[n.year] !== undefined) {
+        counts[n.year]++;
       }
-    } catch {
-      setCompletedSubjects({});
-    }
-  }, []);
-
-  const toggleExpanded = (id: string) => {
-    setExpandedSubjects(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const toggleCompleted = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newState = { ...completedSubjects, [id]: !completedSubjects[id] };
-    setCompletedSubjects(newState);
-    localStorage.setItem('cc_notes_revised', JSON.stringify(newState));
-  };
+    });
+    return counts;
+  }, [dynamicNotes]);
 
   const filteredNotes = useMemo(() => {
     return dynamicNotes.filter(note => {
-      const matchesYear = note.year === selectedYear;
+      const matchesYear = selectedYear === 'all' ? true : note.year === selectedYear;
       const matchesSemester = selectedSemester === 'all' ? true : note.semester === selectedSemester;
-      const matchesSearch = note.title.toLowerCase().includes(search.toLowerCase()) ||
+      const matchesSearch = !search.trim() ||
+                            note.title.toLowerCase().includes(search.toLowerCase()) ||
                             note.code.toLowerCase().includes(search.toLowerCase()) ||
                             note.description.toLowerCase().includes(search.toLowerCase()) ||
                             (note.tags && note.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))) ||
@@ -143,75 +128,102 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
     });
   }, [dynamicNotes, selectedYear, selectedSemester, search]);
 
+  const subjectNotes = useMemo(() => {
+    const grouped = new Map<string, DisplayNote>();
+    filteredNotes.forEach(note => {
+      if (!grouped.has(note.code)) {
+        grouped.set(note.code, note);
+      }
+    });
+    return Array.from(grouped.values());
+  }, [filteredNotes]);
 
   return (
-
     <div className="space-y-6">
-      {/* Year Selection Tabs (1st Year, 2nd Year, Senior) */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
+      {/* Year Selection Tabs (All, 1st Year, 2nd Year, 3rd Year, 4th Year) */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         {/* Big Year Toggle Pills */}
-        <div className="flex flex-wrap p-1 bg-[#0e1422] border border-white/[0.08] rounded-xl w-full sm:w-auto gap-1">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap p-1 bg-[#0e1422] border border-white/[0.08] rounded-xl w-full sm:w-auto gap-1">
           <button
+            type="button"
+            onClick={() => {
+              setSelectedYear('all');
+              setSelectedSemester('all');
+            }}
+            className={`px-3.5 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
+              selectedYear === 'all'
+                ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            All Years {yearCounts.all > 0 && <span className="opacity-80 ml-1">({yearCounts.all})</span>}
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               setSelectedYear('1st-year');
               setSelectedSemester('all');
             }}
-            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               selectedYear === '1st-year'
                 ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            1st Year
+            1st Year {yearCounts['1st-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['1st-year']})</span>}
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setSelectedYear('2nd-year');
               setSelectedSemester('all');
             }}
-            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               selectedYear === '2nd-year'
                 ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            2nd Year
+            2nd Year {yearCounts['2nd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['2nd-year']})</span>}
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setSelectedYear('3rd-year');
               setSelectedSemester('all');
             }}
-            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               selectedYear === '3rd-year'
                 ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            3rd Year
+            3rd Year {yearCounts['3rd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['3rd-year']})</span>}
           </button>
 
-
           <button
+            type="button"
             onClick={() => {
               setSelectedYear('4th-year');
               setSelectedSemester('all');
             }}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               selectedYear === '4th-year'
-                ? 'bg-blue-500 text-slate-950 shadow-md shadow-blue-500/20'
+                ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            4th Year
+            4th Year {yearCounts['4th-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['4th-year']})</span>}
           </button>
         </div>
 
         {/* Semester Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
           <button
+            type="button"
             onClick={() => setSelectedSemester('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
               selectedSemester === 'all'
@@ -224,102 +236,113 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
 
           {selectedYear === '1st-year' ? (
             <>
-              <button
-                onClick={() => setSelectedSemester('sem-1')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-1'
-                    ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
-                    : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 1
-              </button>
-              <button
-                onClick={() => setSelectedSemester('sem-2')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-2'
-                    ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
-                    : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 2
-              </button>
+              {['sem-1', 'sem-2'].map(sem => (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => setSelectedSemester(sem)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
+                    selectedSemester === sem
+                      ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
+                      : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
+                  }`}
+                >
+                  Sem {sem.replace('sem-', '')}
+                </button>
+              ))}
             </>
           ) : selectedYear === '2nd-year' ? (
             <>
-              <button
-                onClick={() => setSelectedSemester('sem-3')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-3'
-                    ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
-                    : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 3
-              </button>
-              <button
-                onClick={() => setSelectedSemester('sem-4')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-4'
-                    ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
-                    : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 4
-              </button>
+              {['sem-3', 'sem-4'].map(sem => (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => setSelectedSemester(sem)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
+                    selectedSemester === sem
+                      ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
+                      : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
+                  }`}
+                >
+                  Sem {sem.replace('sem-', '')}
+                </button>
+              ))}
             </>
           ) : selectedYear === '3rd-year' ? (
             <>
-              <button
-                onClick={() => setSelectedSemester('sem-5')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-5' ? 'bg-slate-800 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 5
-              </button>
-              <button
-                onClick={() => setSelectedSemester('sem-6')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-6' ? 'bg-slate-800 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 6
-              </button>
+              {['sem-5', 'sem-6'].map(sem => (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => setSelectedSemester(sem)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
+                    selectedSemester === sem
+                      ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
+                      : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
+                  }`}
+                >
+                  Sem {sem.replace('sem-', '')}
+                </button>
+              ))}
             </>
           ) : selectedYear === '4th-year' ? (
             <>
-              <button
-                onClick={() => setSelectedSemester('sem-7')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-7' ? 'bg-slate-800 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 7
-              </button>
-              <button
-                onClick={() => setSelectedSemester('sem-8')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
-                  selectedSemester === 'sem-8' ? 'bg-slate-800 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
-                }`}
-              >
-                Sem 8
-              </button>
+              {['sem-7', 'sem-8'].map(sem => (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => setSelectedSemester(sem)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
+                    selectedSemester === sem
+                      ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
+                      : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
+                  }`}
+                >
+                  Sem {sem.replace('sem-', '')}
+                </button>
+              ))}
             </>
-          ) : null}
+          ) : (
+            <>
+              {['sem-1', 'sem-2', 'sem-3', 'sem-4', 'sem-5', 'sem-6', 'sem-7', 'sem-8'].map(sem => (
+                <button
+                  key={sem}
+                  type="button"
+                  onClick={() => setSelectedSemester(sem)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors shrink-0 cursor-pointer ${
+                    selectedSemester === sem
+                      ? 'bg-slate-800 text-blue-400 border border-blue-500/30'
+                      : 'text-slate-400 hover:text-white bg-slate-900/40 border border-slate-800'
+                  }`}
+                >
+                  S{sem.replace('sem-', '')}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
-      {/* Search Input */}
-      <div className="relative max-w-xl">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-        <input
-          type="text"
-          placeholder="Search subjects, codes (e.g. COM101, BSC101)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-        />
+      {/* Search Input & Admin Actions */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-xl">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search subjects, codes (e.g. CS201, MATH101, DBMS)..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+          />
+        </div>
+
+        {showAdminActions && isAdminOrOrganizer && (
+          <Link href="/admin/notes/new" className="shrink-0">
+            <Button size="sm" className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs w-full sm:w-auto">
+              + Upload Note PDF
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Notes Grid */}
@@ -328,149 +351,30 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
           <Loader2 className="size-8 text-blue-400 animate-spin" />
           <p className="text-xs font-mono text-slate-400">Loading verified subject notes and PDF handbooks...</p>
         </div>
-      ) : filteredNotes.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredNotes.map((note, index) => {
-            const isExpanded = !!expandedSubjects[note.id];
-            const isCompleted = !!completedSubjects[note.id];
-
+      ) : subjectNotes.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {subjectNotes.map((note, index) => {
             return (
-              <AnimatedCard key={note.id} delay={index * 0.04}>
-                <div className="h-full rounded-3xl border border-slate-800 bg-slate-950/60 p-6 space-y-4 hover:border-blue-500/40 transition-all flex flex-col justify-between group shadow-xl">
-                  <div className="space-y-4">
-                    {/* Top Metadata & Revised Toggle */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/30">
-                          {note.code}
-                        </span>
-                        <span className="text-[10px] font-mono uppercase px-2.5 py-1 rounded-md bg-slate-900 border border-slate-800 text-slate-300">
-                          {note.semester.toUpperCase().replace('-', ' ')}
-                        </span>
-                        {note.fileSize && (
-                          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                            PDF • {note.fileSize}
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => toggleCompleted(note.id, e)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-mono transition-colors cursor-pointer ${
-                          isCompleted
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                            : 'bg-slate-900/60 border-slate-800 text-slate-500 hover:text-slate-300'
-                        }`}
-                        title={isCompleted ? 'Marked as revised' : 'Mark as revised'}
-                      >
-                        {isCompleted ? <CheckCircle2 className="h-3 w-3 text-emerald-400" /> : <Circle className="h-3 w-3" />}
-                        <span>{isCompleted ? 'Revised' : 'Mark Revised'}</span>
-                      </button>
-                    </div>
-
-                    {/* Title & Description */}
-                    <div className="space-y-1.5">
-                      <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors font-mono">
-                        {note.title}
-                      </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        {note.description}
-                      </p>
-                    </div>
-
-                    {/* Highlights Bullet points */}
-                    {note.highlights && note.highlights.length > 0 && (
-                      <div className="space-y-1.5 bg-[#080b11] p-3 rounded-lg border border-white/[0.07]">
-                        <div className="text-[10px] font-mono uppercase text-slate-400 font-semibold">
-                          Key Exam Essentials
-                        </div>
-                        <ul className="space-y-1">
-                          {note.highlights.map((h, i) => (
-                            <li key={i} className="text-[11px] text-slate-300 flex items-center gap-2">
-                              <span className="h-1 w-1 rounded-full bg-cyan-400 shrink-0" />
-                              <span>{h}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Expandable Syllabus & Topics Drawer */}
-                    {note.topics && note.topics.length > 0 && (
-                      <div className="space-y-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleExpanded(note.id)}
-                          className="w-full flex items-center justify-between py-1.5 px-3 rounded-lg bg-[#080b11] hover:bg-white/[0.05] text-xs font-mono text-slate-300 transition-colors cursor-pointer border border-white/[0.07]"
-                        >
-                          <span>
-                            Syllabus Modules ({note.topics.length} Units)
-                          </span>
-                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </button>
-
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="overflow-hidden space-y-2 pt-1"
-                            >
-                              {note.topics.map((mod, mi) => (
-                                <div key={mi} className="p-2.5 rounded-lg bg-[#080b11] border border-white/[0.05] space-y-1">
-                                  <div className="text-[11px] font-bold text-white font-mono">{mod.title}</div>
-                                  {mod.subtopics && Array.isArray(mod.subtopics) && mod.subtopics.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                      {mod.subtopics.map((st, sti) => (
-                                        <span key={sti} className="text-[10px] text-slate-400 bg-white/[0.02] px-1.5 py-0.5 rounded border border-white/[0.05]">
-                                          {st}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    )}
+              <AnimatedCard key={note.id} delay={index * 0.04} className="h-full">
+                <Link
+                  href={`/notes/${note.code}`}
+                  className="group flex aspect-square h-auto min-h-0 flex-col justify-between rounded-2xl border border-slate-800 bg-slate-950/70 p-4 shadow-lg transition-all hover:border-cyan-500/50 hover:bg-slate-900/80"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <FileText className="size-6 text-cyan-300" strokeWidth={1.5} />
+                    <span className="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] font-mono font-bold text-cyan-300">
+                      {note.code}
+                    </span>
                   </div>
-
-                  {/* TWO USER ACCESS WAYS: 1) Online View, 2) Download */}
-                  <div className="pt-3 border-t border-white/[0.07] grid grid-cols-2 gap-2">
-                    {/* Way 1: Online View Modal */}
-                    <button
-                      type="button"
-                      onClick={() => setActivePdfNote({
-                        title: note.title,
-                        code: note.code,
-                        pdfUrl: note.pdfUrl,
-                        fileSize: note.fileSize,
-                        semester: note.semester,
-                        year: note.year
-                      })}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-xs shadow-sm transition-all cursor-pointer"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      <span>View Online</span>
-                    </button>
-
-                    {/* Way 2: Direct Download */}
-                    <a
-                      href={note.pdfUrl}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-[#080b11] hover:bg-white/[0.05] text-slate-200 border border-white/[0.08] font-mono text-xs font-semibold transition-all cursor-pointer"
-                    >
-                      <Download className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>Download PDF</span>
-                    </a>
+                  <div className="mt-6 space-y-2">
+                    <h3 className="text-sm font-bold leading-snug text-white group-hover:text-cyan-300 transition-colors">
+                      {note.title}
+                    </h3>
+                    <p className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
+                      {note.semester.replace('-', ' ')}
+                    </p>
                   </div>
-                </div>
+                </Link>
               </AnimatedCard>
             );
           })}
@@ -482,8 +386,8 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
             <h3 className="text-sm font-bold text-white font-mono">
               {search || selectedSemester !== 'all' ? 'No Notes Found' : 'No Subject Notes Uploaded Yet'}
             </h3>
-            <p className="text-slate-400 font-mono text-xs max-w-md mx-auto">
-              {search || selectedSemester !== 'all'
+              <p className="text-slate-400 font-mono text-xs max-w-md mx-auto">
+                {search || selectedSemester !== 'all'
                 ? 'No subject notes match your current search or semester filter.'
                 : 'Verified subject handbooks and academic notes will be added soon!'}
             </p>
@@ -512,12 +416,6 @@ export function NotesSection({ initialYear = '1st-year', initialSearch = '' }: N
       )}
 
 
-      {/* Interactive PDF Reader Study Desk Modal */}
-      <PdfViewerModal
-        note={activePdfNote}
-        isOpen={!!activePdfNote}
-        onClose={() => setActivePdfNote(null)}
-      />
     </div>
   );
 }

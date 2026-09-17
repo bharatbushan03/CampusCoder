@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/database.types';
 import { getSupabaseSecretKey, getSupabaseUrl } from './config';
+import { fetchWithTimeout } from './fetch';
 
 let adminClientInstance: ReturnType<typeof createClient<Database>> | null = null;
 
@@ -21,6 +22,7 @@ export function createAdminClient() {
       persistSession: false,
       autoRefreshToken: false,
     },
+    global: { fetch: fetchWithTimeout },
   });
 
   return adminClientInstance;

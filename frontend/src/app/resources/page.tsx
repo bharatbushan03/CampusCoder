@@ -53,12 +53,13 @@ function ResourcesPageContent() {
 
   const searchParams = useSearchParams();
   const initialCategoryParam = searchParams.get('category');
-  const initialYearParam = searchParams.get('year') as YearLevel | null;
+  const initialTabParam = searchParams.get('tab');
+  const initialYearParam = searchParams.get('year') as YearLevel | 'all' | null;
 
   const [activeTab, setActiveTab] = useState<'all' | 'competitions' | 'notes'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<ResourceCategory | 'all'>('all');
-  const [notesYear, setNotesYear] = useState<YearLevel>(initialYearParam || '1st-year');
+  const [notesYear, setNotesYear] = useState<YearLevel | 'all'>(initialYearParam || 'all');
 
   const [dynamicResources, setDynamicResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,20 +97,21 @@ function ResourcesPageContent() {
 
   // Handle URL query parameters on load
   useEffect(() => {
-    if (initialCategoryParam === 'competitions') {
+    const target = initialCategoryParam || initialTabParam;
+    if (target === 'competitions') {
       setActiveTab('competitions');
       setActiveCategory('competitions');
-    } else if (initialCategoryParam === 'notes') {
+    } else if (target === 'notes') {
       setActiveTab('notes');
       setActiveCategory('notes');
-      if (initialYearParam === '1st-year' || initialYearParam === '2nd-year') {
+      if (initialYearParam) {
         setNotesYear(initialYearParam);
       }
     } else if (initialCategoryParam) {
       setActiveCategory(initialCategoryParam as ResourceCategory);
       setActiveTab('all');
     }
-  }, [initialCategoryParam, initialYearParam]);
+  }, [initialCategoryParam, initialTabParam, initialYearParam]);
 
   // Dynamic resource pool loaded directly from backend API
   const allResources = dynamicResources;
@@ -144,11 +146,15 @@ function ResourcesPageContent() {
       
       {/* Header & Meta */}
       <AnimatedSection className="space-y-3" direction="up">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-6">
-          <div className="space-y-1.5">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 border-b border-white/[0.08] pb-6">
+          <div className="space-y-2 max-w-2xl">
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-emerald-400">CampusCoder Library</p>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
               Developer Resources
             </h1>
+            <p className="text-sm leading-relaxed text-slate-400">
+              Curated tools, study material, competitions, and semester handbooks for your next build.
+            </p>
           </div>
 
           {isAdminOrOrganizer && (
@@ -170,13 +176,13 @@ function ResourcesPageContent() {
 
       {/* Main View Mode Selector (Tabs) */}
       <AnimatedSection direction="none" delay={0.05}>
-        <div className="flex flex-wrap items-center gap-2 p-1 bg-[#0e1422] border border-white/[0.08] rounded-xl w-fit">
+        <div className="grid grid-cols-1 sm:grid-cols-3 items-center gap-1 p-1 bg-[#0e1422] border border-white/[0.08] rounded-xl w-full sm:w-fit">
           <button
             onClick={() => {
               setActiveTab('all');
               setActiveCategory('all');
             }}
-            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'all'
                 ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -190,7 +196,7 @@ function ResourcesPageContent() {
               setActiveTab('competitions');
               setActiveCategory('competitions');
             }}
-            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'competitions'
                 ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -204,7 +210,7 @@ function ResourcesPageContent() {
               setActiveTab('notes');
               setActiveCategory('notes');
             }}
-            className={`px-4 py-2 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-lg font-mono text-xs font-semibold transition-all cursor-pointer ${
               activeTab === 'notes'
                 ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -232,7 +238,7 @@ function ResourcesPageContent() {
         <div className="space-y-6">
           
           {/* Search & Category Filter Toolbar */}
-          <div className="space-y-3">
+          <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#0b101b]/80 p-4 sm:p-5">
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
               {/* Search Bar */}
               <div className="relative flex-1">
@@ -262,7 +268,7 @@ function ResourcesPageContent() {
             </div>
 
             {/* Clean Category Filter Pills */}
-            <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-white/[0.06]">
               {CATEGORIES.map((cat) => {
                 const isSelected = activeCategory === cat.id;
                 return (
