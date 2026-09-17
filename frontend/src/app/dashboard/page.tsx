@@ -15,7 +15,6 @@ import {
   School,
   BookOpen,
   Settings,
-  Activity,
   ArrowUpRight
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
@@ -306,9 +305,6 @@ export default function StudentDashboard() {
             <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tighter font-mono uppercase">
               Member <span className="text-emerald-500">Console</span>
             </h1>
-            <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1.5">
-              <Activity className="size-3 animate-pulse" /> Active
-            </div>
           </div>
           <p className="text-slate-500 text-sm font-mono">Status: Connected to CampusCoder Hub v2.0</p>
         </div>
@@ -397,6 +393,40 @@ export default function StudentDashboard() {
               </div>
             </div>
           </Card>
+
+          {/* Academic Notes Vault Quick Card */}
+          <Card className="p-8 border-slate-800 bg-cyan-500/5 space-y-4 hover:border-cyan-500/30 transition-all">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-cyan-400">
+                Academic Notes Vault
+              </h2>
+              <span className="text-[10px] font-mono text-cyan-300 uppercase bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-md">
+                PDFs
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed font-mono">
+              Access verified lecture handbooks, exam formulas, and syllabus modules uploaded by organizers.
+            </p>
+            <div className="flex flex-col gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/notes')}
+                className="w-full border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 font-mono text-xs"
+              >
+                Open Notes Section
+              </Button>
+              <Link href="/notes" className="w-full">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-slate-400 hover:text-white font-mono text-xs"
+                >
+                  Visit Dedicated Notes Portal →
+                </Button>
+              </Link>
+            </div>
+          </Card>
         </div>
 
 {/* RIGHT COLUMN */}
@@ -415,11 +445,11 @@ export default function StudentDashboard() {
           </div>
           
           {/* Tabs */}
-          <div className="flex gap-2 p-1 bg-slate-950 border border-slate-800 rounded-xl">
+          <div className="flex flex-wrap gap-2 p-1 bg-slate-950 border border-slate-800 rounded-xl">
             <button
               type="button"
               onClick={() => setActiveTab('upcoming')}
-              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all relative ${
+              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-sm font-semibold transition-all relative ${
                 activeTab === 'upcoming'
                   ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                   : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
@@ -433,7 +463,7 @@ export default function StudentDashboard() {
             <button
               type="button"
               onClick={() => setActiveTab('completed')}
-              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all relative ${
+              className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-sm font-semibold transition-all relative ${
                 activeTab === 'completed'
                   ? 'bg-slate-800 text-white border border-slate-600'
                   : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
