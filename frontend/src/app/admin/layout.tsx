@@ -39,12 +39,12 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-3.75rem)] bg-slate-950/20">
+    <div className="flex h-[calc(100vh-3.5rem)] min-h-0 overflow-hidden bg-slate-950/20">
       {/* Sidebar Navigation */}
       <AdminSidebar email={me.user.email || profile.email || ''} role={profile.role} />
 
       {/* Main Panel Content Area */}
-      <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-y-auto">
+      <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
         {children}
       </main>
     </div>

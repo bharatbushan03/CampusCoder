@@ -13,6 +13,7 @@ import {
 import type { z } from 'zod';
 
 type EventPayload = z.infer<typeof eventSchema>;
+type NotePayload = z.input<typeof noteSchema>;
 type SpeakerPayload = {
   name: string;
   role?: string;
@@ -176,7 +177,7 @@ export async function deleteCompetition(id: string) {
   return { success: true };
 }
 
-export async function createNote(payload: z.infer<typeof noteSchema>) {
+export async function createNote(payload: NotePayload) {
   const result = await serverApi<{ ok: boolean; note: any }>('/admin/notes', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -185,7 +186,7 @@ export async function createNote(payload: z.infer<typeof noteSchema>) {
   return { success: true, note: result.note };
 }
 
-export async function updateNote(id: string, payload: z.infer<typeof noteSchema>) {
+export async function updateNote(id: string, payload: NotePayload) {
   const result = await serverApi<{ ok: boolean; note: any }>(`/admin/notes/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),

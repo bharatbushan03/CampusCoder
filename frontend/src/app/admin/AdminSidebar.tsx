@@ -131,7 +131,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 bg-slate-950 border-r border-slate-800/80 flex flex-col transition-all duration-300 ease-in-out shrink-0
-          lg:static lg:z-auto lg:sticky lg:top-14 lg:h-[calc(100vh-3.5rem)]
+          lg:static lg:z-auto lg:sticky lg:top-0 lg:h-full overflow-hidden
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           ${collapsed ? 'w-18 lg:w-18' : 'w-60 lg:w-60'}
         `}
@@ -175,7 +175,7 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
         </div>
 
         {/* Navigation Groups */}
-        <nav className="flex-1 overflow-y-auto px-2.5 py-4 space-y-5 scrollbar-thin">
+        <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 py-4 space-y-5 scrollbar-thin">
           {navGroups.map((group) => (
             <div key={group.label}>
               {!collapsed && (
