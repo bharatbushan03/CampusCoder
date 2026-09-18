@@ -74,4 +74,6 @@ AGENTS.md
 CLAUDE.md
 *.agent.md
 CHAT.md
-
+# Supabase local CLI cache
+supabase/.temp/
+.temp/

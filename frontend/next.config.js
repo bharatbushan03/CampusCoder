@@ -7,6 +7,12 @@ const nextConfig = {
   poweredByHeader: false,
   allowedDevOrigins: ['*.trycloudflare.com'],
   outputFileTracingRoot: __dirname,
+  experimental: {
+    middlewareClientMaxBodySize: '100mb',
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
+  },
   async rewrites() {
     return [
       {

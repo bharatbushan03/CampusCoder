@@ -127,13 +127,14 @@ export default function NewNotePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-      toast.error('Only PDF documents are allowed');
+    const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')).toLowerCase() : '';
+    if (['.exe', '.bat', '.cmd', '.sh', '.ps1', '.msi', '.dll'].includes(ext)) {
+      toast.error('Executable file types are not allowed.');
       return;
     }
 
     if (file.size > 30 * 1024 * 1024) {
-      toast.error('PDF file size must be less than 30MB');
+      toast.error('File size must be less than 30MB');
       return;
     }
 
@@ -149,16 +150,17 @@ export default function NewNotePage() {
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Failed to upload PDF');
+        throw new Error(data.error || 'Failed to upload document');
       }
 
+      const titleWithoutExt = ext ? file.name.slice(0, -ext.length) : file.name;
       setFormData(prev => ({
         ...prev,
         pdf_url: data.url,
-        title: prev.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' '),
+        title: prev.title || titleWithoutExt.replace(/_/g, ' '),
       }));
 
-      toast.success('PDF uploaded successfully!');
+      toast.success('File uploaded successfully!');
     } catch (err: any) {
       toast.error('Upload failed: ' + (err.message || 'Error'));
     } finally {
@@ -308,7 +310,7 @@ export default function NewNotePage() {
             <div className="relative border-2 border-dashed border-slate-700 hover:border-blue-500/50 rounded-2xl p-6 text-center transition-colors bg-slate-900/30 flex flex-col items-center justify-center min-h-[160px]">
               <input
                 type="file"
-                accept="application/pdf,.pdf"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif,.svg,.zip,.rar,.7z,application/*,image/*,text/*"
                 onChange={handlePdfFileUpload}
                 disabled={uploadingPdf}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
@@ -316,14 +318,14 @@ export default function NewNotePage() {
               {uploadingPdf ? (
                 <div className="flex flex-col items-center space-y-2">
                   <Loader2 className="size-8 text-blue-400 animate-spin" />
-                  <p className="text-xs font-mono text-slate-300">Uploading PDF to secure storage...</p>
+                  <p className="text-xs font-mono text-slate-300">Uploading document to secure storage...</p>
                 </div>
               ) : formData.pdf_url ? (
                 <div className="flex flex-col items-center space-y-2 text-emerald-400">
                   <div className="p-3 rounded-full bg-emerald-500/10 border border-emerald-500/30">
                     <Check className="size-6" />
                   </div>
-                  <p className="text-xs font-mono font-bold">PDF Ready & Verified</p>
+                  <p className="text-xs font-mono font-bold">Document Ready & Verified</p>
                   <p className="text-[11px] font-mono text-slate-400">Click or drop another file to replace</p>
                 </div>
               ) : (
@@ -331,8 +333,8 @@ export default function NewNotePage() {
                   <div className="p-3 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400">
                     <Upload className="size-6" />
                   </div>
-                  <p className="text-xs font-mono font-bold text-white">Click or drag & drop PDF file here</p>
-                  <p className="text-[11px] font-mono text-slate-500">Supports handwritten scans, typed notes, syllabus guides</p>
+                  <p className="text-xs font-mono font-bold text-white">Click or drag & drop file here</p>
+                  <p className="text-[11px] font-mono text-slate-500">PDF, PPT, Word, Excel, Images, Text (up to 30MB)</p>
                 </div>
               )}
             </div>

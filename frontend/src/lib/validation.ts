@@ -87,6 +87,13 @@ export const competitionSchema = z.object({
   is_active: z.boolean().default(true),
 });
 
+export const noteFolderSchema = z.object({
+  name: z.string().min(1, 'Folder name is required').max(100),
+  subject_code: z.string().min(2, 'Subject code is required').max(50),
+  parent_id: z.string().uuid().optional().nullable(),
+  color: z.string().max(30).default('blue').optional().nullable(),
+});
+
 export const noteSchema = z.object({
   title: z.string().min(3, 'Title is too short').max(200),
   code: z.string().min(2, 'Subject code is required').max(50),
@@ -101,6 +108,8 @@ export const noteSchema = z.object({
   author: z.string().max(100).optional().nullable(),
   tags: z.array(z.string()).default([]),
   highlights: z.array(z.string()).default([]),
+  folder_id: z.string().uuid().optional().nullable(),
+  folder_name: z.string().max(100).optional().nullable(),
   is_active: z.boolean().default(true),
 });
 
@@ -110,4 +119,22 @@ export const studentUpdateSchema = z.object({
   branch: z.string().max(100).optional().nullable(),
   year: z.string().max(20).optional().nullable(),
   role: z.enum(['student', 'admin', 'organizer']).optional(),
+});
+
+export const batchNotesSchema = z.object({
+  code: z.string().min(2).max(50),
+  subject: z.string().max(150).optional().nullable(),
+  year: z.enum(['1st-year', '2nd-year', '3rd-year', '4th-year']).default('1st-year'),
+  semester: z.string().min(2).max(50).default('sem-1'),
+  branch: z.string().max(100).default('All Branches'),
+  folder_id: z.string().uuid().optional().nullable(),
+  folder_name: z.string().max(100).optional().nullable(),
+  files: z.array(
+    z.object({
+      title: z.string().min(1).max(200),
+      pdf_url: z.url(),
+      file_size: z.string().optional().nullable(),
+      page_count: z.number().int().optional().nullable(),
+    })
+  ).min(1, 'At least one file is required'),
 });
