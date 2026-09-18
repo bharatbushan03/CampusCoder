@@ -250,3 +250,23 @@ export async function batchCreateNotes(payload: BatchNotesPayload) {
 
   return { success: true, notes: result.notes };
 }
+
+export async function updateSubjectNotes(
+  code: string,
+  payload: { newCode?: string; subject?: string; year?: string; semester?: string; branch?: string }
+) {
+  const result = await serverApi<{ ok: boolean }>(`/admin/notes/subject/${encodeURIComponent(code)}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: result.ok };
+}
+
+export async function deleteSubjectNotes(code: string) {
+  const result = await serverApi<{ ok: boolean }>(`/admin/notes/subject/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  });
+
+  return { success: result.ok };
+}
