@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
+import path from 'path';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import { isAzureStorageConfigured, uploadToAzureBlob } from '../lib/azureStorage';
@@ -64,14 +65,19 @@ router.post('/banner', upload.single('file'), async (req: Request, res: Response
   }
 });
 
-const pdfUpload = multer({
+const DISALLOWED_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.sh', '.ps1', '.msi', '.dll', '.vbs', '.com', '.scr', '.pif'
+]);
+
+const documentUpload = multer({
   storage,
-  limits: { fileSize: 30 * 1024 * 1024 }, // 30MB
+  limits: { fileSize: 35 * 1024 * 1024 }, // 35MB (allowing up to 30MB files comfortably with headers)
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf')) {
-      cb(null, true);
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (DISALLOWED_EXTENSIONS.has(ext)) {
+      cb(new Error(`File extension "${ext}" is not allowed for security reasons`));
     } else {
-      cb(new Error('Only PDF documents are allowed'));
+      cb(null, true);
     }
   },
 });
@@ -93,31 +99,37 @@ function imageExt(mimetype: string) {
   return mimetype === 'image/jpeg' ? 'jpg' : (mimetype.split('/')[1] || 'jpg');
 }
 
-router.post('/pdf', pdfUpload.single('file'), async (req: Request, res: Response) => {
+const handleDocumentUpload = async (req: Request, res: Response) => {
   if (!req.file) {
-    return res.status(400).json({ ok: false, error: 'No PDF file uploaded' });
+    return res.status(400).json({ ok: false, error: 'No document file uploaded' });
   }
 
-  const cleanOriginalName = req.file.originalname
+  const rawExt = path.extname(req.file.originalname) || '';
+  const cleanExt = rawExt.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase();
+  const baseName = path.basename(req.file.originalname, rawExt)
     .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/\.pdf$/i, '');
-  const fileName = `notes/${Date.now()}-${cleanOriginalName}.pdf`;
+    .slice(0, 100);
+
+  const finalExt = cleanExt || (req.file.mimetype.includes('pdf') ? '.pdf' : '');
+  const fileName = `notes/${Date.now()}-${baseName}${finalExt}`;
+  const contentType = req.file.mimetype || 'application/octet-stream';
 
   // 1. Try Azure Blob Storage if configured
   if (isAzureStorageConfigured()) {
     try {
-      const azureUrl = await uploadToAzureBlob('documents', fileName, req.file.buffer, 'application/pdf');
+      const azureUrl = await uploadToAzureBlob('documents', fileName, req.file.buffer, contentType);
       if (azureUrl) {
         return res.json({
           ok: true,
           url: azureUrl,
           fileName: req.file.originalname,
           fileSize: formatBytes(req.file.size),
+          contentType,
           provider: 'azure',
         });
       }
     } catch (azErr: any) {
-      console.warn('[Upload] Azure PDF upload failed, falling back to Supabase:', azErr.message);
+      console.warn('[Upload] Azure Document upload failed, falling back to Supabase:', azErr.message);
     }
   }
 
@@ -130,7 +142,7 @@ router.post('/pdf', pdfUpload.single('file'), async (req: Request, res: Response
       .upload(fileName, req.file.buffer, {
         cacheControl: '3600',
         upsert: false,
-        contentType: 'application/pdf',
+        contentType,
       });
 
     if (error && error.message?.includes('Bucket not found')) {
@@ -140,7 +152,7 @@ router.post('/pdf', pdfUpload.single('file'), async (req: Request, res: Response
         .upload(fileName, req.file.buffer, {
           cacheControl: '3600',
           upsert: false,
-          contentType: 'application/pdf',
+          contentType,
         });
       error = fallbackUpload.error;
     }
@@ -155,12 +167,16 @@ router.post('/pdf', pdfUpload.single('file'), async (req: Request, res: Response
       url: data.publicUrl,
       fileName: req.file.originalname,
       fileSize: formatBytes(req.file.size),
+      contentType,
       provider: 'supabase',
     });
   } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err.message || 'PDF upload failed' });
+    return res.status(500).json({ ok: false, error: err.message || 'Document upload failed' });
   }
-});
+};
+
+router.post('/pdf', documentUpload.single('file'), handleDocumentUpload);
+router.post('/document', documentUpload.single('file'), handleDocumentUpload);
 
 const photoUpload = multer({
   storage,
@@ -411,6 +427,19 @@ router.post('/zip', requireRole('admin'), zipUpload.single('file'), async (req: 
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'ZIP upload failed' });
   }
+});
+
+router.use((err: any, _req: Request, res: Response, next: any) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ ok: false, error: 'File size exceeds maximum allowed limit.' });
+    }
+    return res.status(400).json({ ok: false, error: err.message });
+  }
+  if (err) {
+    return res.status(400).json({ ok: false, error: err.message || 'File upload failed' });
+  }
+  next();
 });
 
 export { router as uploadRouter };

@@ -9,8 +9,12 @@ import {
   FileText, 
   Maximize2, 
   Minimize2, 
-  Sparkles,
-  Loader2
+  Sparkles, 
+  Loader2,
+  Image as ImageIcon,
+  Presentation,
+  FileSpreadsheet,
+  FileCode
 } from 'lucide-react';
 
 export interface PdfViewerData {
@@ -59,10 +63,38 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
 
   if (!isOpen || !note) return null;
 
+  const rawUrl = note.pdfUrl || '';
+  const ext = (rawUrl.split('?')[0].split('.').pop() || note.title.split('.').pop() || '').toLowerCase();
+  
+  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext);
+  const isPpt = ['ppt', 'pptx'].includes(ext);
+  const isDoc = ['doc', 'docx'].includes(ext);
+  const isSheet = ['xls', 'xlsx', 'csv'].includes(ext);
+  const isCodeOrText = ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'py', 'java', 'cpp', 'c'].includes(ext);
+  const isOffice = isPpt || isDoc || isSheet;
+  const isPdf = ext === 'pdf' || (!isImage && !isOffice && !isCodeOrText);
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(note.pdfUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const getHeaderIcon = () => {
+    if (isImage) return <ImageIcon className="h-5 w-5 text-purple-400" />;
+    if (isPpt) return <Presentation className="h-5 w-5 text-amber-400" />;
+    if (isSheet) return <FileSpreadsheet className="h-5 w-5 text-emerald-400" />;
+    if (isCodeOrText) return <FileCode className="h-5 w-5 text-cyan-400" />;
+    return <FileText className="h-5 w-5 text-blue-400" />;
+  };
+
+  const getFormatLabel = () => {
+    if (isImage) return 'Image';
+    if (isPpt) return 'Presentation';
+    if (isDoc) return 'Word Doc';
+    if (isSheet) return 'Spreadsheet';
+    if (isPdf) return 'PDF Document';
+    return ext.toUpperCase() || 'File';
   };
 
   return (
@@ -93,16 +125,19 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
           <div className="px-5 py-3.5 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-sm flex items-center justify-between gap-4 shrink-0">
             {/* Title & Info */}
             <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 shrink-0">
-                <FileText className="h-5 w-5" />
+              <div className="p-2 rounded-xl bg-slate-800/80 border border-slate-700/50 shrink-0">
+                {getHeaderIcon()}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   {note.code && (
-                    <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                       {note.code}
                     </span>
                   )}
+                  <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+                    {getFormatLabel()}
+                  </span>
                   {note.fileSize && (
                     <span className="text-[10px] font-mono text-slate-400">
                       {note.fileSize}
@@ -124,10 +159,10 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono font-bold text-xs shadow-md shadow-emerald-500/10 transition-all cursor-pointer"
-                title="Download PDF"
+                title="Download File"
               >
                 <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Download PDF</span>
+                <span className="hidden sm:inline">Download File</span>
               </a>
 
               {/* Open in New Tab */}
@@ -136,7 +171,7 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 transition-colors"
-                title="Open PDF in new tab"
+                title="Open in new tab"
               >
                 <ExternalLink className="h-4 w-4" />
               </a>
@@ -167,24 +202,43 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
           <div className="relative flex-1 bg-slate-950 w-full h-full overflow-hidden flex items-center justify-center">
             {iframeLoading && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-950/90 space-y-3 pointer-events-none">
-                <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
-                <p className="text-xs font-mono text-slate-400">Loading interactive PDF document...</p>
+                <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
+                <p className="text-xs font-mono text-slate-400">Loading {getFormatLabel()} preview...</p>
               </div>
             )}
 
-            <iframe
-              src={`${note.pdfUrl}#toolbar=1&navpanes=0&view=FitH`}
-              title={note.title}
-              onLoad={() => setIframeLoading(false)}
-              className="w-full h-full border-none bg-slate-900"
-            />
+            {isImage ? (
+              <div className="w-full h-full flex items-center justify-center p-4 overflow-auto bg-slate-950">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={note.pdfUrl}
+                  alt={note.title}
+                  onLoad={() => setIframeLoading(false)}
+                  className="max-h-full max-w-full object-contain rounded-xl shadow-2xl border border-white/10"
+                />
+              </div>
+            ) : isOffice ? (
+              <iframe
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(note.pdfUrl)}&embedded=true`}
+                title={note.title}
+                onLoad={() => setIframeLoading(false)}
+                className="w-full h-full border-none bg-slate-900"
+              />
+            ) : (
+              <iframe
+                src={`${note.pdfUrl}#toolbar=1&navpanes=0&view=FitH`}
+                title={note.title}
+                onLoad={() => setIframeLoading(false)}
+                className="w-full h-full border-none bg-slate-900"
+              />
+            )}
           </div>
 
           {/* Bottom Bar Info */}
           <div className="px-5 py-2.5 border-t border-slate-800/80 bg-slate-950 flex items-center justify-between text-[11px] font-mono text-slate-400 shrink-0">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-              <span>CampusCoder In-App PDF Reader & Study Desk</span>
+              <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+              <span>CampusCoder In-App Study Desk</span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -193,7 +247,7 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
                 onClick={handleCopyLink}
                 className="hover:text-slate-200 transition-colors cursor-pointer"
               >
-                {copied ? '✓ PDF Link Copied' : 'Copy Direct Link'}
+                {copied ? '✓ Link Copied' : 'Copy Direct Link'}
               </button>
               <span>•</span>
               <a

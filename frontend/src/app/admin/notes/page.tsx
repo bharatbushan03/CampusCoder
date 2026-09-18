@@ -1,27 +1,36 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import Link from 'next/link';
 import { 
-  GraduationCap, 
   Plus, 
   Search, 
-  Edit, 
   Trash2, 
   Eye, 
-  EyeOff, 
   Download, 
   RefreshCw, 
   Database,
-  BookOpen
+  BookOpen,
+  Folder,
+  LayoutGrid,
+  Table as TableIcon,
+  X,
+  Loader2
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { api } from '@/lib/api';
-import { deleteNote, toggleNote } from '@/app/actions/adminActions';
+import { 
+  deleteNote, 
+  toggleNote, 
+  createNoteFolder, 
+  updateNoteFolder, 
+  deleteNoteFolder, 
+  batchCreateNotes 
+} from '@/app/actions/adminActions';
 import { toast } from 'sonner';
-import { PdfViewerModal, PdfViewerData } from '@/components/resources/PdfViewerModal';
+import { PdfViewerModal, type PdfViewerData } from '@/components/resources/PdfViewerModal';
+import { DriveExplorer, type NoteFolder, type SubjectMetadata } from '@/components/notes/DriveExplorer';
 
 export type AdminNoteRow = {
   id: string;
@@ -36,6 +45,8 @@ export type AdminNoteRow = {
   file_size: string | null;
   page_count: number | null;
   author: string | null;
+  folder_id?: string | null;
+  folder_name?: string | null;
   tags: string[];
   is_active: boolean;
   created_at: string;
@@ -43,54 +54,205 @@ export type AdminNoteRow = {
 
 export default function AdminNotesPage() {
   const [notes, setNotes] = useState<AdminNoteRow[]>([]);
+  const [folders, setFolders] = useState<NoteFolder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'drive' | 'table'>('drive');
+  const [selectedSubjectCode, setSelectedSubjectCode] = useState<string | null>(null);
+
+  // Table filters
   const [search, setSearch] = useState('');
   const [yearFilter, setYearFilter] = useState('all');
   const [semesterFilter, setSemesterFilter] = useState('all');
   const [isSeeding, setIsSeeding] = useState(false);
   const [activePdfNote, setActivePdfNote] = useState<PdfViewerData | null>(null);
 
-  const fetchNotes = useCallback(async () => {
+  // Add Subject Modal
+  const [isNewSubjectModalOpen, setIsNewSubjectModalOpen] = useState(false);
+  const [newSubjectData, setNewSubjectData] = useState({
+    code: '',
+    subject: '',
+    year: '1st-year',
+    semester: 'sem-1',
+    branch: 'All Branches',
+  });
+
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api<{ ok: boolean; notes: AdminNoteRow[] }>('/admin/notes');
-      if (data && data.ok) {
-        setNotes(data.notes || []);
+      const [notesRes, foldersRes] = await Promise.all([
+        api<{ ok: boolean; notes: AdminNoteRow[] }>('/admin/notes'),
+        api<{ ok: boolean; folders: NoteFolder[] }>('/admin/notes/folders'),
+      ]);
+
+      if (notesRes && notesRes.ok) {
+        setNotes(notesRes.notes || []);
+      }
+      if (foldersRes && foldersRes.ok) {
+        setFolders(foldersRes.folders || []);
       }
     } catch (err: any) {
-      toast.error('Failed to load notes: ' + (err.message || 'Unknown error'));
+      toast.error('Failed to load notes data: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void fetchNotes();
-  }, [fetchNotes]);
+    void fetchData();
+  }, [fetchData]);
 
+  // Derived subjects list
+  const subjectsMap = useMemo(() => {
+    const map = new Map<string, SubjectMetadata & { docCount: number; folderCount: number }>();
+
+    // From notes
+    notes.forEach((n) => {
+      const code = n.code;
+      if (!code) return;
+      if (!map.has(code)) {
+        map.set(code, {
+          code,
+          subject: n.subject || n.title,
+          year: n.year,
+          semester: n.semester,
+          branch: n.branch || 'All Branches',
+          docCount: 0,
+          folderCount: 0,
+        });
+      }
+      const entry = map.get(code)!;
+      entry.docCount++;
+    });
+
+    // From folders
+    folders.forEach((f) => {
+      const code = f.subject_code;
+      if (!code) return;
+      if (!map.has(code)) {
+        map.set(code, {
+          code,
+          subject: code,
+          year: '1st-year',
+          semester: 'sem-1',
+          branch: 'All Branches',
+          docCount: 0,
+          folderCount: 0,
+        });
+      }
+      const entry = map.get(code)!;
+      entry.folderCount++;
+    });
+
+    return map;
+  }, [notes, folders]);
+
+  const subjectsList = useMemo(() => {
+    return Array.from(subjectsMap.values());
+  }, [subjectsMap]);
+
+  const activeSubject: SubjectMetadata | null = useMemo(() => {
+    if (!selectedSubjectCode) return null;
+    return subjectsMap.get(selectedSubjectCode) || {
+      code: selectedSubjectCode,
+      subject: selectedSubjectCode,
+      year: '1st-year',
+      semester: 'sem-1',
+      branch: 'All Branches',
+    };
+  }, [selectedSubjectCode, subjectsMap]);
+
+  // Folders & documents for active subject
+  const activeSubjectFolders = useMemo(() => {
+    if (!selectedSubjectCode) return [];
+    return folders.filter((f) => f.subject_code === selectedSubjectCode);
+  }, [folders, selectedSubjectCode]);
+
+  const activeSubjectDocs = useMemo(() => {
+    if (!selectedSubjectCode) return [];
+    return notes.filter((n) => n.code === selectedSubjectCode);
+  }, [notes, selectedSubjectCode]);
+
+  // Folder CRUD handlers for DriveExplorer
+  const handleCreateFolder = async (name: string, parentId: string | null, color?: string) => {
+    if (!selectedSubjectCode) return false;
+    const res = await createNoteFolder({
+      name,
+      subject_code: selectedSubjectCode,
+      parent_id: parentId,
+      color: color || 'blue',
+    });
+    return res.success;
+  };
+
+  const handleRenameFolder = async (folderId: string, newName: string) => {
+    const res = await updateNoteFolder(folderId, { name: newName });
+    return res.success;
+  };
+
+  const handleDeleteFolder = async (folderId: string) => {
+    const res = await deleteNoteFolder(folderId);
+    return res.success;
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    const res = await deleteNote(docId);
+    return res.success;
+  };
+
+  const handleBatchUpload = async (
+    files: Array<{ title: string; pdf_url: string; file_size: string }>,
+    folderId: string | null,
+    folderName: string | null
+  ) => {
+    if (!activeSubject) return false;
+    const res = await batchCreateNotes({
+      code: activeSubject.code,
+      subject: activeSubject.subject,
+      year: (activeSubject.year as any) || '1st-year',
+      semester: activeSubject.semester || 'sem-1',
+      branch: activeSubject.branch || 'All Branches',
+      folder_id: folderId,
+      folder_name: folderName,
+      files,
+    });
+    return res.success;
+  };
+
+  // Create new subject
+  const handleCreateNewSubject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubjectData.code.trim()) {
+      toast.error('Subject code is required');
+      return;
+    }
+
+    const code = newSubjectData.code.trim().toUpperCase();
+    setSelectedSubjectCode(code);
+    setIsNewSubjectModalOpen(false);
+    toast.success(`Subject "${code}" initialized! You can now create folders or upload documents.`);
+  };
+
+  // Table actions
   const handleToggle = async (id: string, currentStatus: boolean) => {
-    // Optimistic UI update
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, is_active: !currentStatus } : n));
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, is_active: !currentStatus } : n)));
     try {
       await toggleNote(id);
       toast.success(currentStatus ? 'Note hidden' : 'Note made visible');
     } catch (err: any) {
       toast.error('Failed to toggle: ' + (err.message || 'Error'));
-      void fetchNotes();
+      void fetchData();
     }
   };
 
   const handleDelete = async (id: string, title: string) => {
     if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
-
-    // Optimistic UI update
-    setNotes(prev => prev.filter(n => n.id !== id));
+    setNotes((prev) => prev.filter((n) => n.id !== id));
     try {
       await deleteNote(id);
       toast.success(`Deleted "${title}"`);
     } catch (err: any) {
       toast.error('Failed to delete: ' + (err.message || 'Error'));
-      void fetchNotes();
+      void fetchData();
     }
   };
 
@@ -102,7 +264,7 @@ export default function AdminNotesPage() {
       });
       if (res && res.ok) {
         toast.success(res.message || 'Seeded notes successfully!');
-        void fetchNotes();
+        void fetchData();
       }
     } catch (err: any) {
       toast.error('Failed to seed: ' + (err.message || 'Error'));
@@ -112,12 +274,14 @@ export default function AdminNotesPage() {
   };
 
   const filteredNotes = useMemo(() => {
-    return notes.filter(note => {
-      const matchesSearch = note.title.toLowerCase().includes(search.toLowerCase()) ||
-                            note.code.toLowerCase().includes(search.toLowerCase()) ||
-                            (note.subject && note.subject.toLowerCase().includes(search.toLowerCase())) ||
-                            (note.description && note.description.toLowerCase().includes(search.toLowerCase())) ||
-                            note.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
+    return notes.filter((note) => {
+      const matchesSearch =
+        note.title.toLowerCase().includes(search.toLowerCase()) ||
+        note.code.toLowerCase().includes(search.toLowerCase()) ||
+        (note.subject && note.subject.toLowerCase().includes(search.toLowerCase())) ||
+        (note.folder_name && note.folder_name.toLowerCase().includes(search.toLowerCase())) ||
+        (note.description && note.description.toLowerCase().includes(search.toLowerCase())) ||
+        note.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
 
       const matchesYear = yearFilter === 'all' || note.year === yearFilter;
       const matchesSemester = semesterFilter === 'all' || note.semester === semesterFilter;
@@ -126,274 +290,442 @@ export default function AdminNotesPage() {
     });
   }, [notes, search, yearFilter, semesterFilter]);
 
-  const counts = useMemo(() => {
-    let firstYear = 0;
-    let secondYear = 0;
-    let otherYears = 0;
-    notes.forEach(n => {
-      if (n.year === '1st-year') firstYear++;
-      else if (n.year === '2nd-year') secondYear++;
-      else otherYears++;
-    });
-    return { total: notes.length, firstYear, secondYear, otherYears };
-  }, [notes]);
-
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white font-mono flex items-center gap-2">
-            Academic Notes & PDF Handbooks
+          <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
+            <BookOpen className="size-7 text-cyan-400" />
+            Academic Notes & PDF Library
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Upload PDF notes, organize by semester & branch, and manage online view / download access.
+            Google Drive-style folder organization, multi-document batch uploads (up to 30MB), and public handbook distribution.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchNotes}
-            className="flex items-center gap-1.5 font-mono text-xs border-slate-700"
+        {/* View mode toggle: Google Drive Explorer vs All Files Table */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveTab('drive')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+                activeTab === 'drive'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="size-4" /> Google Drive View
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+                activeTab === 'table'
+                  ? 'bg-cyan-500 text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <TableIcon className="size-4" /> All Files Table
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void fetchData()}
+            disabled={loading}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30 transition-colors"
+            title="Refresh notes data"
           >
-            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-
-          <Link href="/admin/notes/new">
-            <Button size="sm" className="flex items-center gap-1.5 font-mono text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold">
-              <Plus className="size-4" /> Upload Note (PDF)
-            </Button>
-          </Link>
+            <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="bg-slate-900/60 border-slate-800 p-4">
-          <div className="text-[10px] font-mono text-slate-500 uppercase">Total Handbooks</div>
-          <div className="text-2xl font-bold text-white font-mono mt-1">{counts.total}</div>
-        </Card>
+      {/* TAB 1: GOOGLE DRIVE EXPLORER VIEW */}
+      {activeTab === 'drive' && (
+        <div className="space-y-6">
+          {selectedSubjectCode && activeSubject ? (
+            /* Inside a Selected Subject */
+            <DriveExplorer
+              subject={activeSubject}
+              folders={activeSubjectFolders}
+              documents={activeSubjectDocs}
+              isAdmin={true}
+              loading={loading}
+              onRefresh={fetchData}
+              onCreateFolder={handleCreateFolder}
+              onRenameFolder={handleRenameFolder}
+              onDeleteFolder={handleDeleteFolder}
+              onDeleteDocument={handleDeleteDocument}
+              onBatchUpload={handleBatchUpload}
+              onBackToSubjects={() => setSelectedSubjectCode(null)}
+            />
+          ) : (
+            /* Subjects Grid (Drive Root) */
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <Folder className="size-5 text-cyan-400" /> Choose a Subject to Open
+                  </h2>
+                  <p className="text-xs font-mono text-slate-400">
+                    Each subject has its own Google Drive folder space where you can create units, folders, and upload PDFs.
+                  </p>
+                </div>
 
-        <Card className="bg-slate-900/60 border-blue-500/20 p-4">
-          <div className="text-[10px] font-mono text-blue-400 uppercase">1st Year (Sem 1-2)</div>
-          <div className="text-2xl font-bold text-blue-400 font-mono mt-1">{counts.firstYear}</div>
-        </Card>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => setIsNewSubjectModalOpen(true)}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs shadow-sm"
+                  >
+                    <Plus className="size-3.5 mr-1" /> + Add New Subject
+                  </Button>
+                </div>
+              </div>
 
-        <Card className="bg-slate-900/60 border-indigo-500/20 p-4">
-          <div className="text-[10px] font-mono text-indigo-400 uppercase">2nd Year (Sem 3-4)</div>
-          <div className="text-2xl font-bold text-indigo-400 font-mono mt-1">{counts.secondYear}</div>
-        </Card>
-
-        <Card className="bg-slate-900/60 border-slate-800 p-4">
-          <div className="text-[10px] font-mono text-slate-400 uppercase">Senior Semesters</div>
-          <div className="text-2xl font-bold text-slate-300 font-mono mt-1">{counts.otherYears}</div>
-        </Card>
-      </div>
-
-      {/* Filters & Search */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Search notes by subject name, code (e.g. CS201, MATH101), description, or tags..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-          />
-        </div>
-
-        <select
-          value={yearFilter}
-          onChange={(e) => setYearFilter(e.target.value)}
-          className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-blue-500/50 cursor-pointer"
-        >
-          <option value="all">Year: All Years</option>
-          <option value="1st-year">1st Year</option>
-          <option value="2nd-year">2nd Year</option>
-          <option value="3rd-year">3rd Year</option>
-          <option value="4th-year">4th Year</option>
-        </select>
-
-        <select
-          value={semesterFilter}
-          onChange={(e) => setSemesterFilter(e.target.value)}
-          className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-blue-500/50 cursor-pointer"
-        >
-          <option value="all">Semester: All Semesters</option>
-          <option value="sem-1">Semester 1</option>
-          <option value="sem-2">Semester 2</option>
-          <option value="sem-3">Semester 3</option>
-          <option value="sem-4">Semester 4</option>
-          <option value="sem-5">Semester 5</option>
-          <option value="sem-6">Semester 6</option>
-          <option value="sem-7">Semester 7</option>
-          <option value="sem-8">Semester 8</option>
-        </select>
-      </div>
-
-      {/* Notes Table */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-2xl bg-slate-900/60" />
-          ))}
-        </div>
-      ) : filteredNotes.length > 0 ? (
-        <div className="space-y-3">
-          {filteredNotes.map((note) => {
-            return (
-              <Card 
-                key={note.id}
-                className={`p-4 bg-slate-950/60 border transition-all ${
-                  !note.is_active
-                    ? 'border-slate-900 opacity-60'
-                    : 'border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  {/* Left Info */}
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/30">
-                        {note.code}
-                      </span>
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-slate-300">
-                        {note.year.replace('-', ' ')}
-                      </span>
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-400">
-                        {note.semester.toUpperCase()}
-                      </span>
-                      {note.file_size && (
-                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                          PDF • {note.file_size}
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <Skeleton key={i} className="h-40 rounded-2xl bg-slate-900/60" />
+                  ))}
+                </div>
+              ) : subjectsList.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {subjectsList.map((subj) => (
+                    <div
+                      key={subj.code}
+                      onClick={() => setSelectedSubjectCode(subj.code)}
+                      className="group flex flex-col justify-between p-5 rounded-2xl border border-slate-800 bg-slate-950/70 hover:border-cyan-500/50 hover:bg-slate-900/80 transition-all cursor-pointer shadow-lg space-y-4"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="rounded-xl bg-cyan-500/10 border border-cyan-500/20 p-3 text-cyan-300 group-hover:scale-105 transition-transform">
+                          <Folder className="size-7" />
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-500/10 border border-cyan-500/20 text-cyan-300">
+                          {subj.code}
                         </span>
-                      )}
-                      {!note.is_active && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] text-amber-400 bg-amber-500/10 border border-amber-400/30 font-mono">
-                          Hidden
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className="text-base font-bold text-white font-mono truncate">
-                      {note.title}
-                    </h3>
-
-                    {note.description && (
-                      <p className="text-xs text-slate-400 line-clamp-2">
-                        {note.description}
-                      </p>
-                    )}
-
-                    {note.branch && (
-                      <div className="text-[11px] text-slate-500 font-mono">
-                        Branch: {note.branch}
                       </div>
-                    )}
+
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors leading-snug">
+                          {subj.subject || subj.code}
+                        </h3>
+                        <p className="text-[11px] font-mono text-slate-500">
+                          {subj.year ? subj.year.replace('-', ' ') : 'All Years'} • {subj.semester ? subj.semester.replace('-', ' ') : ''}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono text-slate-400">
+                        <span>{subj.folderCount} folder{subj.folderCount !== 1 ? 's' : ''}</span>
+                        <span>{subj.docCount} file{subj.docCount !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 rounded-3xl border border-slate-800 bg-slate-950/50 space-y-4">
+                  <BookOpen className="size-10 text-slate-600 mx-auto" />
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-white">No Subjects Added Yet</h3>
+                    <p className="text-xs font-mono text-slate-400 max-w-sm mx-auto">
+                      Add a subject or seed demo course notes to start organizing folders like Google Drive.
+                    </p>
                   </div>
-
-                  {/* Actions Bar */}
-                  <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-900">
-                    {/* View Online (Opens in-app PDF modal) */}
-                    <button
-                      type="button"
-                      onClick={() => setActivePdfNote({
-                        title: note.title,
-                        code: note.code,
-                        pdfUrl: note.pdf_url,
-                        fileSize: note.file_size || undefined,
-                        semester: note.semester,
-                        year: note.year
-                      })}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20 text-xs font-mono font-semibold transition-colors cursor-pointer"
-                      title="Preview PDF online"
+                  <div className="flex justify-center gap-3 pt-2">
+                    <Button
+                      size="sm"
+                      onClick={() => setIsNewSubjectModalOpen(true)}
+                      className="bg-cyan-500 text-slate-950 font-bold font-mono text-xs"
                     >
-                      <BookOpen className="h-3.5 w-3.5" />
-                      <span>Online View</span>
-                    </button>
-
-                    {/* Direct Download */}
-                    <a
-                      href={note.pdf_url}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:border-slate-700 text-xs font-mono transition-colors"
-                      title="Download PDF"
+                      <Plus className="size-3.5 mr-1" /> Add First Subject
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSeed}
+                      disabled={isSeeding}
+                      className="text-xs font-mono border-slate-700"
                     >
-                      <Download className="h-3.5 w-3.5 text-emerald-400" />
-                      <span className="hidden sm:inline">Download</span>
-                    </a>
-
-                    {/* Toggle Active */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(note.id, note.is_active)}
-                      className={`p-2 rounded-xl border text-xs transition-colors cursor-pointer ${
-                        note.is_active
-                          ? 'bg-slate-900 border-slate-800 text-slate-400 hover:text-amber-400'
-                          : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                      }`}
-                      title={note.is_active ? 'Hide note' : 'Make visible'}
-                    >
-                      {note.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    </button>
-
-                    {/* Edit */}
-                    <Link href={`/admin/notes/${note.id}/edit`}>
-                      <button
-                        type="button"
-                        className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/30 transition-colors cursor-pointer"
-                        title="Edit note"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                    </Link>
-
-                    {/* Delete */}
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(note.id, note.title)}
-                      className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors cursor-pointer"
-                      title="Delete note"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      <Database className="size-3.5 text-amber-400 mr-1.5" />
+                      {isSeeding ? 'Seeding...' : 'Seed Sample Subjects'}
+                    </Button>
                   </div>
                 </div>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-20 bg-slate-950/40 border border-slate-800 rounded-3xl space-y-4">
-          <GraduationCap className="h-10 w-10 text-slate-700 mx-auto" />
-          <p className="text-slate-400 font-mono text-sm">No notes found in the library.</p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link href="/admin/notes/new">
-              <Button size="sm" className="bg-emerald-500 text-slate-950 font-bold font-mono text-xs">
-                <Plus className="size-3.5" /> Upload First Note (PDF)
-              </Button>
-            </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSeed}
-              disabled={isSeeding}
-              className="border-slate-700 text-xs font-mono text-slate-300"
-            >
-              <Database className="size-3.5 text-amber-400" />
-              {isSeeding ? 'Seeding...' : 'Seed Sample Subject Handbooks'}
-            </Button>
-          </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Interactive PDF Reader Modal */}
+      {/* TAB 2: ALL FILES AUDIT TABLE */}
+      {activeTab === 'table' && (
+        <div className="space-y-6">
+          {/* Filter Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+              <input
+                type="text"
+                placeholder="Search by title, subject, folder, code..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={yearFilter}
+                onChange={(e) => setYearFilter(e.target.value)}
+                className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
+              >
+                <option value="all">All Years</option>
+                <option value="1st-year">1st Year</option>
+                <option value="2nd-year">2nd Year</option>
+                <option value="3rd-year">3rd Year</option>
+                <option value="4th-year">4th Year</option>
+              </select>
+
+              <select
+                value={semesterFilter}
+                onChange={(e) => setSemesterFilter(e.target.value)}
+                className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
+              >
+                <option value="all">All Semesters</option>
+                <option value="sem-1">Semester 1</option>
+                <option value="sem-2">Semester 2</option>
+                <option value="sem-3">Semester 3</option>
+                <option value="sem-4">Semester 4</option>
+                <option value="sem-5">Semester 5</option>
+                <option value="sem-6">Semester 6</option>
+                <option value="sem-7">Semester 7</option>
+                <option value="sem-8">Semester 8</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table */}
+          {loading ? (
+            <div className="py-20 flex justify-center">
+              <Loader2 className="size-8 text-cyan-400 animate-spin" />
+            </div>
+          ) : filteredNotes.length > 0 ? (
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-white/[0.08] bg-slate-900/60 text-slate-400 uppercase text-[10px]">
+                    <th className="py-3 px-4">Subject</th>
+                    <th className="py-3 px-4">Folder</th>
+                    <th className="py-3 px-4">Document Title</th>
+                    <th className="py-3 px-4">Size</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.05]">
+                  {filteredNotes.map((n) => (
+                    <tr key={n.id} className="hover:bg-slate-900/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <span className="font-bold text-cyan-300">{n.code}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-slate-400">
+                          {n.folder_name ? `📁 ${n.folder_name}` : '— (Root)'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-white font-bold max-w-xs truncate">
+                        {n.title}
+                      </td>
+                      <td className="py-3 px-4 text-slate-400">{n.file_size || '—'}</td>
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => handleToggle(n.id, n.is_active)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-mono cursor-pointer border ${
+                            n.is_active
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                              : 'bg-slate-900 border-slate-800 text-slate-500'
+                          }`}
+                        >
+                          {n.is_active ? 'Active' : 'Hidden'}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActivePdfNote({
+                                title: n.title,
+                                code: n.code,
+                                pdfUrl: n.pdf_url,
+                                fileSize: n.file_size || undefined,
+                                year: n.year,
+                                semester: n.semester,
+                              })
+                            }
+                            className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500 hover:text-slate-950 transition-colors"
+                            title="Preview PDF"
+                          >
+                            <Eye className="size-3.5" />
+                          </button>
+                          <a
+                            href={n.pdf_url}
+                            download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-slate-900 text-slate-300 hover:text-white transition-colors"
+                            title="Download"
+                          >
+                            <Download className="size-3.5 text-emerald-400" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(n.id, n.title)}
+                            className="p-1.5 rounded-lg bg-slate-900 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-16 bg-slate-950/40 border border-slate-800 rounded-2xl text-slate-400 font-mono text-xs">
+              No notes match your filter criteria.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL: ADD NEW SUBJECT */}
+      <AnimatePresence>
+        {isNewSubjectModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl space-y-5"
+            >
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="size-5 text-cyan-400" />
+                  <h3 className="text-base font-bold text-white">Add New Subject</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNewSubjectModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateNewSubject} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-mono text-slate-300">
+                    Subject Code * (e.g. CS201, MATH101)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. CS201"
+                    value={newSubjectData.code}
+                    onChange={(e) =>
+                      setNewSubjectData((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-mono text-slate-300">
+                    Subject Name * (e.g. Data Structures & Algorithms)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Data Structures & Algorithms"
+                    value={newSubjectData.subject}
+                    onChange={(e) =>
+                      setNewSubjectData((prev) => ({ ...prev, subject: e.target.value }))
+                    }
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-mono text-slate-300">Year</label>
+                    <select
+                      value={newSubjectData.year}
+                      onChange={(e) =>
+                        setNewSubjectData((prev) => ({ ...prev, year: e.target.value }))
+                      }
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none"
+                    >
+                      <option value="1st-year">1st Year</option>
+                      <option value="2nd-year">2nd Year</option>
+                      <option value="3rd-year">3rd Year</option>
+                      <option value="4th-year">4th Year</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-mono text-slate-300">Semester</label>
+                    <select
+                      value={newSubjectData.semester}
+                      onChange={(e) =>
+                        setNewSubjectData((prev) => ({ ...prev, semester: e.target.value }))
+                      }
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none"
+                    >
+                      <option value="sem-1">Semester 1</option>
+                      <option value="sem-2">Semester 2</option>
+                      <option value="sem-3">Semester 3</option>
+                      <option value="sem-4">Semester 4</option>
+                      <option value="sem-5">Semester 5</option>
+                      <option value="sem-6">Semester 6</option>
+                      <option value="sem-7">Semester 7</option>
+                      <option value="sem-8">Semester 8</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsNewSubjectModalOpen(false)}
+                    className="text-xs font-mono"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs"
+                  >
+                    Open in Drive
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PDF VIEWER MODAL */}
       <PdfViewerModal
         note={activePdfNote}
         isOpen={!!activePdfNote}

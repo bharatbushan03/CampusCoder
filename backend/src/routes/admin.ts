@@ -11,6 +11,8 @@ import {
   resourceSchema,
   competitionSchema,
   noteSchema,
+  noteFolderSchema,
+  batchNotesSchema,
 } from '../lib/validation';
 import { deleteAzure, upsertAzure, upsertManyAzure } from '../lib/azureDb';
 
@@ -1771,6 +1773,189 @@ router.post('/competitions/seed', async (_req: Request, res: Response) => {
 
 // ---------- Notes PDF & Academic Handbooks Admin Management ----------
 
+router.get('/notes/folders', async (req: Request, res: Response) => {
+  const { subject_code, code } = req.query;
+  const targetCode = (subject_code || code) as string | undefined;
+
+  const supabase = createAdminClient();
+  let query = supabase.from('note_folders').select('*').order('created_at', { ascending: true });
+
+  if (targetCode && targetCode.trim()) {
+    query = query.eq('subject_code', targetCode.trim());
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (error.code === 'PGRST205' || error.code === 'PGRST204' || error.message?.includes('Could not find the table') || error.message?.includes('schema cache')) {
+      return res.json({ ok: true, folders: [] });
+    }
+    console.error('Error fetching admin note folders:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to load note folders' });
+  }
+
+  const folderList = data || [];
+  if (folderList.length > 0) {
+    const folderIds = folderList.map(f => f.id);
+    const { data: docCounts } = await supabase
+      .from('notes')
+      .select('folder_id')
+      .in('folder_id', folderIds);
+
+    const countMap: Record<string, number> = {};
+    (docCounts || []).forEach((d: { folder_id: string | null }) => {
+      if (d.folder_id) {
+        countMap[d.folder_id] = (countMap[d.folder_id] || 0) + 1;
+      }
+    });
+
+    const enriched = folderList.map(f => ({
+      ...f,
+      document_count: countMap[f.id] || 0,
+    }));
+
+    return res.json({ ok: true, folders: enriched });
+  }
+
+  return res.json({ ok: true, folders: folderList });
+});
+
+router.post('/notes/folders', async (req: Request, res: Response) => {
+  const parsed = noteFolderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('note_folders')
+    .insert([parsed.data])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating note folder:', error);
+    if (error.code === 'PGRST205' || error.code === 'PGRST204' || error.message?.includes('note_folders') || error.message?.includes('Could not find the table') || error.message?.includes('schema cache')) {
+      return res.status(400).json({
+        ok: false,
+        error: "Table 'note_folders' not found in database. Please run the SQL migration in your Supabase Dashboard SQL Editor."
+      });
+    }
+    return res.status(500).json({ ok: false, error: 'Failed to create note folder: ' + error.message });
+  }
+
+  if (data) {
+    await upsertAzure('note_folders', data);
+  }
+  appCache.invalidateTags(['notes', 'note_folders']);
+  return res.status(201).json({ ok: true, folder: data });
+});
+
+router.put('/notes/folders/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid folder id' });
+  }
+
+  const updateSchema = z.object({
+    name: z.string().min(1).max(100).optional(),
+    color: z.string().max(30).optional().nullable(),
+    parent_id: z.string().uuid().optional().nullable(),
+  });
+
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from('note_folders')
+    .update(parsed.data)
+    .eq('id', parsedId.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating note folder:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to update note folder' });
+  }
+
+  if (data) {
+    await upsertAzure('note_folders', data);
+  }
+  appCache.invalidateTags(['notes', 'note_folders']);
+  return res.json({ ok: true, folder: data });
+});
+
+router.delete('/notes/folders/:id', async (req: Request, res: Response) => {
+  const parsedId = idSchema.safeParse(req.params.id);
+  if (!parsedId.success) {
+    return res.status(400).json({ ok: false, error: 'Invalid folder id' });
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('note_folders')
+    .delete()
+    .eq('id', parsedId.data);
+
+  if (error) {
+    console.error('Error deleting note folder:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to delete note folder' });
+  }
+
+  await deleteAzure('note_folders', parsedId.data);
+  appCache.invalidateTags(['notes', 'note_folders']);
+  return res.json({ ok: true });
+});
+
+router.post('/notes/batch', async (req: Request, res: Response) => {
+  const parsed = batchNotesSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const { code, subject, year, semester, branch, folder_id, folder_name, files } = parsed.data;
+  const rows = files.map(file => ({
+    title: file.title,
+    code,
+    subject: subject || code,
+    year,
+    semester,
+    branch: branch || 'All Branches',
+    pdf_url: file.pdf_url,
+    file_size: file.file_size || 'PDF Document',
+    page_count: file.page_count || null,
+    folder_id: folder_id || null,
+    folder_name: folder_name || null,
+    author: 'CampusCoder Academic Team',
+    tags: [],
+    topics: [],
+    highlights: [],
+    is_active: true,
+  }));
+
+  const supabase = createAdminClient();
+  let { data, error } = await supabase.from('notes').insert(rows).select();
+
+  if (error && (error.code === 'PGRST204' || error.message?.includes('folder_id') || error.message?.includes('schema cache'))) {
+    console.warn('[Supabase] folder_id column not yet in Supabase schema cache. Retrying insert without folder fields until migration is executed in Supabase SQL editor.');
+    const fallbackRows = rows.map(({ folder_id: _f, folder_name: _fn, ...rest }) => rest);
+    const fallbackResult = await supabase.from('notes').insert(fallbackRows).select();
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+
+  if (error) {
+    console.error('Error batch inserting notes:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to batch upload notes: ' + error.message });
+  }
+
+  await upsertManyAzure('notes', data || []);
+  appCache.invalidateTags(['notes']);
+  return res.status(201).json({ ok: true, notes: data || [] });
+});
+
 router.get('/notes', async (_req: Request, res: Response) => {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -1817,15 +2002,27 @@ router.post('/notes', async (req: Request, res: Response) => {
   }
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('notes')
     .insert([parsed.data])
     .select()
     .single();
 
+  if (error && (error.code === 'PGRST204' || error.message?.includes('folder_id') || error.message?.includes('schema cache'))) {
+    console.warn('[Supabase] folder_id column not yet in Supabase schema cache. Retrying single note insert without folder fields.');
+    const { folder_id: _f, folder_name: _fn, ...rest } = parsed.data;
+    const fallbackResult = await supabase
+      .from('notes')
+      .insert([rest])
+      .select()
+      .single();
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+
   if (error) {
     console.error('Error creating note:', error);
-    return res.status(500).json({ ok: false, error: 'Failed to create note' });
+    return res.status(500).json({ ok: false, error: 'Failed to create note: ' + error.message });
   }
 
   if (data) {
@@ -1847,16 +2044,29 @@ router.put('/notes/:id', async (req: Request, res: Response) => {
   }
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('notes')
     .update(parsed.data)
     .eq('id', parsedId.data)
     .select()
     .single();
 
+  if (error && (error.code === 'PGRST204' || error.message?.includes('folder_id') || error.message?.includes('schema cache'))) {
+    console.warn('[Supabase] folder_id column not yet in Supabase schema cache. Retrying update without folder fields.');
+    const { folder_id: _f, folder_name: _fn, ...rest } = parsed.data;
+    const fallbackResult = await supabase
+      .from('notes')
+      .update(rest)
+      .eq('id', parsedId.data)
+      .select()
+      .single();
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
+
   if (error) {
     console.error('Error updating note:', error);
-    return res.status(500).json({ ok: false, error: 'Failed to update note' });
+    return res.status(500).json({ ok: false, error: 'Failed to update note: ' + error.message });
   }
 
   if (data) {

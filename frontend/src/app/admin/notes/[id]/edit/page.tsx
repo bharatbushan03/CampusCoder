@@ -67,13 +67,14 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-      toast.error('Only PDF documents are allowed');
+    const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')).toLowerCase() : '';
+    if (['.exe', '.bat', '.cmd', '.sh', '.ps1', '.msi', '.dll'].includes(ext)) {
+      toast.error('Executable file types are not allowed.');
       return;
     }
 
     if (file.size > 30 * 1024 * 1024) {
-      toast.error('PDF file size must be less than 30MB');
+      toast.error('File size must be less than 30MB');
       return;
     }
 
@@ -89,7 +90,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Failed to upload PDF');
+        throw new Error(data.error || 'Failed to upload document');
       }
 
       setFormData(prev => ({
@@ -97,7 +98,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
         pdf_url: data.url,
       }));
 
-      toast.success('New PDF uploaded and linked!');
+      toast.success('New document uploaded and linked!');
     } catch (err: any) {
       toast.error('Upload failed: ' + (err.message || 'Error'));
     } finally {
@@ -187,7 +188,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
               <FileText className="size-4" /> 1. PDF Document Link & Replacement
             </h2>
             <span className="text-[10px] font-mono text-slate-400 uppercase bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-              Max 30MB • PDF
+              Max 30MB • All Documents
             </span>
           </div>
 
@@ -195,7 +196,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
             <div className="relative border-2 border-dashed border-slate-700 hover:border-blue-500/50 rounded-2xl p-6 text-center transition-colors bg-slate-900/30 flex flex-col items-center justify-center min-h-[160px]">
               <input
                 type="file"
-                accept="application/pdf,.pdf"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif,.svg,.zip,.rar,.7z,application/*,image/*,text/*"
                 onChange={handlePdfFileUpload}
                 disabled={uploadingPdf}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
@@ -203,15 +204,15 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
               {uploadingPdf ? (
                 <div className="flex flex-col items-center space-y-2">
                   <Loader2 className="size-8 text-blue-400 animate-spin" />
-                  <p className="text-xs font-mono text-slate-300">Uploading new PDF...</p>
+                  <p className="text-xs font-mono text-slate-300">Uploading new document...</p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center space-y-2 text-emerald-400">
                   <div className="p-3 rounded-full bg-emerald-500/10 border border-emerald-500/30">
                     <Check className="size-6" />
                   </div>
-                  <p className="text-xs font-mono font-bold">PDF Attached</p>
-                  <p className="text-[11px] font-mono text-slate-400">Click or drop to replace with new PDF</p>
+                  <p className="text-xs font-mono font-bold">Document Attached</p>
+                  <p className="text-[11px] font-mono text-slate-400">Click or drop to replace with new document</p>
                 </div>
               )}
             </div>

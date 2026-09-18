@@ -193,6 +193,15 @@ export async function initAzureTables(): Promise<boolean> {
     await p.query(`
       CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+      CREATE TABLE IF NOT EXISTS public.note_folders (
+        id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        subject_code text NOT NULL,
+        name text NOT NULL,
+        parent_id uuid REFERENCES public.note_folders(id) ON DELETE CASCADE,
+        color text DEFAULT 'blue',
+        created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS public.notes (
         id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
         title text NOT NULL,
@@ -209,9 +218,14 @@ export async function initAzureTables(): Promise<boolean> {
         tags text[] DEFAULT '{}',
         topics jsonb DEFAULT '[]'::jsonb,
         highlights text[] DEFAULT '{}',
+        folder_id uuid REFERENCES public.note_folders(id) ON DELETE SET NULL,
+        folder_name text,
         is_active boolean DEFAULT true NOT NULL,
         created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
       );
+
+      ALTER TABLE public.notes ADD COLUMN IF NOT EXISTS folder_id uuid REFERENCES public.note_folders(id) ON DELETE SET NULL;
+      ALTER TABLE public.notes ADD COLUMN IF NOT EXISTS folder_name text;
 
       CREATE TABLE IF NOT EXISTS public.showcase_projects (
         id uuid DEFAULT gen_random_uuid() PRIMARY KEY,

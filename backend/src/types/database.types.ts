@@ -240,6 +240,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      note_folders: {
+        Row: {
+          id: string;
+          subject_code: string;
+          name: string;
+          parent_id: string | null;
+          color: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          subject_code: string;
+          name: string;
+          parent_id?: string | null;
+          color?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          subject_code?: string;
+          name?: string;
+          parent_id?: string | null;
+          color?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       notes: {
         Row: {
           id: string;
@@ -257,6 +284,8 @@ export type Database = {
           tags: string[];
           topics: any;
           highlights: string[];
+          folder_id: string | null;
+          folder_name: string | null;
           is_active: boolean;
           created_at: string;
         };
@@ -276,6 +305,8 @@ export type Database = {
           tags?: string[];
           topics?: any;
           highlights?: string[];
+          folder_id?: string | null;
+          folder_name?: string | null;
           is_active?: boolean;
           created_at?: string;
         };
@@ -295,6 +326,8 @@ export type Database = {
           tags?: string[];
           topics?: any;
           highlights?: string[];
+          folder_id?: string | null;
+          folder_name?: string | null;
           is_active?: boolean;
           created_at?: string;
         };

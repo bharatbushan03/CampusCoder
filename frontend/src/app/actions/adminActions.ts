@@ -6,6 +6,8 @@ import {
   resourceSchema, 
   competitionSchema, 
   noteSchema,
+  noteFolderSchema,
+  batchNotesSchema,
   announcementSchema, 
   communityLinkSchema, 
   studentUpdateSchema 
@@ -209,4 +211,42 @@ export async function deleteNote(id: string) {
   });
 
   return { success: true };
+}
+
+type NoteFolderPayload = z.input<typeof noteFolderSchema>;
+type BatchNotesPayload = z.input<typeof batchNotesSchema>;
+
+export async function createNoteFolder(payload: NoteFolderPayload) {
+  const result = await serverApi<{ ok: boolean; folder: any }>('/admin/notes/folders', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true, folder: result.folder };
+}
+
+export async function updateNoteFolder(id: string, payload: Partial<NoteFolderPayload>) {
+  const result = await serverApi<{ ok: boolean; folder: any }>(`/admin/notes/folders/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true, folder: result.folder };
+}
+
+export async function deleteNoteFolder(id: string) {
+  await serverApi(`/admin/notes/folders/${id}`, {
+    method: 'DELETE',
+  });
+
+  return { success: true };
+}
+
+export async function batchCreateNotes(payload: BatchNotesPayload) {
+  const result = await serverApi<{ ok: boolean; notes: any[] }>('/admin/notes/batch', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return { success: true, notes: result.notes };
 }
