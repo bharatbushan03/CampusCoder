@@ -7,11 +7,8 @@ import {
   GraduationCap, 
   ArrowLeft, 
   Loader2, 
-  Plus, 
   FileText, 
   Check, 
-  Trash2, 
-  Link as LinkIcon 
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -33,19 +30,10 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
     year: '1st-year' as '1st-year' | '2nd-year' | '3rd-year' | '4th-year',
     semester: 'sem-1',
     branch: 'All Branches',
-    description: '',
     pdf_url: '',
-    file_size: '',
-    page_count: '',
     author: 'CampusCoder Academic Team',
-    tags: '',
-    highlights: '',
     is_active: true,
   });
-
-  const [topics, setTopics] = useState<Array<{ title: string; subtopics: string }>>([
-    { title: 'Module 1: Fundamental Concepts', subtopics: 'Core principles, Definitions, Foundational theorems' }
-  ]);
 
   useEffect(() => {
     async function loadNote() {
@@ -60,22 +48,10 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
             year: n.year || '1st-year',
             semester: n.semester || 'sem-1',
             branch: n.branch || 'All Branches',
-            description: n.description || '',
             pdf_url: n.pdf_url || '',
-            file_size: n.file_size || '',
-            page_count: n.page_count ? String(n.page_count) : '',
             author: n.author || 'CampusCoder Academic Team',
-            tags: Array.isArray(n.tags) ? n.tags.join(', ') : '',
-            highlights: Array.isArray(n.highlights) ? n.highlights.join('\n') : '',
             is_active: n.is_active ?? true,
           });
-
-          if (Array.isArray(n.topics) && n.topics.length > 0) {
-            setTopics(n.topics.map((t: any) => ({
-              title: t.title || '',
-              subtopics: Array.isArray(t.subtopics) ? t.subtopics.join(', ') : ''
-            })));
-          }
         }
       } catch (err: any) {
         toast.error('Failed to load note: ' + (err.message || 'Error'));
@@ -86,22 +62,6 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
 
     void loadNote();
   }, [id]);
-
-  const handleAddTopic = () => {
-    setTopics(prev => [...prev, { title: '', subtopics: '' }]);
-  };
-
-  const handleRemoveTopic = (index: number) => {
-    setTopics(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleTopicChange = (index: number, field: 'title' | 'subtopics', value: string) => {
-    setTopics(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
-  };
 
   const handlePdfFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -135,7 +95,6 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
       setFormData(prev => ({
         ...prev,
         pdf_url: data.url,
-        file_size: data.fileSize || `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
       }));
 
       toast.success('New PDF uploaded and linked!');
@@ -166,13 +125,6 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
 
     setSubmitting(true);
     try {
-      const parsedTopics = topics
-        .filter(t => t.title.trim())
-        .map(t => ({
-          title: t.title.trim(),
-          subtopics: t.subtopics.split(',').map(s => s.trim()).filter(Boolean)
-        }));
-
       const payload = {
         title: formData.title.trim(),
         code: formData.code.trim().toUpperCase(),
@@ -180,14 +132,8 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
         year: formData.year,
         semester: formData.semester,
         branch: formData.branch.trim() || 'All Branches',
-        description: formData.description.trim() || null,
         pdf_url: formData.pdf_url.trim(),
-        file_size: formData.file_size.trim() || 'PDF Document',
-        page_count: formData.page_count ? parseInt(formData.page_count, 10) : null,
         author: formData.author.trim() || null,
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-        highlights: formData.highlights.split('\n').map(h => h.trim()).filter(Boolean),
-        topics: parsedTopics,
         is_active: formData.is_active,
       };
 
@@ -270,50 +216,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
               )}
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">
-                  Direct PDF URL *
-                </label>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-                  <input
-                    type="url"
-                    value={formData.pdf_url}
-                    onChange={(e) => setFormData({ ...formData, pdf_url: e.target.value })}
-                    required
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
-                    File Size Display
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.file_size}
-                    onChange={(e) => setFormData({ ...formData, file_size: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
-                    Total Pages
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.page_count}
-                    onChange={(e) => setFormData({ ...formData, page_count: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-              </div>
-
+            <div>
               <div>
                 <label className="block text-xs font-mono text-slate-400 mb-1">
                   Author / Professor / Source
@@ -408,112 +311,12 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">
-                Eligible Branch
-              </label>
-              <input
-                type="text"
-                value={formData.branch}
-                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">
-                Tags (comma separated)
-              </label>
-              <input
-                type="text"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">
-              Description & Syllabus Scope
-            </label>
-            <textarea
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-            />
-          </div>
-        </Card>
-
-        {/* Modules & Covered Topics */}
-        <Card className="p-6 bg-slate-950/60 border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-white font-mono">3. Modules & Covered Topics</h2>
-              <p className="text-[11px] text-slate-400">Chapters and topics detailed inside this PDF.</p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddTopic}
-              className="text-xs font-mono border-slate-700 text-blue-400"
-            >
-              <Plus className="size-3.5 mr-1" /> Add Module
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {topics.map((top, idx) => (
-              <div key={idx} className="p-3 bg-slate-900/50 border border-slate-800 rounded-xl space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <input
-                    type="text"
-                    placeholder={`Module ${idx + 1} Title`}
-                    value={top.title}
-                    onChange={(e) => handleTopicChange(idx, 'title', e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500/50"
-                  />
-                  {topics.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTopic(idx)}
-                      className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors"
-                      title="Remove module"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Subtopics (comma separated)"
-                  value={top.subtopics}
-                  onChange={(e) => handleTopicChange(idx, 'subtopics', e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-blue-500/50"
-                />
-              </div>
-            ))}
           </div>
         </Card>
 
         {/* Highlights & Visibility */}
         <Card className="p-6 bg-slate-950/60 border-slate-800 space-y-4">
-          <h2 className="text-sm font-bold text-white font-mono">4. Highlights & Visibility</h2>
-
-          <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">
-              Handbook Highlights (1 per line)
-            </label>
-            <textarea
-              rows={3}
-              value={formData.highlights}
-              onChange={(e) => setFormData({ ...formData, highlights: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
-            />
-          </div>
-
+          <h2 className="text-sm font-bold text-white font-mono">3. Visibility</h2>
           <div className="flex items-center gap-3 pt-2">
             <input
               type="checkbox"

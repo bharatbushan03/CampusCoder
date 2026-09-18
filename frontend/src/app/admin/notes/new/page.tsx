@@ -1,28 +1,39 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   GraduationCap, 
   ArrowLeft, 
   Loader2, 
-  Plus, 
   Upload, 
   FileText, 
   Check, 
-  Trash2, 
-  Link as LinkIcon 
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createNote } from '@/app/actions/adminActions';
+import { api } from '@/lib/api';
 import { toast } from 'sonner';
+
+type ExistingSubject = {
+  code: string;
+  subject: string;
+  title: string;
+  year: '1st-year' | '2nd-year' | '3rd-year' | '4th-year';
+  semester: string;
+  branch: string;
+};
 
 export default function NewNotePage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'new' | 'existing'>('new');
+  const [existingSubjects, setExistingSubjects] = useState<ExistingSubject[]>([]);
+  const [selectedSubjectCode, setSelectedSubjectCode] = useState('');
+  const [loadingSubjects, setLoadingSubjects] = useState(true);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -31,36 +42,84 @@ export default function NewNotePage() {
     year: '1st-year' as '1st-year' | '2nd-year' | '3rd-year' | '4th-year',
     semester: 'sem-1',
     branch: 'All Branches',
-    description: '',
     pdf_url: '',
-    file_size: '',
-    page_count: '',
     author: 'CampusCoder Academic Team',
-    tags: '',
-    highlights: '',
     is_active: true,
   });
 
-  // Dynamic modules/topics
-  const [topics, setTopics] = useState<Array<{ title: string; subtopics: string }>>([
-    { title: 'Module 1: Fundamental Concepts', subtopics: 'Core principles, Definitions, Foundational theorems' },
-    { title: 'Module 2: Core Applications', subtopics: 'Step-by-step algorithms, Solved examples, Analytical methods' }
-  ]);
+  useEffect(() => {
+    async function loadSubjects() {
+      try {
+        const response = await api<{ ok: boolean; notes: Array<Record<string, unknown>> }>('/admin/notes');
+        const subjects = new Map<string, ExistingSubject>();
+        (response.notes || []).forEach(note => {
+          const code = typeof note.code === 'string' ? note.code : '';
+          if (!code || subjects.has(code)) return;
+          subjects.set(code, {
+            code,
+            subject: typeof note.subject === 'string' ? note.subject : String(note.title || code),
+            title: typeof note.title === 'string' ? note.title : code,
+            year: (note.year as ExistingSubject['year']) || '1st-year',
+            semester: typeof note.semester === 'string' ? note.semester : 'sem-1',
+            branch: typeof note.branch === 'string' ? note.branch : 'All Branches',
+          });
+        });
+        setExistingSubjects(Array.from(subjects.values()));
+      } catch {
+        setExistingSubjects([]);
+      } finally {
+        setLoadingSubjects(false);
+      }
+    }
 
-  const handleAddTopic = () => {
-    setTopics(prev => [...prev, { title: '', subtopics: '' }]);
+    void loadSubjects();
+  }, []);
+
+  const handleUploadModeChange = (mode: 'new' | 'existing') => {
+    setUploadMode(mode);
+    if (mode === 'new') {
+      setSelectedSubjectCode('');
+      setFormData(prev => ({
+        ...prev,
+        title: '',
+        code: '',
+        subject: '',
+        year: '1st-year',
+        semester: 'sem-1',
+        branch: 'All Branches',
+      }));
+      return;
+    }
+
+    const subject = existingSubjects[0];
+    if (subject) {
+      setSelectedSubjectCode(subject.code);
+      setFormData(prev => ({
+        ...prev,
+        code: subject.code,
+        subject: subject.subject,
+        year: subject.year,
+        semester: subject.semester,
+        branch: subject.branch,
+        title: `${subject.subject} - Additional Notes`,
+      }));
+    }
   };
 
-  const handleRemoveTopic = (index: number) => {
-    setTopics(prev => prev.filter((_, i) => i !== index));
-  };
+  const handleExistingSubjectChange = (code: string) => {
+    const subject = existingSubjects.find(item => item.code === code);
+    setSelectedSubjectCode(code);
+    if (!subject) return;
 
-  const handleTopicChange = (index: number, field: 'title' | 'subtopics', value: string) => {
-    setTopics(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
+    setFormData(prev => ({
+      ...prev,
+      code: subject.code,
+      subject: subject.subject,
+      year: subject.year,
+      semester: subject.semester,
+      branch: subject.branch,
+      title: `${subject.subject} - Additional Notes`,
+    }));
   };
 
   // Direct PDF Upload Handler
@@ -96,7 +155,6 @@ export default function NewNotePage() {
       setFormData(prev => ({
         ...prev,
         pdf_url: data.url,
-        file_size: data.fileSize || `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
         title: prev.title || file.name.replace(/\.pdf$/i, '').replace(/_/g, ' '),
       }));
 
@@ -128,13 +186,6 @@ export default function NewNotePage() {
 
     setSubmitting(true);
     try {
-      const parsedTopics = topics
-        .filter(t => t.title.trim())
-        .map(t => ({
-          title: t.title.trim(),
-          subtopics: t.subtopics.split(',').map(s => s.trim()).filter(Boolean)
-        }));
-
       const payload = {
         title: formData.title.trim(),
         code: formData.code.trim().toUpperCase(),
@@ -142,14 +193,8 @@ export default function NewNotePage() {
         year: formData.year,
         semester: formData.semester,
         branch: formData.branch.trim() || 'All Branches',
-        description: formData.description.trim() || null,
         pdf_url: formData.pdf_url.trim(),
-        file_size: formData.file_size.trim() || 'PDF Document',
-        page_count: formData.page_count ? parseInt(formData.page_count, 10) : null,
         author: formData.author.trim() || null,
-        tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-        highlights: formData.highlights.split('\n').map(h => h.trim()).filter(Boolean),
-        topics: parsedTopics,
         is_active: formData.is_active,
       };
 
@@ -188,6 +233,65 @@ export default function NewNotePage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="p-5 bg-slate-950/60 border-slate-800 space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-white font-mono">Choose upload destination</h2>
+            <p className="text-xs text-slate-400 mt-1">Create a new subject or add another PDF to an existing subject.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handleUploadModeChange('new')}
+              className={`rounded-xl border p-4 text-left transition-colors cursor-pointer ${
+                uploadMode === 'new'
+                  ? 'border-cyan-400 bg-cyan-500/10'
+                  : 'border-slate-800 bg-slate-900/40 hover:border-slate-600'
+              }`}
+            >
+              <span className="block text-sm font-bold text-white">Create new subject</span>
+              <span className="block text-xs text-slate-400 mt-1">Define the subject and upload its first PDF.</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleUploadModeChange('existing')}
+              className={`rounded-xl border p-4 text-left transition-colors cursor-pointer ${
+                uploadMode === 'existing'
+                  ? 'border-cyan-400 bg-cyan-500/10'
+                  : 'border-slate-800 bg-slate-900/40 hover:border-slate-600'
+              }`}
+            >
+              <span className="block text-sm font-bold text-white">Use existing subject</span>
+              <span className="block text-xs text-slate-400 mt-1">Add another PDF to an existing subject.</span>
+            </button>
+          </div>
+
+          {uploadMode === 'existing' && (
+            <div className="space-y-2">
+              <label className="block text-xs font-mono text-slate-400">Existing subject *</label>
+              <select
+                value={selectedSubjectCode}
+                onChange={(e) => handleExistingSubjectChange(e.target.value)}
+                disabled={loadingSubjects || existingSubjects.length === 0}
+                required
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
+              >
+                <option value="">
+                  {loadingSubjects ? 'Loading subjects...' : existingSubjects.length ? 'Select a subject' : 'No subjects available'}
+                </option>
+                {existingSubjects.map(subject => (
+                  <option key={subject.code} value={subject.code}>
+                    {subject.code} - {subject.subject}
+                  </option>
+                ))}
+              </select>
+              {existingSubjects.length === 0 && !loadingSubjects && (
+                <p className="text-xs text-amber-400">Create the first subject before adding PDFs to an existing one.</p>
+              )}
+            </div>
+          )}
+        </Card>
+
         {/* PDF File Upload Zone (High Priority) */}
         <Card className="p-6 bg-slate-950/80 border-blue-500/30 space-y-4">
           <div className="flex items-center justify-between">
@@ -233,54 +337,8 @@ export default function NewNotePage() {
               )}
             </div>
 
-            {/* Direct URL and File details */}
+            {/* File attribution */}
             <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">
-                  Direct PDF URL (Hosted Link or Storage) *
-                </label>
-                <div className="relative">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-                  <input
-                    type="url"
-                    placeholder="https://.../notes.pdf"
-                    value={formData.pdf_url}
-                    onChange={(e) => setFormData({ ...formData, pdf_url: e.target.value })}
-                    required
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
-                    File Size Display
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 4.8 MB"
-                    value={formData.file_size}
-                    onChange={(e) => setFormData({ ...formData, file_size: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">
-                    Total Pages (Optional)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="e.g. 52"
-                    value={formData.page_count}
-                    onChange={(e) => setFormData({ ...formData, page_count: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-mono text-slate-400 mb-1">
                   Author / Professor / Source
@@ -299,12 +357,12 @@ export default function NewNotePage() {
 
         {/* Primary Subject Details */}
         <Card className="p-6 bg-slate-950/60 border-slate-800 space-y-4">
-          <h2 className="text-sm font-bold text-white font-mono">2. Subject & Academic Hierarchy</h2>
+          <h2 className="text-sm font-bold text-white font-mono">2. {uploadMode === 'new' ? 'Subject & Academic Hierarchy' : 'PDF Details'}</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-xs font-mono text-slate-400 mb-1">
-                Subject Title *
+                {uploadMode === 'new' ? 'Subject Title *' : 'PDF Document Title *'}
               </label>
               <input
                 type="text"
@@ -316,7 +374,7 @@ export default function NewNotePage() {
               />
             </div>
 
-            <div>
+            <div className={uploadMode === 'existing' ? 'hidden' : undefined}>
               <label className="block text-xs font-mono text-slate-400 mb-1">
                 Subject Code *
               </label>
@@ -330,7 +388,7 @@ export default function NewNotePage() {
               />
             </div>
 
-            <div>
+            <div className={uploadMode === 'existing' ? 'hidden' : undefined}>
               <label className="block text-xs font-mono text-slate-400 mb-1">
                 Subject Name
               </label>
@@ -343,7 +401,7 @@ export default function NewNotePage() {
               />
             </div>
 
-            <div>
+            <div className={uploadMode === 'existing' ? 'hidden' : undefined}>
               <label className="block text-xs font-mono text-slate-400 mb-1">
                 Academic Year *
               </label>
@@ -359,7 +417,7 @@ export default function NewNotePage() {
               </select>
             </div>
 
-            <div>
+            <div className={uploadMode === 'existing' ? 'hidden' : undefined}>
               <label className="block text-xs font-mono text-slate-400 mb-1">
                 Semester *
               </label>
@@ -379,116 +437,12 @@ export default function NewNotePage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">
-                Eligible Branch
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. CSE / IT, or All Branches"
-                value={formData.branch}
-                onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-mono text-slate-400 mb-1">
-                Tags (comma separated)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. DSA, Trees, Graphs, PYQs, Formulas"
-                value={formData.tags}
-                onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">
-              Description & Syllabus Scope
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Brief summary of topics covered in this handbook, syllabus alignment, exam recommendations..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
-            />
-          </div>
-        </Card>
-
-        {/* Modules & Key Topics */}
-        <Card className="p-6 bg-slate-950/60 border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-white font-mono">3. Modules & Covered Topics</h2>
-              <p className="text-[11px] text-slate-400">Chapters and topics detailed inside this PDF.</p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddTopic}
-              className="text-xs font-mono border-slate-700 text-blue-400"
-            >
-              <Plus className="size-3.5 mr-1" /> Add Module
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {topics.map((top, idx) => (
-              <div key={idx} className="p-3 bg-slate-900/50 border border-slate-800 rounded-xl space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <input
-                    type="text"
-                    placeholder={`Module ${idx + 1} Title (e.g. Module 1: Binary Trees)`}
-                    value={top.title}
-                    onChange={(e) => handleTopicChange(idx, 'title', e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500/50"
-                  />
-                  {topics.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTopic(idx)}
-                      className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors"
-                      title="Remove module"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Subtopics (comma separated e.g. BST Search, Insertion, Rotations)"
-                  value={top.subtopics}
-                  onChange={(e) => handleTopicChange(idx, 'subtopics', e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-blue-500/50"
-                />
-              </div>
-            ))}
           </div>
         </Card>
 
         {/* Highlights & Visibility */}
         <Card className="p-6 bg-slate-950/60 border-slate-800 space-y-4">
-          <h2 className="text-sm font-bold text-white font-mono">4. Highlights & Visibility</h2>
-
-          <div>
-            <label className="block text-xs font-mono text-slate-400 mb-1">
-              Handbook Highlights (1 per line)
-            </label>
-            <textarea
-              rows={3}
-              placeholder="e.g.&#10;Handwritten solved PYQs from last 5 university exams&#10;Includes time & space complexity cheat sheet&#10;30+ tested executable C program templates"
-              value={formData.highlights}
-              onChange={(e) => setFormData({ ...formData, highlights: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 font-mono"
-            />
-          </div>
-
+          <h2 className="text-sm font-bold text-white font-mono">3. Visibility</h2>
           <div className="flex items-center gap-3 pt-2">
             <input
               type="checkbox"

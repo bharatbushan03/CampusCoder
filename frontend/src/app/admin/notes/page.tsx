@@ -144,7 +144,7 @@ export default function AdminNotesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white font-mono flex items-center gap-2">
-            <GraduationCap className="h-6 w-6 text-blue-400" /> Academic Notes & PDF Handbooks
+            Academic Notes & PDF Handbooks
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Upload PDF notes, organize by semester & branch, and manage online view / download access.

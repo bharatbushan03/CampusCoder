@@ -127,11 +127,6 @@ export default function AdminDashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Realtime Data
-            </span>
-          </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">
             Admin <span className="text-emerald-500">Dashboard</span>
           </h1>

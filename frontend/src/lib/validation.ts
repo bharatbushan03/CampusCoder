@@ -100,7 +100,6 @@ export const noteSchema = z.object({
   page_count: z.number().int().min(1).optional().nullable(),
   author: z.string().max(100).optional().nullable(),
   tags: z.array(z.string()).default([]),
-  topics: z.array(z.any()).default([]),
   highlights: z.array(z.string()).default([]),
   is_active: z.boolean().default(true),
 });

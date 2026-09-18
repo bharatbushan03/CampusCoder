@@ -37,8 +37,8 @@ export default function WorkshopsPage() {
   useEffect(() => {
     const loadWorkshops = async () => {
       try {
-        const data = await api<{ ok: boolean; workshops: EventRow[] }>('/events/workshops');
-        setWorkshops(data.workshops || []);
+        const data = await api<{ ok: boolean; events: EventRow[] }>('/events/workshops');
+        setWorkshops(data.events || []);
       } catch (err) {
         console.warn('Failed to load workshops:', err);
       } finally {

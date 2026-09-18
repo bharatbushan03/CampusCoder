@@ -26,7 +26,7 @@ const teamMembers = [
     icon: Users2,
   },
   {
-    name: 'Ishita Sethi',
+    name: 'Manik Sharma',
     role: 'Core Team Member',
     bio: 'Focused on creating engaging learning materials and coordinating community outreach.',
     icon: Target,
@@ -47,7 +47,7 @@ const teamMembers = [
 
 const stats = [
   { value: 200, suffix: '+', label: 'Active Members', icon: Users },
-  { value: 2, suffix: '', label: 'Events Organized', icon: Trophy },
+  { value: 3, suffix: '', label: 'Events Organized', icon: Trophy },
   { value: 8, suffix: '+', label: 'Mentors', icon: GraduationCap },
 ];
 
