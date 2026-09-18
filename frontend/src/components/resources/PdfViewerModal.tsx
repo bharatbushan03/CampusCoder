@@ -70,7 +70,7 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
   const isPpt = ['ppt', 'pptx'].includes(ext);
   const isDoc = ['doc', 'docx'].includes(ext);
   const isSheet = ['xls', 'xlsx', 'csv'].includes(ext);
-  const isCodeOrText = ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'py', 'java', 'cpp', 'c'].includes(ext);
+  const isCodeOrText = ['txt', 'md', 'json', 'js', 'ts', 'html', 'css', 'py', 'ipynb', 'java', 'cpp', 'c', 'cs'].includes(ext);
   const isOffice = isPpt || isDoc || isSheet;
   const isPdf = ext === 'pdf' || (!isImage && !isOffice && !isCodeOrText);
 
@@ -84,7 +84,7 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
     if (isImage) return <ImageIcon className="h-5 w-5 text-purple-400" />;
     if (isPpt) return <Presentation className="h-5 w-5 text-amber-400" />;
     if (isSheet) return <FileSpreadsheet className="h-5 w-5 text-emerald-400" />;
-    if (isCodeOrText) return <FileCode className="h-5 w-5 text-cyan-400" />;
+    if (isCodeOrText) return <FileCode className="h-5 w-5 text-amber-400" />;
     return <FileText className="h-5 w-5 text-blue-400" />;
   };
 
@@ -93,6 +93,8 @@ export function PdfViewerModal({ note, isOpen, onClose }: PdfViewerModalProps) {
     if (isPpt) return 'Presentation';
     if (isDoc) return 'Word Doc';
     if (isSheet) return 'Spreadsheet';
+    if (ext === 'ipynb') return 'Notebook';
+    if (ext === 'py') return 'Python Script';
     if (isPdf) return 'PDF Document';
     return ext.toUpperCase() || 'File';
   };

@@ -1,4 +1,4 @@
-+'use client';
+'use client';
 
 import React, { useState, useMemo, useRef } from 'react';
 import { 
@@ -139,13 +139,13 @@ export function getDocTypeInfo(doc: NoteDocument) {
       text: 'text-cyan-400',
     };
   }
-  if (['txt', 'md', 'json', 'py', 'js', 'ts', 'java', 'cpp'].includes(ext)) {
+  if (['txt', 'md', 'json', 'py', 'ipynb', 'js', 'ts', 'java', 'cpp', 'c', 'cs'].includes(ext)) {
     return {
-      label: ext.toUpperCase(),
+      label: ext === 'ipynb' ? 'NOTEBOOK' : ext === 'py' ? 'PYTHON' : ext.toUpperCase(),
       icon: FileCode,
-      bg: 'bg-sky-500/10',
-      border: 'border-sky-500/30',
-      text: 'text-sky-400',
+      bg: 'bg-amber-500/10',
+      border: 'border-amber-500/30',
+      text: 'text-amber-300',
     };
   }
   return {
@@ -1079,7 +1079,7 @@ export function DriveExplorer({
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,.gif,.svg,.zip,.rar,.7z,application/*,image/*,text/*"
+                    accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.md,.py,.ipynb,.csv,.png,.jpg,.jpeg,.webp,.gif,.svg,.zip,.rar,.7z,application/*,image/*,text/*"
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -1088,7 +1088,7 @@ export function DriveExplorer({
                   </div>
                   <div>
                     <p className="text-xs font-bold text-white">Click or drag & drop files</p>
-                    <p className="text-[11px] font-mono text-slate-500 mt-1">PDF, PPT, Word, Excel, Images, Text, ZIP (up to 30MB each)</p>
+                    <p className="text-[11px] font-mono text-slate-500 mt-1">PDF, PPT, Word, Excel, Python (.py, .ipynb), Images, Text, ZIP (up to 30MB each)</p>
                   </div>
                 </div>
 
