@@ -14,7 +14,9 @@ import {
   LayoutGrid,
   Table as TableIcon,
   X,
-  Loader2
+  Loader2,
+  MoreVertical,
+  Edit3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
@@ -26,7 +28,9 @@ import {
   createNoteFolder, 
   updateNoteFolder, 
   deleteNoteFolder, 
-  batchCreateNotes 
+  batchCreateNotes,
+  updateSubjectNotes,
+  deleteSubjectNotes
 } from '@/app/actions/adminActions';
 import { toast } from 'sonner';
 import { PdfViewerModal, type PdfViewerData } from '@/components/resources/PdfViewerModal';
@@ -75,6 +79,19 @@ export default function AdminNotesPage() {
     semester: 'sem-1',
     branch: 'All Branches',
   });
+
+  // Edit Subject Modal State
+  const [activeSubjectMenu, setActiveSubjectMenu] = useState<string | null>(null);
+  const [isEditSubjectModalOpen, setIsEditSubjectModalOpen] = useState(false);
+  const [subjectToEdit, setSubjectToEdit] = useState<SubjectMetadata | null>(null);
+  const [editSubjectData, setEditSubjectData] = useState({
+    newCode: '',
+    subject: '',
+    year: '1st-year',
+    semester: 'sem-1',
+    branch: 'All Branches',
+  });
+  const [isSavingSubject, setIsSavingSubject] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -230,6 +247,64 @@ export default function AdminNotesPage() {
     setSelectedSubjectCode(code);
     setIsNewSubjectModalOpen(false);
     toast.success(`Subject "${code}" initialized! You can now create folders or upload documents.`);
+  };
+
+  // Delete entire subject
+  const handleDeleteSubjectClick = async (subj: SubjectMetadata & { docCount: number; folderCount: number }) => {
+    if (!window.confirm(`Are you sure you want to delete subject "${subj.code} - ${subj.subject}" and ALL its ${subj.docCount} file(s) and ${subj.folderCount} folder(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const res = await deleteSubjectNotes(subj.code);
+      if (res.success) {
+        toast.success(`Deleted subject "${subj.code}" and all associated files.`);
+        if (selectedSubjectCode === subj.code) {
+          setSelectedSubjectCode(null);
+        }
+        await fetchData();
+      } else {
+        toast.error('Failed to delete subject notes.');
+      }
+    } catch (err: any) {
+      toast.error('Failed to delete subject: ' + (err.message || 'Error'));
+    }
+  };
+
+  // Update subject details
+  const handleEditSubjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subjectToEdit || !editSubjectData.newCode.trim()) {
+      toast.error('Subject code is required');
+      return;
+    }
+
+    setIsSavingSubject(true);
+    try {
+      const res = await updateSubjectNotes(subjectToEdit.code, {
+        newCode: editSubjectData.newCode.trim().toUpperCase(),
+        subject: editSubjectData.subject.trim(),
+        year: editSubjectData.year,
+        semester: editSubjectData.semester,
+        branch: editSubjectData.branch,
+      });
+
+      if (res.success) {
+        toast.success('Subject details updated successfully!');
+        setIsEditSubjectModalOpen(false);
+        setSubjectToEdit(null);
+        if (selectedSubjectCode === subjectToEdit.code) {
+          setSelectedSubjectCode(editSubjectData.newCode.trim().toUpperCase());
+        }
+        await fetchData();
+      } else {
+        toast.error('Failed to update subject.');
+      }
+    } catch (err: any) {
+      toast.error('Failed to update subject: ' + (err.message || 'Error'));
+    } finally {
+      setIsSavingSubject(false);
+    }
   };
 
   // Table actions
@@ -404,9 +479,54 @@ export default function AdminNotesPage() {
                         <div className="rounded-xl bg-cyan-500/10 border border-cyan-500/20 p-3 text-cyan-300 group-hover:scale-105 transition-transform">
                           <Folder className="size-7" />
                         </div>
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-500/10 border border-cyan-500/20 text-cyan-300">
-                          {subj.code}
-                        </span>
+                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-500/10 border border-cyan-500/20 text-cyan-300">
+                            {subj.code}
+                          </span>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setActiveSubjectMenu(activeSubjectMenu === subj.code ? null : subj.code)}
+                              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                              title="Subject actions"
+                            >
+                              <MoreVertical className="size-4" />
+                            </button>
+
+                            {activeSubjectMenu === subj.code && (
+                              <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-xl border border-slate-800 bg-slate-950 p-1.5 shadow-xl space-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveSubjectMenu(null);
+                                    setSubjectToEdit(subj);
+                                    setEditSubjectData({
+                                      newCode: subj.code,
+                                      subject: subj.subject || subj.code,
+                                      year: subj.year || '1st-year',
+                                      semester: subj.semester || 'sem-1',
+                                      branch: subj.branch || 'All Branches',
+                                    });
+                                    setIsEditSubjectModalOpen(true);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:bg-slate-900 hover:text-white transition-colors text-left"
+                                >
+                                  <Edit3 className="size-3.5 text-cyan-400" /> Edit Subject
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveSubjectMenu(null);
+                                    void handleDeleteSubjectClick(subj);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-mono text-rose-400 hover:bg-rose-500/10 transition-colors text-left"
+                                >
+                                  <Trash2 className="size-3.5" /> Delete Subject
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="space-y-1">
@@ -717,6 +837,118 @@ export default function AdminNotesPage() {
                     className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs"
                   >
                     Open in Drive
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* EDIT SUBJECT MODAL */}
+      <AnimatePresence>
+        {isEditSubjectModalOpen && subjectToEdit && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-6 shadow-2xl space-y-5"
+            >
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                <div className="flex items-center gap-2">
+                  <Edit3 className="size-5 text-cyan-400" />
+                  <h3 className="text-base font-bold text-white">Edit Subject Details</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditSubjectModalOpen(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-white"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubjectSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-mono text-slate-300">
+                    Subject Code *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. CS101, MATH102"
+                    value={editSubjectData.newCode}
+                    onChange={(e) => setEditSubjectData({ ...editSubjectData, newCode: e.target.value.toUpperCase() })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white uppercase focus:outline-none focus:border-cyan-500 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-mono text-slate-300">
+                    Subject Title
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Data Structures & Algorithms"
+                    value={editSubjectData.subject}
+                    onChange={(e) => setEditSubjectData({ ...editSubjectData, subject: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-mono text-slate-300">Year</label>
+                    <select
+                      value={editSubjectData.year}
+                      onChange={(e) => setEditSubjectData({ ...editSubjectData, year: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none"
+                    >
+                      <option value="1st-year">1st Year</option>
+                      <option value="2nd-year">2nd Year</option>
+                      <option value="3rd-year">3rd Year</option>
+                      <option value="4th-year">4th Year</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-mono text-slate-300">Semester</label>
+                    <select
+                      value={editSubjectData.semester}
+                      onChange={(e) => setEditSubjectData({ ...editSubjectData, semester: e.target.value })}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none"
+                    >
+                      <option value="sem-1">Semester 1</option>
+                      <option value="sem-2">Semester 2</option>
+                      <option value="sem-3">Semester 3</option>
+                      <option value="sem-4">Semester 4</option>
+                      <option value="sem-5">Semester 5</option>
+                      <option value="sem-6">Semester 6</option>
+                      <option value="sem-7">Semester 7</option>
+                      <option value="sem-8">Semester 8</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsEditSubjectModalOpen(false)}
+                    className="text-xs font-mono"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isSavingSubject}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs"
+                  >
+                    {isSavingSubject ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : null}
+                    Save Changes
                   </Button>
                 </div>
               </form>

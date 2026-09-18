@@ -2129,6 +2129,93 @@ router.delete('/notes/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
+router.put('/notes/subject/:code', async (req: Request, res: Response) => {
+  const code = req.params.code;
+  if (!code) {
+    return res.status(400).json({ ok: false, error: 'Subject code is required' });
+  }
+
+  const updateSubjectSchema = z.object({
+    newCode: z.string().min(1).max(20).optional(),
+    subject: z.string().min(1).max(100).optional(),
+    year: z.enum(['1st-year', '2nd-year', '3rd-year', '4th-year']).optional(),
+    semester: z.string().optional(),
+    branch: z.string().optional(),
+  });
+
+  const parsed = updateSubjectSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
+  }
+
+  const { newCode, subject, year, semester, branch } = parsed.data;
+  const updates: any = {};
+  if (newCode) updates.code = newCode.toUpperCase();
+  if (subject) updates.subject = subject;
+  if (year) updates.year = year;
+  if (semester) updates.semester = semester;
+  if (branch) updates.branch = branch;
+
+  const supabase = createAdminClient();
+
+  if (Object.keys(updates).length > 0) {
+    const { error: notesErr } = await supabase
+      .from('notes')
+      .update(updates)
+      .eq('code', code);
+
+    if (notesErr) {
+      console.error('Error updating subject notes:', notesErr);
+      return res.status(500).json({ ok: false, error: 'Failed to update subject notes: ' + notesErr.message });
+    }
+  }
+
+  if (newCode && newCode.toUpperCase() !== code.toUpperCase()) {
+    const { error: foldersErr } = await supabase
+      .from('note_folders')
+      .update({ subject_code: newCode.toUpperCase() })
+      .eq('subject_code', code);
+
+    if (foldersErr && foldersErr.code !== 'PGRST205') {
+      console.warn('[Admin] Warning updating note_folders subject code:', foldersErr.message);
+    }
+  }
+
+  appCache.invalidateTags(['notes', 'note_folders']);
+  return res.json({ ok: true });
+});
+
+router.delete('/notes/subject/:code', async (req: Request, res: Response) => {
+  const code = req.params.code;
+  if (!code) {
+    return res.status(400).json({ ok: false, error: 'Subject code is required' });
+  }
+
+  const supabase = createAdminClient();
+
+  const { error: notesErr } = await supabase
+    .from('notes')
+    .delete()
+    .eq('code', code);
+
+  if (notesErr) {
+    console.error('Error deleting subject notes:', notesErr);
+    return res.status(500).json({ ok: false, error: 'Failed to delete subject notes: ' + notesErr.message });
+  }
+
+  const { error: foldersErr } = await supabase
+    .from('note_folders')
+    .delete()
+    .eq('subject_code', code);
+
+  if (foldersErr && foldersErr.code !== 'PGRST205') {
+    console.warn('[Admin] Warning deleting note_folders for subject:', foldersErr.message);
+  }
+
+  appCache.invalidateTags(['notes', 'note_folders']);
+  return res.json({ ok: true });
+});
+
 router.post('/notes/seed', async (_req: Request, res: Response) => {
   const supabase = createAdminClient();
 
