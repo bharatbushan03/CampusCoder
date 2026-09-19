@@ -133,8 +133,8 @@ export default function NewNotePage() {
       return;
     }
 
-    if (file.size > 30 * 1024 * 1024) {
-      toast.error('File size must be less than 30MB');
+if (file.size > 50 * 1024 * 1024) {
+  toast.error('File size must be less than 50MB');
       return;
     }
 
@@ -301,7 +301,7 @@ export default function NewNotePage() {
               <FileText className="size-4" /> 1. Upload PDF Document (Required)
             </h2>
             <span className="text-[10px] font-mono text-slate-400 uppercase bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-              Max 30MB • PDF Only
+              Max 50MB • PDF Only
             </span>
           </div>
 
@@ -334,7 +334,7 @@ export default function NewNotePage() {
                     <Upload className="size-6" />
                   </div>
                   <p className="text-xs font-mono font-bold text-white">Click or drag & drop file here</p>
-                  <p className="text-[11px] font-mono text-slate-500">PDF, PPT, Word, Excel, Images, Text (up to 30MB)</p>
+                  <p className="text-[11px] font-mono text-slate-500">PDF, PPT, Word, Excel, Images, Text (up to 50MB)</p>
                 </div>
               )}
             </div>

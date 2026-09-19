@@ -12,7 +12,7 @@ router.use(requireAuth, requireRole('admin', 'organizer'));
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
     if (allowed.includes(file.mimetype)) {
@@ -71,7 +71,7 @@ const DISALLOWED_EXTENSIONS = new Set([
 
 const documentUpload = multer({
   storage,
-  limits: { fileSize: 35 * 1024 * 1024 }, // 35MB (allowing up to 30MB files comfortably with headers)
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB (allowing up to 48MB files comfortably with headers)
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (DISALLOWED_EXTENSIONS.has(ext)) {
@@ -96,7 +96,10 @@ function safeBaseName(name: string) {
 }
 
 function imageExt(mimetype: string) {
-  return mimetype === 'image/jpeg' ? 'jpg' : (mimetype.split('/')[1] || 'jpg');
+  if (mimetype === 'image/jpeg') return 'jpg';
+  if (mimetype === 'image/heic') return 'heic';
+  if (mimetype === 'image/heif') return 'heif';
+  return mimetype.split('/')[1] || 'jpg';
 }
 
 const handleDocumentUpload = async (req: Request, res: Response) => {
@@ -180,20 +183,20 @@ router.post('/document', documentUpload.single('file'), handleDocumentUpload);
 
 const photoUpload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per photo
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per photo
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'];
-    if (allowed.includes(file.mimetype)) {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif'];
+    if (allowed.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.heic') || file.originalname.toLowerCase().endsWith('.heif')) {
       cb(null, true);
     } else {
-      cb(new Error('Only PNG, JPG, WEBP, GIF, and AVIF images are allowed'));
+      cb(new Error('Only PNG, JPG, WEBP, GIF, AVIF, HEIC, and HEIF images are allowed'));
     }
   },
 });
 
 const videoUpload = multer({
   storage,
-  limits: { fileSize: 250 * 1024 * 1024 },
+  limits: { fileSize: 500 * 1024 * 1024 }, // Up to 500MB video files
   fileFilter: (_req, file, cb) => {
     const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
     if (allowed.includes(file.mimetype)) {
@@ -360,7 +363,7 @@ router.post('/videos', requireRole('admin'), videoUpload.array('files', 5), asyn
 
 const zipUpload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB for ZIP archive
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB for ZIP archive (photos and videos)
   fileFilter: (_req, file, cb) => {
     const isZip =
       file.mimetype === 'application/zip' ||

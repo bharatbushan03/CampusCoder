@@ -253,7 +253,7 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
 
   return (
     <div className="min-h-screen py-12 md:py-16">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 md:space-y-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 md:space-y-10">
 
         {/* ── BACK LINK ── */}
         <Link
@@ -423,8 +423,8 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
         {/* ── MAIN CONTENT + SIDEBAR ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
-          {/* ── MAIN CONTENT ── */}
-          <div className="lg:col-span-2 space-y-8">
+          {/* ── MAIN CONTENT (FULL 3 COLUMNS FOR MAXIMUM WIDTH) ── */}
+          <div className="lg:col-span-3 space-y-8">
 
             {/* Info panel */}
             <AnimatedSection delay={0.05}>
@@ -519,64 +519,30 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
               </Card>
             </AnimatedSection>
 
-            {(event.photos?.length || event.videos?.length || event.photos_zip_url) ? (
-              <AnimatedSection delay={0.16}>
-                <EventPhotoGallery photos={event.photos || []} videos={event.videos || []} photosZipUrl={event.photos_zip_url} eventTitle={event.title} />
-              </AnimatedSection>
-            ) : null}
+            {/* ── SIDEBAR & COMMUNITY INFO ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              {/* Meeting link notice */}
+              {event.meeting_link && (event.mode === 'online' || event.mode === 'hybrid') && (
+                <AnimatedSection delay={0.1}>
+                  <Card hoverEffect className="p-5 h-full">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+                      Meeting Details
+                    </h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      This event is online. The meeting link will be shared with registered students by email and in the community.
+                    </p>
+                  </Card>
+                </AnimatedSection>
+              )}
+            </div>
 
-          </div>
-
-          {/* ── SIDEBAR ── */}
-          <div className="space-y-6">
-
-            {/* Meeting link notice */}
-            {event.meeting_link && (event.mode === 'online' || event.mode === 'hybrid') && (
-              <AnimatedSection delay={0.1}>
-                <Card hoverEffect className="p-5">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
-                    Meeting Details
-                  </h4>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    This event is online. The meeting link will be shared with registered students by email and in the community.
-                  </p>
-                </Card>
-              </AnimatedSection>
-            )}
-
-            {/* Community links */}
-            <AnimatedSection delay={0.12}>
-              <Card hoverEffect className="p-5">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
-                  <MessageSquare className="size-3.5 text-emerald-400" /> Join Community
-                </h4>
-                <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                  Get event updates, share code, and connect with other participants.
-                </p>
-                <div className="space-y-2">
-                  {communityLinks.length > 0 ? communityLinks.map((link) => (
-                    <a
-                      key={link.id ?? link.url}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between text-xs text-slate-300 hover:text-emerald-400 px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-800 transition-colors group"
-                    >
-                      <span className="flex items-center gap-2 capitalize">
-                        {link.platform.toLowerCase().includes('discord') && <MessageSquare className="size-3.5" />}
-                        {link.platform.toLowerCase().includes('whatsapp') && <Phone className="size-3.5" />}
-                        {link.platform}
-                      </span>
-                      <ChevronRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </a>
-                  )) : (
-                    <p className="text-[10px] text-slate-600 font-mono">No channels linked yet.</p>
-                  )}
-                </div>
-              </Card>
-            </AnimatedSection>
           </div>
         </div>
+
+        {/* ── EVENT PHOTOS & VIDEOS GALLERY (FULL WIDTH) ── */}
+        <AnimatedSection delay={0.16}>
+          <EventPhotoGallery photos={event.photos || []} videos={event.videos || []} photosZipUrl={event.photos_zip_url} eventTitle={event.title} />
+        </AnimatedSection>
 
         {/* ── RELATED EVENTS ── */}
         {relatedEvents.length > 0 && (
