@@ -98,18 +98,24 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
   }, []);
 
   const yearCounts = useMemo(() => {
-    const counts: Record<string, number> = {
-      all: dynamicNotes.length,
-      '1st-year': 0,
-      '2nd-year': 0,
-      '3rd-year': 0,
-      '4th-year': 0,
+    const subjectSets: Record<string, Set<string>> = {
+      '1st-year': new Set(),
+      '2nd-year': new Set(),
+      '3rd-year': new Set(),
+      '4th-year': new Set(),
     };
     dynamicNotes.forEach(n => {
-      if (counts[n.year] !== undefined) {
-        counts[n.year]++;
+      if (subjectSets[n.year] !== undefined) {
+        subjectSets[n.year].add(n.subject || n.title);
       }
     });
+    const counts: Record<string, number> = {
+      all: new Set(dynamicNotes.map(n => n.subject || n.title)).size,
+      '1st-year': subjectSets['1st-year'].size,
+      '2nd-year': subjectSets['2nd-year'].size,
+      '3rd-year': subjectSets['3rd-year'].size,
+      '4th-year': subjectSets['4th-year'].size,
+    };
     return counts;
   }, [dynamicNotes]);
 
@@ -156,7 +162,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            All Years {yearCounts.all > 0 && <span className="opacity-80 ml-1">({yearCounts.all})</span>}
+            All Years {yearCounts.all > 0 && <span className="opacity-80 ml-1">({yearCounts.all} Subjects)</span>}
           </button>
 
           <button
@@ -171,7 +177,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            1st Year {yearCounts['1st-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['1st-year']})</span>}
+            1st Year {yearCounts['1st-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['1st-year']} Subjects)</span>}
           </button>
 
           <button
@@ -186,7 +192,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            2nd Year {yearCounts['2nd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['2nd-year']})</span>}
+            2nd Year {yearCounts['2nd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['2nd-year']} Subjects)</span>}
           </button>
 
           <button
@@ -201,7 +207,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            3rd Year {yearCounts['3rd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['3rd-year']})</span>}
+            3rd Year {yearCounts['3rd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['3rd-year']} Subjects)</span>}
           </button>
 
           <button
@@ -216,7 +222,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            4th Year {yearCounts['4th-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['4th-year']})</span>}
+            4th Year {yearCounts['4th-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['4th-year']} Subjects)</span>}
           </button>
         </div>
 
