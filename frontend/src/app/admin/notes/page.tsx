@@ -375,7 +375,7 @@ export default function AdminNotesPage() {
             Academic Notes & PDF Library
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Google Drive-style folder organization, multi-document batch uploads (up to 30MB), and public handbook distribution.
+            Google Drive-style folder organization, multi-document batch uploads (up to 50MB), and public handbook distribution.
           </p>
         </div>
 

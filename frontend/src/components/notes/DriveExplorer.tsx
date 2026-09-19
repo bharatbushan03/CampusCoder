@@ -22,6 +22,7 @@ import {
   BookOpen, 
   CornerDownRight, 
   ArrowLeft,
+  FolderInput,
   Image as ImageIcon,
   Presentation,
   FileSpreadsheet,
@@ -94,7 +95,7 @@ export function getDocTypeInfo(doc: NoteDocument) {
   const source = (doc.pdf_url || doc.title).toLowerCase();
   const ext = (source.split('?')[0].split('.').pop() || '').toLowerCase();
 
-  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) {
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'heic', 'heif'].includes(ext)) {
     return {
       label: ext.toUpperCase(),
       icon: ImageIcon,
@@ -189,10 +190,12 @@ export function DriveExplorer({
   const [renamingFolder, setRenamingFolder] = useState(false);
 
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [uploadMode, setUploadMode] = useState<'files' | 'folder'>('files');
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, 'pending' | 'uploading' | 'done' | 'error'>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   // PDF Preview
   const [activePdf, setActivePdf] = useState<PdfViewerData | null>(null);
@@ -349,8 +352,8 @@ export function DriveExplorer({
         toast.error(`"${f.name}": Executable file types are not allowed.`);
         continue;
       }
-      if (f.size > 30 * 1024 * 1024) {
-        toast.error(`"${f.name}" exceeds 30MB limit (${(f.size / (1024 * 1024)).toFixed(1)}MB)`);
+      if (f.size > 50 * 1024 * 1024) {
+        toast.error(`"${f.name}" exceeds 50MB limit (${(f.size / (1024 * 1024)).toFixed(1)}MB)`);
         continue;
       }
       validFiles.push(f);
@@ -360,24 +363,102 @@ export function DriveExplorer({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
+    }
   };
 
-  // Execute upload of selected files
+  // Folder selection with webkitRelativePath
+  const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles: File[] = [];
+
+    for (const f of files) {
+      const ext = f.name.includes('.') ? f.name.substring(f.name.lastIndexOf('.')).toLowerCase() : '';
+      if (DISALLOWED_EXTENSIONS.has(ext)) {
+        toast.error(`"${f.name}": Executable file types are not allowed.`);
+        continue;
+      }
+      if (f.size > 50 * 1024 * 1024) {
+        toast.error(`"${f.name}" exceeds 50MB limit (${(f.size / (1024 * 1024)).toFixed(1)}MB)`);
+        continue;
+      }
+      validFiles.push(f);
+    }
+
+    setUploadFiles((prev) => [...prev, ...validFiles]);
+    if (folderInputRef.current) {
+      folderInputRef.current.value = '';
+    }
+  };
+
+  // Execute upload of selected files or folder structure
   const handleExecuteUpload = async () => {
     if (uploadFiles.length === 0 || !onBatchUpload) return;
 
     setIsUploading(true);
-    const uploadedDocs: Array<{ title: string; pdf_url: string; file_size: string }> = [];
+
+    // Group files by their parent folder path relative to currentFolder
+    // webkitRelativePath e.g. "MyFolder/Sub/doc.pdf" -> pathSegments ["MyFolder", "Sub"]
+    // If no relative path, upload to current folder
+    const folderIdMap = new Map<string, string>(); // relativeFolderPath -> folderId
+    const rootFolderId = currentFolder ? currentFolder.id : null;
+
+    // Map of folder path to list of uploaded docs
+    const docsByFolder = new Map<string | null, Array<{ title: string; pdf_url: string; file_size: string; folderName?: string }>>();
 
     for (const file of uploadFiles) {
+      const relPath = (file as any).webkitRelativePath || '';
+      const pathSegments = relPath ? relPath.split('/').slice(0, -1) : []; // remove filename
+
+      // Resolve or create folder hierarchy synchronously for pathSegments
+      let parentFolderId = rootFolderId;
+      let currentPathStr = '';
+
+      if (pathSegments.length > 0 && onCreateFolder) {
+        for (let i = 0; i < pathSegments.length; i++) {
+          const segName = pathSegments[i];
+          currentPathStr = currentPathStr ? `${currentPathStr}/${segName}` : segName;
+
+          if (!folderIdMap.has(currentPathStr)) {
+            // Check if folder already exists under parentFolderId
+            const existingFolder = folders.find((f) => {
+              const matchParent = parentFolderId ? f.parent_id === parentFolderId : !f.parent_id;
+              return matchParent && f.name.toLowerCase() === segName.toLowerCase() && f.subject_code === subject.code;
+            });
+
+            if (existingFolder) {
+              folderIdMap.set(currentPathStr, existingFolder.id);
+              parentFolderId = existingFolder.id;
+            } else {
+              // Create folder
+              try {
+                const color = i % 2 === 0 ? 'cyan' : 'amber';
+                const created = await onCreateFolder(segName, parentFolderId, color);
+                if (created) {
+                  // Re-fetch folders to get newly created folder ID
+                  await onRefresh();
+                }
+              } catch (err: any) {
+                console.error(`Failed to create folder ${segName}:`, err);
+              }
+            }
+          } else {
+            parentFolderId = folderIdMap.get(currentPathStr)!;
+          }
+        }
+      }
+
       setUploadProgress((prev) => ({ ...prev, [file.name]: 'uploading' }));
       try {
+        const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch('/api/admin/upload/pdf', {
+        const res = await fetch(`${backendBase}/api/admin/upload/pdf`, {
           method: 'POST',
           body: formData,
+          credentials: 'include',
         });
 
         const data = await res.json();
@@ -388,10 +469,19 @@ export function DriveExplorer({
         const ext = file.name.includes('.') ? file.name.substring(file.name.lastIndexOf('.')) : '';
         const titleWithoutExt = ext ? file.name.slice(0, -ext.length) : file.name;
 
-        uploadedDocs.push({
+        // Target folder for this file
+        const fileTargetFolderId = pathSegments.length > 0 ? folderIdMap.get(currentPathStr) || rootFolderId : rootFolderId;
+        const folderName = pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : (currentFolder ? currentFolder.name : null);
+
+        if (!docsByFolder.has(fileTargetFolderId)) {
+          docsByFolder.set(fileTargetFolderId, []);
+        }
+
+        docsByFolder.get(fileTargetFolderId)!.push({
           title: titleWithoutExt.replace(/_/g, ' ') || file.name,
           pdf_url: data.url,
           file_size: data.fileSize || `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+          folderName: folderName || undefined,
         });
 
         setUploadProgress((prev) => ({ ...prev, [file.name]: 'done' }));
@@ -402,23 +492,26 @@ export function DriveExplorer({
       }
     }
 
-    if (uploadedDocs.length > 0) {
-      try {
-        const ok = await onBatchUpload(
-          uploadedDocs,
-          currentFolder ? currentFolder.id : null,
-          currentFolder ? currentFolder.name : null
-        );
-        if (ok) {
-          toast.success(`Successfully uploaded ${uploadedDocs.length} document(s)!`);
-          setUploadFiles([]);
-          setUploadProgress({});
-          setIsUploadOpen(false);
-          await onRefresh();
+    // Link uploaded docs to their respective folders
+    let totalUploaded = 0;
+    for (const [targetFolderId, docs] of docsByFolder.entries()) {
+      if (docs.length > 0) {
+        const firstDocFolderName = docs[0].folderName || (currentFolder ? currentFolder.name : null);
+        try {
+          const ok = await onBatchUpload(docs, targetFolderId, firstDocFolderName);
+          if (ok) totalUploaded += docs.length;
+        } catch (err: any) {
+          console.error('Failed to link batch docs:', err);
         }
-      } catch (err: any) {
-        toast.error('Failed to link documents: ' + err.message);
       }
+    }
+
+    if (totalUploaded > 0) {
+      toast.success(`Successfully uploaded ${totalUploaded} file(s) and created folder structure!`);
+      setUploadFiles([]);
+      setUploadProgress({});
+      setIsUploadOpen(false);
+      await onRefresh();
     }
 
     setIsUploading(false);
@@ -485,10 +578,23 @@ export function DriveExplorer({
               </Button>
               <Button
                 size="sm"
-                onClick={() => setIsUploadOpen(true)}
+                onClick={() => {
+                  setUploadMode('files');
+                  setIsUploadOpen(true);
+                }}
                 className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono text-xs font-bold gap-1.5 shadow-sm"
               >
-                <UploadCloud className="size-4" /> Upload Document(s)
+                <UploadCloud className="size-4" /> Upload File(s)
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setUploadMode('folder');
+                  setIsUploadOpen(true);
+                }}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-xs font-bold gap-1.5 shadow-sm"
+              >
+                <FolderInput className="size-4" /> Upload Folder
               </Button>
             </div>
           )}
@@ -1029,7 +1135,7 @@ export function DriveExplorer({
         )}
       </AnimatePresence>
 
-      {/* MODAL 3: BATCH UPLOAD DOCUMENTS (UP TO 30MB) */}
+      {/* MODAL 3: BATCH UPLOAD DOCUMENTS (UP TO 50MB) */}
       <AnimatePresence>
         {isUploadOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
@@ -1041,8 +1147,14 @@ export function DriveExplorer({
             >
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <div className="flex items-center gap-2">
-                  <UploadCloud className="size-5 text-emerald-400" />
-                  <h3 className="text-base font-bold text-white">Upload Document(s)</h3>
+                  {uploadMode === 'folder' ? (
+                    <FolderInput className="size-5 text-amber-400" />
+                  ) : (
+                    <UploadCloud className="size-5 text-emerald-400" />
+                  )}
+                  <h3 className="text-base font-bold text-white">
+                    {uploadMode === 'folder' ? 'Upload Entire Folder' : 'Upload File(s)'}
+                  </h3>
                 </div>
                 <button
                   type="button"
@@ -1059,6 +1171,38 @@ export function DriveExplorer({
               </div>
 
               <div className="space-y-4">
+                {/* Mode Selector Tabs */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadMode('files');
+                      setUploadFiles([]);
+                    }}
+                    className={`flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+                      uploadMode === 'files'
+                        ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <UploadCloud className="size-3.5" /> Select Files
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadMode('folder');
+                      setUploadFiles([]);
+                    }}
+                    className={`flex items-center justify-center gap-2 py-1.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+                      uploadMode === 'folder'
+                        ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <FolderInput className="size-3.5" /> Select Folder
+                  </button>
+                </div>
+
                 {/* Destination note */}
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3 flex items-center gap-2 text-xs font-mono text-cyan-300">
                   <CornerDownRight className="size-4 shrink-0" />
@@ -1071,26 +1215,54 @@ export function DriveExplorer({
                 </div>
 
                 {/* Dropzone */}
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="rounded-2xl border-2 border-dashed border-slate-800 hover:border-emerald-500/50 bg-slate-900/40 p-8 text-center space-y-3 cursor-pointer transition-colors"
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.md,.py,.ipynb,.csv,.png,.jpg,.jpeg,.webp,.gif,.svg,.zip,.rar,.7z,application/*,image/*,text/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <div className="size-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mx-auto flex items-center justify-center text-emerald-400">
-                    <UploadCloud className="size-6" />
+                {uploadMode === 'files' ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-2xl border-2 border-dashed border-slate-800 hover:border-emerald-500/50 bg-slate-900/40 p-8 text-center space-y-3 cursor-pointer transition-colors"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.md,.py,.ipynb,.csv,.png,.jpg,.jpeg,.webp,.gif,.svg,.heic,.heif,.zip,.rar,.7z,application/*,image/*,text/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <div className="size-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mx-auto flex items-center justify-center text-emerald-400">
+                      <UploadCloud className="size-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">Click to select files</p>
+                      <p className="text-[11px] font-mono text-slate-500 mt-1">
+                        PDF, PPT, Word, Excel, Python (.py, .ipynb), Images, Text, ZIP (up to 50MB each)
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-white">Click or drag & drop files</p>
-                    <p className="text-[11px] font-mono text-slate-500 mt-1">PDF, PPT, Word, Excel, Python (.py, .ipynb), Images, Text, ZIP (up to 30MB each)</p>
+                ) : (
+                  <div
+                    onClick={() => folderInputRef.current?.click()}
+                    className="rounded-2xl border-2 border-dashed border-slate-800 hover:border-amber-500/50 bg-slate-900/40 p-8 text-center space-y-3 cursor-pointer transition-colors"
+                  >
+                    <input
+                      ref={folderInputRef}
+                      type="file"
+                      // @ts-expect-error - webkitdirectory is standard in HTML5 directory picker
+                      webkitdirectory=""
+                      directory=""
+                      onChange={handleFolderSelect}
+                      className="hidden"
+                    />
+                    <div className="size-12 rounded-xl bg-amber-500/10 border border-amber-500/20 mx-auto flex items-center justify-center text-amber-400">
+                      <FolderInput className="size-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">Click to select a local directory/folder</p>
+                      <p className="text-[11px] font-mono text-slate-500 mt-1">
+                        All files and subfolders inside will be uploaded and recreated automatically.
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Selected Files List */}
                 {uploadFiles.length > 0 && (

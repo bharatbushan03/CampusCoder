@@ -59,8 +59,8 @@ app.use(
   })
 );
 app.use(cookieParser());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 // Global Rate Limiting
 app.use(globalRateLimiter);
@@ -136,7 +136,7 @@ app.use((err: any, _req: Request, res: Response, _next: any) => {
   });
 });
 
-app.listen(Number(PORT), '0.0.0.0', () => {
+const server = app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`CampusCoder Backend running on http://localhost:${PORT}`);
   if (isAzureDbConfigured()) {
     checkAzureDb().then(async (status) => {
@@ -151,5 +151,10 @@ app.listen(Number(PORT), '0.0.0.0', () => {
     console.log('[Azure DB] Not configured; using Supabase.');
   }
 });
+
+// Increase socket & request timeouts to 10 minutes to comfortably allow 500MB uploads without socket disconnects
+server.requestTimeout = 10 * 60 * 1000;
+server.headersTimeout = 10 * 60 * 1000 + 5000;
+server.keepAliveTimeout = 10 * 60 * 1000;
 
 export default app;

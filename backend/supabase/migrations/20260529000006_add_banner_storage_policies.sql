@@ -5,7 +5,7 @@ VALUES (
   'banners',
   true,
   2097152,
-  ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+  ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif']
 )
 ON CONFLICT (id) DO UPDATE
 SET

@@ -73,8 +73,8 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
       return;
     }
 
-    if (file.size > 30 * 1024 * 1024) {
-      toast.error('File size must be less than 30MB');
+if (file.size > 50 * 1024 * 1024) {
+  toast.error('File size must be less than 50MB');
       return;
     }
 
@@ -188,7 +188,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
               <FileText className="size-4" /> 1. PDF Document Link & Replacement
             </h2>
             <span className="text-[10px] font-mono text-slate-400 uppercase bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-full">
-              Max 30MB • All Documents
+              Max 50MB • All Documents
             </span>
           </div>
 

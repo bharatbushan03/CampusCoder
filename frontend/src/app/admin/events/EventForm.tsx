@@ -135,9 +135,9 @@ export default function EventForm({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      setUploadError('Please select a valid PNG, JPG, WEBP, or GIF image.');
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
+    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.heic') && !file.name.toLowerCase().endsWith('.heif')) {
+      setUploadError('Please select a valid PNG, JPG, WEBP, GIF, HEIC, or HEIF image.');
       return;
     }
 
@@ -231,9 +231,11 @@ export default function EventForm({
         formData.append('files', files[i]);
       }
 
-      const res = await fetch('/api/admin/upload/photos', {
+      const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
+      const res = await fetch(`${backendBase}/api/admin/upload/photos`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       const data = await res.json();
@@ -258,7 +260,8 @@ export default function EventForm({
     try {
       const formData = new FormData();
       Array.from(files).forEach((file) => formData.append('files', file));
-      const res = await fetch('/api/admin/upload/videos', { method: 'POST', body: formData });
+      const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
+      const res = await fetch(`${backendBase}/api/admin/upload/videos`, { method: 'POST', body: formData, credentials: 'include' });
       const data = await res.json();
       if (!res.ok || !data.ok || !Array.isArray(data.urls)) throw new Error(data.error || 'Failed to upload videos');
       setVideos((current) => [...current, ...data.urls]);
@@ -289,7 +292,7 @@ export default function EventForm({
       const imageNames: string[] = [];
 
       zip.forEach((relativePath, zipEntry) => {
-        if (!zipEntry.dir && /\.(jpe?g|png|webp|gif|avif)$/i.test(relativePath)) {
+        if (!zipEntry.dir && /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i.test(relativePath)) {
           imageNames.push(relativePath);
         }
       });
@@ -300,13 +303,15 @@ export default function EventForm({
         toast.loading(`Found ${imageNames.length} images! Uploading ZIP archive...`, { id: toastId });
       }
 
-      // 2. Upload ZIP file to backend /api/admin/upload/zip
+      // 2. Upload ZIP file to backend (direct backend API url to bypass Next.js 100MB proxy limits)
+      const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/admin/upload/zip', {
+      const res = await fetch(`${backendBase}/api/admin/upload/zip`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       const data = await res.json();
@@ -1015,9 +1020,9 @@ export default function EventForm({
                   <Archive className="size-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-white">Upload Photos as .ZIP</p>
+                  <p className="text-xs font-bold text-white">Upload Photos &amp; Videos as .ZIP</p>
                   <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    Select a .ZIP file containing event photos
+                    Select a .ZIP archive (up to 500MB)
                   </p>
                 </div>
               </>
