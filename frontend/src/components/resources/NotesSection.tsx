@@ -177,7 +177,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            1st Year {yearCounts['1st-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['1st-year']} Subjects)</span>}
+            1st Year {yearCounts['1st-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['1st-year']})</span>}
           </button>
 
           <button
@@ -192,7 +192,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            2nd Year {yearCounts['2nd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['2nd-year']} Subjects)</span>}
+            2nd Year {yearCounts['2nd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['2nd-year']})</span>}
           </button>
 
           <button
@@ -207,7 +207,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            3rd Year {yearCounts['3rd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['3rd-year']} Subjects)</span>}
+            3rd Year {yearCounts['3rd-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['3rd-year']})</span>}
           </button>
 
           <button
@@ -222,7 +222,7 @@ export function NotesSection({ initialYear = 'all', initialSearch = '', showAdmi
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            4th Year {yearCounts['4th-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['4th-year']} Subjects)</span>}
+            4th Year {yearCounts['4th-year'] > 0 && <span className="opacity-80 ml-1">({yearCounts['4th-year']})</span>}
           </button>
         </div>
 
