@@ -10,8 +10,15 @@ import {
   Camera, Archive, FileArchive, CheckCircle2, Download
 } from 'lucide-react';
 import JSZip from 'jszip';
+import { uploadLarge } from '@/lib/uploadClient';
 import { eventSchema } from '@/lib/validation';
 import { toast } from 'sonner';
+
+const ZIP_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+// Inspecting an archive client-side loads it fully into memory; skip for very large files.
+const ZIP_INSPECT_MAX_BYTES = 200 * 1024 * 1024;
+const ZIP_IMAGE_RE = /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i;
+const ZIP_VIDEO_RE = /\.(mp4|webm|ogg|mov|m4v)$/i;
 
 interface Speaker {
   id?: string;
@@ -109,6 +116,8 @@ export default function EventForm({
   const [zipFileName, setZipFileName] = useState('');
   const [zipFileSize, setZipFileSize] = useState(0);
   const [zipImageCount, setZipImageCount] = useState(0);
+  const [zipVideoCount, setZipVideoCount] = useState(0);
+  const [zipUploadProgress, setZipUploadProgress] = useState(0);
   const [isPackagingZip, setIsPackagingZip] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -260,11 +269,9 @@ export default function EventForm({
     try {
       const formData = new FormData();
       Array.from(files).forEach((file) => formData.append('files', file));
-      const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
-      const res = await fetch(`${backendBase}/api/admin/upload/videos`, { method: 'POST', body: formData, credentials: 'include' });
-      const data = await res.json();
-      if (!res.ok || !data.ok || !Array.isArray(data.urls)) throw new Error(data.error || 'Failed to upload videos');
-      setVideos((current) => [...current, ...data.urls]);
+      const data = await uploadLarge('videos', formData);
+      if (!Array.isArray(data.urls)) throw new Error(data.error || 'Failed to upload videos');
+      setVideos((current) => [...current, ...(data.urls as string[])]);
       toast.success(`Uploaded ${data.urls.length} video${data.urls.length === 1 ? '' : 's'} successfully!`);
     } catch (err: any) {
       toast.error('Video upload failed: ' + (err.message || 'Error'));
@@ -283,56 +290,75 @@ export default function EventForm({
       return;
     }
 
+    if (file.size > ZIP_MAX_BYTES) {
+      toast.error(`ZIP archive is ${(file.size / (1024 * 1024 * 1024)).toFixed(2)} GB; the maximum is 2 GB. Split it into smaller archives.`);
+      if (zipInputRef.current) zipInputRef.current.value = '';
+      return;
+    }
+
     setUploadingZip(true);
+    setZipUploadProgress(0);
+    const sizeLabel = `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
     const toastId = toast.loading(`Reading & inspecting ZIP archive: ${file.name}...`);
 
     try {
-      // 1. Client-side inspection and extraction preview using JSZip
-      const zip = await JSZip.loadAsync(file);
-      const imageNames: string[] = [];
+      let imageCount = 0;
+      let videoCount = 0;
 
-      zip.forEach((relativePath, zipEntry) => {
-        if (!zipEntry.dir && /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i.test(relativePath)) {
-          imageNames.push(relativePath);
+      if (file.size <= ZIP_INSPECT_MAX_BYTES) {
+        try {
+          const zip = await JSZip.loadAsync(file);
+          zip.forEach((relativePath, zipEntry) => {
+            if (zipEntry.dir) return;
+            if (ZIP_IMAGE_RE.test(relativePath)) imageCount++;
+            else if (ZIP_VIDEO_RE.test(relativePath)) videoCount++;
+          });
+          if (imageCount === 0 && videoCount === 0) {
+            toast.warning('ZIP archive opened, but no image or video files were found inside. Uploading anyway...', { id: toastId });
+          } else {
+            toast.loading(`Found ${imageCount} photos and ${videoCount} videos. Uploading ${sizeLabel} archive...`, { id: toastId });
+          }
+        } catch (inspectErr) {
+          console.warn('Could not inspect ZIP archive client-side:', inspectErr);
+          toast.loading(`Uploading ${sizeLabel} archive...`, { id: toastId });
         }
-      });
-
-      if (imageNames.length === 0) {
-        toast.warning('ZIP archive opened, but no image files (.jpg, .png, .webp, .gif) were found inside.', { id: toastId });
       } else {
-        toast.loading(`Found ${imageNames.length} images! Uploading ZIP archive...`, { id: toastId });
+        toast.loading(`Large archive (${sizeLabel}); skipping preview. Uploading...`, { id: toastId });
       }
 
-      // 2. Upload ZIP file to backend (direct backend API url to bypass Next.js 100MB proxy limits)
-      const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch(`${backendBase}/api/admin/upload/zip`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
+      let lastShown = -1;
+      const data = await uploadLarge('zip', formData, {
+        onProgress: (fraction) => {
+          setZipUploadProgress(fraction);
+          const pct = Math.floor(fraction * 100);
+          if (pct !== lastShown && pct % 5 === 0) {
+            lastShown = pct;
+            toast.loading(`Uploading ${sizeLabel} archive... ${pct}%`, { id: toastId });
+          }
+        },
       });
 
-      const data = await res.json();
-      if (res.ok && data.ok && data.url) {
-        setPhotosZipUrl(data.url);
-        setZipFileName(file.name);
-        setZipFileSize(file.size);
-        setZipImageCount(imageNames.length);
-
-        toast.success(
-          `ZIP archive attached! (${imageNames.length} photos, ${(file.size / (1024 * 1024)).toFixed(1)} MB)`,
-          { id: toastId }
-        );
-      } else {
-        throw new Error(data.error || 'Failed to upload ZIP file');
+      if (typeof data.url !== 'string') {
+        throw new Error('Server did not return a file URL');
       }
+
+      setPhotosZipUrl(data.url);
+      setZipFileName(file.name);
+      setZipFileSize(file.size);
+      setZipImageCount(imageCount);
+      setZipVideoCount(videoCount);
+
+      const summary = imageCount || videoCount ? `${imageCount} photos, ${videoCount} videos, ` : '';
+      toast.success(`ZIP archive attached! (${summary}${sizeLabel})`, { id: toastId });
     } catch (err: any) {
       console.error('ZIP upload error:', err);
       toast.error('ZIP upload failed: ' + (err.message || 'Error reading archive'), { id: toastId });
     } finally {
       setUploadingZip(false);
+      setZipUploadProgress(0);
       if (zipInputRef.current) zipInputRef.current.value = '';
     }
   };
@@ -382,21 +408,17 @@ export default function EventForm({
       const formData = new FormData();
       formData.append('file', zipFile);
 
-      const res = await fetch('/api/admin/upload/zip', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (res.ok && data.ok && data.url) {
-        setPhotosZipUrl(data.url);
-        setZipFileName(zipFile.name);
-        setZipFileSize(zipFile.size);
-        setZipImageCount(fetchedCount);
-        toast.success(`Packaged & attached ZIP archive with ${fetchedCount} photos!`, { id: toastId });
-      } else {
-        throw new Error(data.error || 'Failed to upload generated ZIP');
+      const data = await uploadLarge('zip', formData);
+      if (typeof data.url !== 'string') {
+        throw new Error('Server did not return a file URL');
       }
+
+      setPhotosZipUrl(data.url);
+      setZipFileName(zipFile.name);
+      setZipFileSize(zipFile.size);
+      setZipImageCount(fetchedCount);
+      setZipVideoCount(0);
+      toast.success(`Packaged & attached ZIP archive with ${fetchedCount} photos!`, { id: toastId });
     } catch (err: any) {
       toast.error('Packaging ZIP failed: ' + (err.message || 'Error'), { id: toastId });
     } finally {
@@ -936,7 +958,8 @@ export default function EventForm({
                 <p className="text-[11px] text-slate-400 font-mono mt-0.5 break-all">
                   {zipFileName || 'photos.zip'}{' '}
                   {zipFileSize > 0 && `(${(zipFileSize / (1024 * 1024)).toFixed(1)} MB)`}
-                  {zipImageCount > 0 && ` • ${zipImageCount} extracted images`}
+                  {zipImageCount > 0 && ` • ${zipImageCount} images`}
+                  {zipVideoCount > 0 && ` • ${zipVideoCount} videos`}
                 </p>
                 <p className="text-[10px] text-emerald-500/80 font-mono mt-0.5">
                   Students on the events page will view photos in ZIP format, with interactive client-side Unzip on view and Re-zip functionality.
@@ -1012,7 +1035,9 @@ export default function EventForm({
             {uploadingZip ? (
               <div className="flex flex-col items-center space-y-1">
                 <Loader2 className="size-6 text-emerald-400 animate-spin" />
-                <p className="text-xs font-mono text-slate-300">Processing &amp; uploading ZIP...</p>
+                <p className="text-xs font-mono text-slate-300">
+                  {zipUploadProgress > 0 ? `Uploading ZIP... ${Math.floor(zipUploadProgress * 100)}%` : 'Processing & uploading ZIP...'}
+                </p>
               </div>
             ) : (
               <>
@@ -1022,7 +1047,7 @@ export default function EventForm({
                 <div>
                   <p className="text-xs font-bold text-white">Upload Photos &amp; Videos as .ZIP</p>
                   <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    Select a .ZIP archive (up to 500MB)
+                    Select a .ZIP archive of photos and videos (up to 2GB)
                   </p>
                 </div>
               </>

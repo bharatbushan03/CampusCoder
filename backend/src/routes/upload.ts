@@ -1,13 +1,46 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'path';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { Readable } from 'node:stream';
+import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
-import { isAzureStorageConfigured, uploadToAzureBlob } from '../lib/azureStorage';
+import { isAzureStorageConfigured, uploadFileToAzureBlob, uploadToAzureBlob } from '../lib/azureStorage';
+import { createUploadToken, UPLOAD_TOKEN_TTL_SECONDS, verifyUploadToken } from '../lib/uploadToken';
 
 const router = Router();
 
-router.use(requireAuth, requireRole('admin', 'organizer'));
+// Large uploads are sent straight to the backend (bypassing the Next.js proxy), where the
+// session cookie is not available cross-origin. Those requests carry a short-lived upload
+// token issued by POST /token instead.
+function requireUploadAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    const payload = verifyUploadToken(header.slice('Bearer '.length).trim());
+    if (!payload) {
+      return res.status(401).json({ ok: false, error: 'Upload token is invalid or expired' });
+    }
+    req.user = { id: payload.id, email: payload.email };
+    req.profile = { id: payload.id, email: payload.email ?? null, role: payload.role };
+    return next();
+  }
+  return requireAuth(req, res, next);
+}
+
+router.use(requireUploadAuth, requireRole('admin', 'organizer'));
+
+router.post('/token', (req: AuthedRequest, res: Response) => {
+  if (!req.user || !req.profile) {
+    return res.status(401).json({ ok: false, error: 'Authentication required' });
+  }
+  try {
+    const token = createUploadToken(req.user, req.profile.role);
+    return res.json({ ok: true, token, expiresIn: UPLOAD_TOKEN_TTL_SECONDS });
+  } catch (err: any) {
+    return res.status(500).json({ ok: false, error: err.message || 'Could not issue upload token' });
+  }
+});
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -361,9 +394,11 @@ router.post('/videos', requireRole('admin'), videoUpload.array('files', 5), asyn
   }
 });
 
+const ZIP_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2GB
+
 const zipUpload = multer({
-  storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB for ZIP archive (photos and videos)
+  storage: multer.diskStorage({ destination: os.tmpdir() }),
+  limits: { fileSize: ZIP_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     const isZip =
       file.mimetype === 'application/zip' ||
@@ -383,36 +418,38 @@ router.post('/zip', requireRole('admin'), zipUpload.single('file'), async (req: 
     return res.status(400).json({ ok: false, error: 'No ZIP file uploaded' });
   }
 
+  const tempPath = req.file.path;
   const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
   const fileName = `event-zips/${Date.now()}-${cleanName.toLowerCase().endsWith('.zip') ? cleanName : `${cleanName}.zip`}`;
 
-  // 1. Try Azure Blob Storage if configured
-  if (isAzureStorageConfigured()) {
-    try {
-      const azureUrl = await uploadToAzureBlob('event-zips', fileName, req.file.buffer, 'application/zip');
-      if (azureUrl) {
-        return res.json({
-          ok: true,
-          url: azureUrl,
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          provider: 'azure',
-        });
-      }
-    } catch (azErr: any) {
-      console.warn('[Upload] Azure ZIP upload failed, falling back to Supabase:', azErr.message);
-    }
-  }
-
-  // 2. Supabase Storage fallback
   try {
+    // 1. Try Azure Blob Storage if configured (streamed from disk)
+    if (isAzureStorageConfigured()) {
+      try {
+        const azureUrl = await uploadFileToAzureBlob('event-zips', fileName, tempPath, 'application/zip');
+        if (azureUrl) {
+          return res.json({
+            ok: true,
+            url: azureUrl,
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            provider: 'azure',
+          });
+        }
+      } catch (azErr: any) {
+        console.warn('[Upload] Azure ZIP upload failed, falling back to Supabase:', azErr.message);
+      }
+    }
+
+    // 2. Supabase Storage fallback (streamed from disk)
     const supabase = createAdminClient();
     const { error } = await supabase.storage
       .from('banners')
-      .upload(fileName, req.file.buffer, {
+      .upload(fileName, Readable.toWeb(fs.createReadStream(tempPath)) as ReadableStream<Uint8Array>, {
         cacheControl: '3600',
         upsert: false,
         contentType: 'application/zip',
+        duplex: 'half',
       });
 
     if (error) {
@@ -429,13 +466,15 @@ router.post('/zip', requireRole('admin'), zipUpload.single('file'), async (req: 
     });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'ZIP upload failed' });
+  } finally {
+    fs.promises.unlink(tempPath).catch(() => {});
   }
 });
 
 router.use((err: any, _req: Request, res: Response, next: any) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ ok: false, error: 'File size exceeds maximum allowed limit.' });
+      return res.status(413).json({ ok: false, error: 'File size exceeds maximum allowed limit.' });
     }
     return res.status(400).json({ ok: false, error: err.message });
   }

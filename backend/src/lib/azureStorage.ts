@@ -65,3 +65,37 @@ export async function uploadToAzureBlob(
     return null;
   }
 }
+
+/**
+ * Stream a file from disk to Azure Blob Storage in parallel blocks, without
+ * loading it into memory. Returns public URL on success, or null on failure/unconfigured.
+ */
+export async function uploadFileToAzureBlob(
+  containerName: string,
+  blobName: string,
+  filePath: string,
+  contentType: string
+): Promise<string | null> {
+  const client = getBlobServiceClient();
+  if (!client) return null;
+
+  try {
+    const containerClient = client.getContainerClient(containerName);
+    await containerClient.createIfNotExists({ access: 'blob' }).catch(() => {});
+
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+    await blockBlobClient.uploadFile(filePath, {
+      blockSize: 8 * 1024 * 1024,
+      concurrency: 4,
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+        blobCacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    return blockBlobClient.url.split('?')[0];
+  } catch (err: any) {
+    console.warn(`[Azure Storage] File upload failed for ${containerName}/${blobName}:`, err.message);
+    return null;
+  }
+}
