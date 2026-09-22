@@ -187,9 +187,11 @@ export default function EventForm({
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/admin/upload/banner', {
+      const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
+      const res = await fetch(`${backendBase}/api/admin/upload/banner`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       const body = await res.json().catch(() => null);

@@ -333,7 +333,10 @@ router.post('/photos', requireRole('admin'), photoUpload.array('files', 20), asy
     return res.status(400).json({ ok: false, error: 'No image files uploaded' });
   }
 
-  const files = await Promise.all(rawFiles.map((f) => processImageBuffer(f)));
+  const files: Array<{ buffer: Buffer; mimetype: string; originalname: string }> = [];
+  for (const f of rawFiles) {
+    files.push(await processImageBuffer(f));
+  }
   const uploadedUrls: string[] = [];
 
   // If Azure Storage configured, try uploading batch to Azure
