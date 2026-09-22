@@ -131,22 +131,51 @@ export default function EventForm({
     }
   };
 
-  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const convertHeicIfNeeded = async (file: File): Promise<File> => {
+    const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type.toLowerCase() === 'image/heic' || file.type.toLowerCase() === 'image/heif';
+    if (!isHeic) return file;
 
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
-    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.heic') && !file.name.toLowerCase().endsWith('.heif')) {
-      setUploadError('Please select a valid PNG, JPG, WEBP, GIF, HEIC, or HEIF image.');
+    try {
+      const heic2any = (await import('heic2any')).default;
+      const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+      const blob = Array.isArray(converted) ? converted[0] : converted;
+      const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+      return new File([blob], newName, { type: 'image/jpeg' });
+    } catch (err) {
+      console.warn('Frontend HEIC conversion warning:', err);
+      return file;
+    }
+  };
+
+  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
+
+    const allowedTypes = [
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/gif',
+      'image/avif',
+      'image/heic',
+      'image/heif',
+      'image/bmp',
+      'image/tiff',
+      'image/svg+xml',
+    ];
+    const isExtAllowed = /\.(heic|heif|avif|bmp|tiff|tif|svg|jpg|jpeg|png|webp|gif)$/i.test(rawFile.name);
+    if (!allowedTypes.includes(rawFile.type.toLowerCase()) && !isExtAllowed) {
+      setUploadError('Please select a valid image (PNG, JPG, WEBP, GIF, HEIC, HEIF, AVIF, SVG, BMP, TIFF).');
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      setUploadError('Image size exceeds 2MB limit.');
+    if (rawFile.size > 50 * 1024 * 1024) {
+      setUploadError('Image size exceeds 50MB limit.');
       return;
     }
 
     setUploadError('');
+    const file = await convertHeicIfNeeded(rawFile);
     setBannerFile(file);
 
     const previewUrl = URL.createObjectURL(file);
@@ -224,11 +253,41 @@ export default function EventForm({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    // Validate each file — browsers that ignore the accept attribute will still pass through
+    const allowedTypes = [
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+      'image/gif',
+      'image/avif',
+      'image/heic',
+      'image/heif',
+      'image/bmp',
+      'image/tiff',
+      'image/svg+xml',
+    ];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      const isAllowedMime = allowedTypes.includes(f.type.toLowerCase());
+      const isExtAllowed = /\.(heic|heif|avif|bmp|tiff|tif|svg|jpg|jpeg|png|webp|gif)$/i.test(f.name);
+      if (!isAllowedMime && !isExtAllowed) {
+        toast.error(`"${f.name}" is not a supported image type. Accepted: PNG, JPG, WEBP, GIF, AVIF, HEIC, HEIF, SVG, BMP, TIFF.`);
+        if (photoInputRef.current) photoInputRef.current.value = '';
+        return;
+      }
+    }
+
     setUploadingPhotos(true);
     try {
-      const formData = new FormData();
+      const processedFiles: File[] = [];
       for (let i = 0; i < files.length; i++) {
-        formData.append('files', files[i]);
+        const converted = await convertHeicIfNeeded(files[i]);
+        processedFiles.push(converted);
+      }
+
+      const formData = new FormData();
+      for (let i = 0; i < processedFiles.length; i++) {
+        formData.append('files', processedFiles[i]);
       }
 
       const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
@@ -298,7 +357,7 @@ export default function EventForm({
       });
 
       if (imageNames.length === 0) {
-        toast.warning('ZIP archive opened, but no image files (.jpg, .png, .webp, .gif) were found inside.', { id: toastId });
+        toast.warning('ZIP archive opened, but no image files (.jpg, .png, .webp, .heic, .heif, .gif) were found inside.', { id: toastId });
       } else {
         toast.loading(`Found ${imageNames.length} images! Uploading ZIP archive...`, { id: toastId });
       }
@@ -681,14 +740,14 @@ export default function EventForm({
               type="file"
               ref={fileInputRef}
               onChange={handleBannerFileChange}
-              accept="image/*"
+              accept="image/*,.heic,.heif,.avif,.bmp,.tiff,.svg"
               className="hidden"
             />
             <div className="flex size-12 items-center justify-center rounded-lg bg-slate-900 border border-slate-800 mx-auto mb-4 group-hover:border-emerald-500/25 transition-colors">
               <Upload className="size-5 text-slate-500 group-hover:text-emerald-400 transition-colors" />
             </div>
             <p className="text-sm font-semibold text-white">Click or drag image here</p>
-            <p className="text-xs text-slate-500 mt-1 font-mono">PNG, JPG, WEBP, GIF &middot; max 2MB</p>
+            <p className="text-xs text-slate-500 mt-1 font-mono">PNG, JPG, WEBP, GIF, HEIC, AVIF &middot; max 50MB</p>
           </div>
 
           <div>
@@ -1035,7 +1094,7 @@ export default function EventForm({
               ref={photoInputRef}
               type="file"
               multiple
-              accept="image/*"
+              accept="image/*,.heic,.heif,.avif,.bmp,.tiff,.svg"
               onChange={handlePhotoFileUpload}
               disabled={uploadingPhotos}
               className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
@@ -1053,7 +1112,7 @@ export default function EventForm({
                 <div>
                   <p className="text-xs font-bold text-slate-200">Upload Image Files</p>
                   <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                    Select multiple images (PNG, JPG, WEBP)
+                    Select multiple images (PNG, JPG, WEBP, HEIC, AVIF)
                   </p>
                 </div>
               </>
