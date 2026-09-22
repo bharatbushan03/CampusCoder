@@ -131,20 +131,53 @@ export default function EventForm({
     }
   };
 
-  const convertHeicIfNeeded = async (file: File): Promise<File> => {
+  const optimizeImageFile = async (file: File): Promise<File> => {
     const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type.toLowerCase() === 'image/heic' || file.type.toLowerCase() === 'image/heif';
-    if (!isHeic) return file;
+    let targetFile = file;
+
+    if (isHeic) {
+      try {
+        const heic2any = (await import('heic2any')).default;
+        const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 });
+        const blob = Array.isArray(converted) ? converted[0] : converted;
+        const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+        targetFile = new File([blob], newName, { type: 'image/jpeg' });
+      } catch (err) {
+        console.warn('Frontend HEIC conversion warning:', err);
+      }
+    }
 
     try {
-      const heic2any = (await import('heic2any')).default;
-      const converted = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
-      const blob = Array.isArray(converted) ? converted[0] : converted;
-      const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
-      return new File([blob], newName, { type: 'image/jpeg' });
-    } catch (err) {
-      console.warn('Frontend HEIC conversion warning:', err);
-      return file;
+      const img = document.createElement('img');
+      const url = URL.createObjectURL(targetFile);
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = url;
+      });
+      URL.revokeObjectURL(url);
+
+      const maxDim = 1920;
+      if (img.width > maxDim || img.height > maxDim) {
+        const scale = Math.min(maxDim / img.width, maxDim / img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const resizedBlob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.88));
+          if (resizedBlob) {
+            const cleanName = targetFile.name.replace(/\.[^/.]+$/, '.jpg');
+            return new File([resizedBlob], cleanName, { type: 'image/jpeg' });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Canvas image optimization skipped:', e);
     }
+
+    return targetFile;
   };
 
   const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,7 +208,7 @@ export default function EventForm({
     }
 
     setUploadError('');
-    const file = await convertHeicIfNeeded(rawFile);
+    const file = await optimizeImageFile(rawFile);
     setBannerFile(file);
 
     const previewUrl = URL.createObjectURL(file);
@@ -283,7 +316,7 @@ export default function EventForm({
     try {
       const processedFiles: File[] = [];
       for (let i = 0; i < files.length; i++) {
-        const converted = await convertHeicIfNeeded(files[i]);
+        const converted = await optimizeImageFile(files[i]);
         processedFiles.push(converted);
       }
 

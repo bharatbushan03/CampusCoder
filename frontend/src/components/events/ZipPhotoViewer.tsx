@@ -137,9 +137,9 @@ export function ZipPhotoViewer({
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {media.map((item, index) => (
-            <button key={`${item.type}-${index}`} type="button" onClick={() => setActiveIndex(index)} className="group relative overflow-hidden rounded-lg border border-slate-800 bg-slate-950 text-left cursor-pointer">
+            <button key={`${item.type}-${index}`} type="button" onClick={() => setActiveIndex(index)} className="group relative aspect-4/3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-left cursor-pointer shadow-sm hover:border-emerald-500/40 transition-all">
               {item.type === 'photo' ? <img src={item.url} alt={`Event photo ${index + 1}`} className="object-cover w-full h-full transition-transform group-hover:scale-105" /> : <video src={item.url} preload="metadata" muted className="h-full w-full object-cover" />}
-              <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded bg-black/70 px-2 py-1 text-[10px] text-white">{item.type === 'photo' ? <ImageIcon className="size-3" /> : <Video className="size-3" />} {item.type === 'photo' ? 'Photo' : 'Video'}</span>
+              <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded bg-black/70 px-2 py-1 text-[10px] text-white font-mono">{item.type === 'photo' ? <ImageIcon className="size-3" /> : <Video className="size-3" />} {item.type === 'photo' ? 'Photo' : 'Video'}</span>
             </button>
           ))}
         </div>
@@ -149,10 +149,18 @@ export function ZipPhotoViewer({
         <div role="dialog" aria-modal="true" aria-label={`${activeMedia.type} ${activeIndex + 1} of ${media.length}`} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 sm:p-8" onClick={() => setActiveIndex(null)}>
           <button type="button" onClick={() => setActiveIndex(null)} className="absolute right-4 top-4 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20" aria-label="Close slideshow"><X className="size-5" /></button>
           <button type="button" onClick={(event) => { event.stopPropagation(); showPrevious(); }} className="absolute left-3 sm:left-8 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20" aria-label="Previous media"><ChevronLeft className="size-7" /></button>
-          <div className="flex max-h-full max-w-6xl flex-col items-center gap-4" onClick={(event) => event.stopPropagation()}>
-            {activeMedia.type === 'photo' ? <img src={activeMedia.url} alt={`Event photo ${activeIndex + 1}`} className="object-contain w-full h-full" /> : <video src={activeMedia.url} controls autoPlay className="max-h-[78vh] max-w-[90vw]" />}
+          <div className="flex max-h-full max-w-5xl flex-col items-center gap-4" onClick={(event) => event.stopPropagation()}>
+            {activeMedia.type === 'photo' ? (
+              <img
+                src={activeMedia.url}
+                alt={`Event photo ${activeIndex + 1}`}
+                className="max-h-[75vh] max-w-[85vw] object-contain rounded-xl shadow-2xl border border-slate-800/80"
+              />
+            ) : (
+              <video src={activeMedia.url} controls autoPlay className="max-h-[75vh] max-w-[85vw] rounded-xl shadow-2xl" />
+            )}
             <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-300">{activeIndex + 1} / {media.length}</span>
+              <span className="text-xs text-slate-300 font-mono">{activeIndex + 1} / {media.length}</span>
               <Button type="button" variant="primary" size="sm" onClick={() => downloadSingleMedia(activeMedia.url, `${eventTitle}-${activeMedia.type}-${activeIndex + 1}`)}><Download className="size-3.5 mr-1.5" /> Download this {activeMedia.type}</Button>
             </div>
           </div>
