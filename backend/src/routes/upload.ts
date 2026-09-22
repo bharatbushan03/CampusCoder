@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import path from 'path';
+import convert from 'heic-convert';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import { isAzureStorageConfigured, uploadToAzureBlob } from '../lib/azureStorage';
@@ -9,16 +10,75 @@ const router = Router();
 
 router.use(requireAuth, requireRole('admin', 'organizer'));
 
+const ALLOWED_IMAGE_MIMES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+  'image/heic',
+  'image/heic-sequence',
+  'image/heif',
+  'image/heif-sequence',
+  'image/bmp',
+  'image/tiff',
+  'image/svg+xml',
+  'application/octet-stream',
+]);
+
+const ALLOWED_IMAGE_EXTS = new Set([
+  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.heic', '.heif', '.bmp', '.tiff', '.tif', '.svg'
+]);
+
+function isAllowedImageFile(file: Express.Multer.File) {
+  if (ALLOWED_IMAGE_MIMES.has(file.mimetype.toLowerCase())) return true;
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (ALLOWED_IMAGE_EXTS.has(ext)) return true;
+  return false;
+}
+
+async function processImageBuffer(file: Express.Multer.File): Promise<{ buffer: Buffer; mimetype: string; originalname: string }> {
+  const isHeic = file.originalname.toLowerCase().endsWith('.heic') ||
+                 file.originalname.toLowerCase().endsWith('.heif') ||
+                 file.mimetype.toLowerCase() === 'image/heic' ||
+                 file.mimetype.toLowerCase() === 'image/heif' ||
+                 file.mimetype.toLowerCase() === 'image/heic-sequence' ||
+                 file.mimetype.toLowerCase() === 'image/heif-sequence';
+
+  if (isHeic) {
+    try {
+      const outputBuffer = await convert({
+        buffer: file.buffer,
+        format: 'JPEG',
+        quality: 0.92,
+      });
+      const newName = file.originalname.replace(/\.(heic|heif)$/i, '.jpg');
+      return {
+        buffer: Buffer.from(outputBuffer),
+        mimetype: 'image/jpeg',
+        originalname: newName,
+      };
+    } catch (err: any) {
+      console.warn('[Upload] HEIC conversion fallback error:', err.message);
+    }
+  }
+  return {
+    buffer: file.buffer,
+    mimetype: file.mimetype,
+    originalname: file.originalname,
+  };
+}
+
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-    if (allowed.includes(file.mimetype)) {
+    if (isAllowedImageFile(file)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PNG, JPG, WEBP and GIF images are allowed'));
+      cb(new Error('Only PNG, JPG, WEBP, GIF, AVIF, HEIC, HEIF, SVG, BMP, TIFF images are allowed'));
     }
   },
 });
@@ -28,13 +88,14 @@ router.post('/banner', upload.single('file'), async (req: Request, res: Response
     return res.status(400).json({ ok: false, error: 'No file uploaded' });
   }
 
-  const ext = req.file.mimetype.split('/')[1] || 'png';
+  const processed = await processImageBuffer(req.file);
+  const ext = imageExt(processed.mimetype, processed.originalname);
   const fileName = `banners/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   // 1. Try Azure Blob Storage if configured
   if (isAzureStorageConfigured()) {
     try {
-      const azureUrl = await uploadToAzureBlob('event-banners', fileName, req.file.buffer, req.file.mimetype);
+      const azureUrl = await uploadToAzureBlob('event-banners', fileName, processed.buffer, processed.mimetype);
       if (azureUrl) {
         return res.json({ ok: true, url: azureUrl, provider: 'azure' });
       }
@@ -48,10 +109,10 @@ router.post('/banner', upload.single('file'), async (req: Request, res: Response
     const supabase = createAdminClient();
     const { error } = await supabase.storage
       .from('banners')
-      .upload(fileName, req.file.buffer, {
+      .upload(fileName, processed.buffer, {
         cacheControl: '3600',
         upsert: false,
-        contentType: req.file.mimetype,
+        contentType: processed.mimetype,
       });
 
     if (error) {
@@ -95,11 +156,26 @@ function safeBaseName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[a-z0-9]+$/i, '');
 }
 
-function imageExt(mimetype: string) {
-  if (mimetype === 'image/jpeg') return 'jpg';
-  if (mimetype === 'image/heic') return 'heic';
-  if (mimetype === 'image/heif') return 'heif';
-  return mimetype.split('/')[1] || 'jpg';
+function imageExt(mimetype: string, originalName?: string) {
+  if (originalName) {
+    const ext = path.extname(originalName).toLowerCase().replace('.', '');
+    if (['heic', 'heif', 'avif', 'webp', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'tiff', 'tif'].includes(ext)) {
+      return ext === 'jpeg' ? 'jpg' : ext === 'tif' ? 'tiff' : ext;
+    }
+  }
+  const mime = mimetype.toLowerCase();
+  if (mime === 'image/jpeg' || mime === 'image/jpg') return 'jpg';
+  if (mime === 'image/heic' || mime === 'image/heic-sequence') return 'heic';
+  if (mime === 'image/heif' || mime === 'image/heif-sequence') return 'heif';
+  if (mime === 'image/avif') return 'avif';
+  if (mime === 'image/webp') return 'webp';
+  if (mime === 'image/png') return 'png';
+  if (mime === 'image/gif') return 'gif';
+  if (mime === 'image/svg+xml') return 'svg';
+  if (mime === 'image/bmp') return 'bmp';
+  if (mime === 'image/tiff') return 'tiff';
+  const sub = mime.split('/')[1];
+  return sub && sub !== 'octet-stream' ? sub : 'jpg';
 }
 
 const handleDocumentUpload = async (req: Request, res: Response) => {
@@ -185,11 +261,10 @@ const photoUpload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per photo
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif', 'image/heic', 'image/heif'];
-    if (allowed.includes(file.mimetype) || file.originalname.toLowerCase().endsWith('.heic') || file.originalname.toLowerCase().endsWith('.heif')) {
+    if (isAllowedImageFile(file)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PNG, JPG, WEBP, GIF, AVIF, HEIC, and HEIF images are allowed'));
+      cb(new Error('Only PNG, JPG, WEBP, GIF, AVIF, HEIC, HEIF, SVG, BMP, TIFF images are allowed'));
     }
   },
 });
@@ -212,16 +287,17 @@ router.post('/photo', requireRole('admin'), photoUpload.single('file'), async (r
     return res.status(400).json({ ok: false, error: 'No image file uploaded' });
   }
 
-  const ext = imageExt(req.file.mimetype);
-  const cleanName = safeBaseName(req.file.originalname);
+  const processed = await processImageBuffer(req.file);
+  const ext = imageExt(processed.mimetype, processed.originalname);
+  const cleanName = safeBaseName(processed.originalname);
   const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
 
   // 1. Try Azure Blob Storage if configured
   if (isAzureStorageConfigured()) {
     try {
-      const azureUrl = await uploadToAzureBlob('event-photos', fileName, req.file.buffer, req.file.mimetype);
+      const azureUrl = await uploadToAzureBlob('event-photos', fileName, processed.buffer, processed.mimetype);
       if (azureUrl) {
-        return res.json({ ok: true, url: azureUrl, fileName: req.file.originalname, provider: 'azure' });
+        return res.json({ ok: true, url: azureUrl, fileName: processed.originalname, provider: 'azure' });
       }
     } catch (azErr: any) {
       console.warn('[Upload] Azure Photo upload failed, falling back to Supabase:', azErr.message);
@@ -234,10 +310,10 @@ router.post('/photo', requireRole('admin'), photoUpload.single('file'), async (r
     const bucketName = 'banners';
     const { error } = await supabase.storage
       .from(bucketName)
-      .upload(fileName, req.file.buffer, {
+      .upload(fileName, processed.buffer, {
         cacheControl: '3600',
         upsert: false,
-        contentType: req.file.mimetype,
+        contentType: processed.mimetype,
       });
 
     if (error) {
@@ -245,18 +321,19 @@ router.post('/photo', requireRole('admin'), photoUpload.single('file'), async (r
     }
 
     const { data } = supabase.storage.from(bucketName).getPublicUrl(fileName);
-    return res.json({ ok: true, url: data.publicUrl, fileName: req.file.originalname, provider: 'supabase' });
+    return res.json({ ok: true, url: data.publicUrl, fileName: processed.originalname, provider: 'supabase' });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: err.message || 'Photo upload failed' });
   }
 });
 
 router.post('/photos', requireRole('admin'), photoUpload.array('files', 20), async (req: Request, res: Response) => {
-  const files = req.files as Express.Multer.File[];
-  if (!files || files.length === 0) {
+  const rawFiles = req.files as Express.Multer.File[];
+  if (!rawFiles || rawFiles.length === 0) {
     return res.status(400).json({ ok: false, error: 'No image files uploaded' });
   }
 
+  const files = await Promise.all(rawFiles.map((f) => processImageBuffer(f)));
   const uploadedUrls: string[] = [];
 
   // If Azure Storage configured, try uploading batch to Azure
@@ -264,7 +341,7 @@ router.post('/photos', requireRole('admin'), photoUpload.array('files', 20), asy
     try {
       const azureUrls: string[] = [];
       for (const file of files) {
-        const ext = imageExt(file.mimetype);
+        const ext = imageExt(file.mimetype, file.originalname);
         const cleanName = safeBaseName(file.originalname);
         const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
         const azUrl = await uploadToAzureBlob('event-photos', fileName, file.buffer, file.mimetype);
@@ -283,7 +360,7 @@ router.post('/photos', requireRole('admin'), photoUpload.array('files', 20), asy
   try {
     const supabase = createAdminClient();
     for (const file of files) {
-      const ext = imageExt(file.mimetype);
+      const ext = imageExt(file.mimetype, file.originalname);
       const cleanName = safeBaseName(file.originalname);
       const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
 

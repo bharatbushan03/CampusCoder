@@ -46,8 +46,17 @@ export function ZipPhotoViewer({
 
         for (const [filename, fileEntry] of Object.entries(zip.files)) {
           if (fileEntry.dir) continue;
-          if (/\.(jpe?g|png|webp|gif|avif|heic|heif)$/i.test(filename)) {
-            const imgBlob = await fileEntry.async('blob');
+          if (/\.(jpe?g|png|webp|gif|avif|heic|heif|bmp|tiff?|svg)$/i.test(filename)) {
+            let imgBlob = await fileEntry.async('blob');
+            if (/\.(heic|heif)$/i.test(filename)) {
+              try {
+                const heic2any = (await import('heic2any')).default;
+                const converted = await heic2any({ blob: imgBlob, toType: 'image/jpeg', quality: 0.9 });
+                imgBlob = Array.isArray(converted) ? converted[0] : converted;
+              } catch (convErr) {
+                console.warn('Zip HEIC conversion warning:', convErr);
+              }
+            }
             const url = URL.createObjectURL(imgBlob);
             extractedUrls.push(url);
           }
