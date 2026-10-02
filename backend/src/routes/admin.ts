@@ -1,5 +1,9 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
+
+// Lenient UUID regex — accepts zero-version UUIDs used as hardcoded club IDs
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidSchema = z.string().regex(uuidRegex, 'Invalid id');
 import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import type { Database } from '../types/database.types';
@@ -15,6 +19,8 @@ import {
   batchNotesSchema,
 } from '../lib/validation';
 import { deleteAzure, upsertAzure, upsertManyAzure } from '../lib/azureDb';
+import { getAllClubs, getDefaultClub } from '../lib/clubsHelper';
+import { DEFAULT_CLUB_ID } from '../constants/clubs';
 
 const router = Router();
 
@@ -25,13 +31,7 @@ function sanitizeText(text: string) {
   return text.trim();
 }
 
-type SpeakerPayload = {
-  name: string;
-  role?: string;
-  email?: string;
-  bio?: string;
-  profile_image_url?: string;
-};
+
 
 const isColumnMissingErr = (err: any) =>
   err &&
@@ -41,39 +41,66 @@ const isColumnMissingErr = (err: any) =>
     err.code?.startsWith('PGRST') ||
     err.message?.includes('schema cache') ||
     err.message?.includes('videos') ||
+    err.message?.includes('club_id') ||
     err.message?.includes('photos_zip_url'));
 
 const speakerSchema = z.object({
-  name: z.string().min(1),
-  role: z.string().optional(),
-  email: z.string().optional(),
-  bio: z.string().optional(),
-  profile_image_url: z.string().optional(),
+  id: z.string().optional().nullable(),
+  event_id: z.string().optional().nullable(),
+  name: z.string().optional().nullable(),
+  role: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  bio: z.string().optional().nullable(),
+  profile_image_url: z.string().optional().nullable(),
 });
 
-const idSchema = z.uuid('Invalid id');
+function extractValidSpeakers(speakersRaw: any): Array<{
+  name: string;
+  role: string | null;
+  email: string | null;
+  bio: string | null;
+  profile_image_url: string | null;
+}> {
+  if (!Array.isArray(speakersRaw)) return [];
+  const parsed = z.array(speakerSchema).safeParse(speakersRaw);
+  const list = parsed.success ? parsed.data : speakersRaw;
+  return list
+    .filter((s: any) => s && typeof s.name === 'string' && s.name.trim().length > 0)
+    .map((s: any) => ({
+      name: sanitizeText(s.name)!,
+      role: s.role ? sanitizeText(s.role) : null,
+      email: s.email ? s.email.toLowerCase().trim() : null,
+      bio: s.bio ? sanitizeText(s.bio) : null,
+      profile_image_url: s.profile_image_url || null,
+    }));
+}
+
+const idSchema = uuidSchema;
 
 const studentProfileUpdateSchema = z.object({
   full_name: z.string().min(2, 'Name must be at least 2 characters').max(100).optional(),
   college: z.string().max(150).optional().nullable(),
   branch: z.string().max(100).optional().nullable(),
   year: z.string().max(20).optional().nullable(),
+  club_id: uuidSchema.optional().nullable(),
   role: z.enum(['student', 'admin', 'organizer']).optional(),
 });
 
 // ---------- Dashboard overview & Analytics ----------
 
-router.get('/overview', async (_req: Request, res: Response) => {
+router.get('/overview', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
 
   const [eventsResult, registrationsResult, studentsResult, announcementsResult, linksResult] =
     await Promise.all([
       supabase.from('events').select('*').order('date', { ascending: false }),
       supabase
         .from('registrations')
-        .select('*, events(title)')
+        .select('*, events(title, club_id)')
         .order('registered_at', { ascending: false }),
-      supabase.from('profiles').select('id').eq('role', 'student'),
+      supabase.from('profiles').select('id, club_id').eq('role', 'student'),
       supabase
         .from('announcements')
         .select('*, events(title)')
@@ -85,36 +112,79 @@ router.get('/overview', async (_req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to load admin data' });
   }
 
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+  const defaultClub = getDefaultClub();
+
+  let eventsData = eventsResult.data || [];
+  let regsData = registrationsResult.data || [];
+  const totalStudentCount = studentsResult.data?.length ?? 0;
+
+  if (!isGlobalAdmin) {
+    eventsData = eventsData.filter((ev: any) => (ev.club_id || DEFAULT_CLUB_ID) === userClubId);
+    regsData = regsData.filter((r: any) => (r.events?.club_id || DEFAULT_CLUB_ID) === userClubId);
+  }
+
+  const enrichedEvents = eventsData.map((ev: any) => {
+    const clubId = ev.club_id || DEFAULT_CLUB_ID;
+    return {
+      ...ev,
+      club_id: clubId,
+      club: clubsMap.get(clubId) || defaultClub,
+      can_edit: isGlobalAdmin || clubId === userClubId,
+    };
+  });
+
   return res.json({
     ok: true,
-    events: eventsResult.data,
-    registrations: registrationsResult.data,
-    studentCount: studentsResult.data?.length ?? 0,
+    events: enrichedEvents,
+    registrations: regsData,
+    studentCount: totalStudentCount,
     announcements: announcementsResult.error ? [] : announcementsResult.data,
     communityLinks: linksResult.error ? [] : linksResult.data,
+    club: !isGlobalAdmin && req.profile?.club_id ? (clubsMap.get(req.profile.club_id) || defaultClub) : null,
+    scopedClub: !isGlobalAdmin && req.profile?.club_id ? (clubsMap.get(req.profile.club_id) || defaultClub) : null,
+    isGlobalAdmin,
   });
 });
 
-router.get('/analytics', async (_req: Request, res: Response) => {
+router.get('/analytics', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
 
-  const [profilesRes, eventsRes, registrationsRes] = await Promise.all([
-    supabase.from('profiles').select('id, full_name, email, role, college, branch, year, created_at').order('created_at', { ascending: false }),
-    supabase.from('events').select('id, title, slug, event_type, mode, date, status, created_at').order('date', { ascending: false }),
+  const [profilesRes, eventsRes, registrationsRes, allClubs] = await Promise.all([
+    supabase.from('profiles').select('id, full_name, email, role, college, branch, year, club_id, created_at').order('created_at', { ascending: false }),
+    supabase.from('events').select('id, title, slug, event_type, mode, date, status, created_at, club_id').order('date', { ascending: false }),
     supabase.from('registrations').select('id, full_name, email, college, branch, year, coding_level, preferred_language, attendance_status, registered_at, event_id').order('registered_at', { ascending: false }),
+    getAllClubs(),
   ]);
 
   if (profilesRes.error || eventsRes.error || registrationsRes.error) {
     return res.status(500).json({ ok: false, error: 'Failed to compute analytics' });
   }
 
-  const profiles = profilesRes.data || [];
-  const events = eventsRes.data || [];
-  const registrations = registrationsRes.data || [];
+  const clubsMap = new Map(allClubs.map((c) => [c.id, c]));
+  const defaultClub = getDefaultClub();
+
+  let profiles = profilesRes.data || [];
+  let events = eventsRes.data || [];
+  let registrations = registrationsRes.data || [];
+
+  if (!isGlobalAdmin) {
+    events = events.filter((ev: any) => (ev.club_id || DEFAULT_CLUB_ID) === userClubId);
+    const clubEventIds = new Set(events.map((e: any) => e.id));
+    registrations = registrations.filter((r: any) => clubEventIds.has(r.event_id));
+    // Organizers have NO access to see admins! All students are part of all clubs.
+    profiles = profiles.filter((p: any) => p.role !== 'admin');
+  }
 
   const studentProfiles = profiles.filter((p) => p.role === 'student');
-  const adminProfiles = profiles.filter((p) => p.role === 'admin');
-  const organizerProfiles = profiles.filter((p) => p.role === 'organizer');
+  const adminProfiles = isGlobalAdmin ? profiles.filter((p) => p.role === 'admin') : [];
+  const organizerProfiles = profiles.filter((p) => {
+    if (p.role !== 'organizer') return false;
+    return isGlobalAdmin || p.club_id === userClubId;
+  });
 
   const totalRegistrations = registrations.length;
   const attendedCount = registrations.filter((r) => r.attendance_status === 'attended').length;
@@ -306,12 +376,14 @@ router.get('/analytics', async (_req: Request, res: Response) => {
     preferredLanguages,
     recentRegistrations,
     recentSignups,
+    isGlobalAdmin,
+    scopedClub: !isGlobalAdmin ? (clubsMap.get(userClubId) || defaultClub) : null,
   });
 });
 
 // ---------- Events ----------
 
-router.get('/events', async (_req: Request, res: Response) => {
+router.get('/events', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('events')
@@ -321,7 +393,32 @@ router.get('/events', async (_req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to load events' });
   }
-  return res.json({ ok: true, events: data });
+
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+  const defaultClub = getDefaultClub();
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  let rawEvents = data || [];
+  if (!isGlobalAdmin) {
+    rawEvents = rawEvents.filter((ev: any) => (ev.club_id || DEFAULT_CLUB_ID) === userClubId);
+  }
+
+  const enrichedEvents = rawEvents.map((ev: any) => {
+    const clubId = ev.club_id || DEFAULT_CLUB_ID;
+    const club = clubsMap.get(clubId) || defaultClub;
+    const canEdit = isGlobalAdmin || clubId === userClubId;
+    return {
+      ...ev,
+      club_id: clubId,
+      club,
+      can_edit: canEdit,
+    };
+  });
+
+  return res.json({ ok: true, events: enrichedEvents });
 });
 
 router.get('/events/options', async (_req: Request, res: Response) => {
@@ -337,7 +434,7 @@ router.get('/events/options', async (_req: Request, res: Response) => {
   return res.json({ ok: true, events: data });
 });
 
-router.get('/events/:id', async (req: Request, res: Response) => {
+router.get('/events/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid event id' });
@@ -354,12 +451,39 @@ router.get('/events/:id', async (req: Request, res: Response) => {
     return res.status(404).json({ ok: false, error: 'Event not found' });
   }
 
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+  const defaultClub = getDefaultClub();
+  const clubId = (event as any).club_id || DEFAULT_CLUB_ID;
+  const club = clubsMap.get(clubId) || defaultClub;
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  if (!isGlobalAdmin && clubId !== userClubId) {
+    return res.status(403).json({
+      ok: false,
+      error: 'You do not have permission to view or manage events from another community.',
+    });
+  }
+
   const { data: owners } = await supabase
     .from('event_owners')
     .select('*')
     .eq('event_id', parsed.data);
 
-  return res.json({ ok: true, event, owners: owners || [] });
+  const canEdit = isGlobalAdmin || clubId === userClubId;
+
+  return res.json({
+    ok: true,
+    event: {
+      ...event,
+      club_id: clubId,
+      club,
+      can_edit: canEdit,
+    },
+    owners: owners || [],
+  });
 });
 
 router.post('/events', async (req: AuthedRequest, res: Response) => {
@@ -371,20 +495,23 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
     return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
   }
 
-  const speakers = z.array(speakerSchema).safeParse(speakersRaw);
-  if (!speakers.success) {
-    return res.status(400).json({ ok: false, error: 'Invalid speakers data' });
-  }
+  const validSpeakers = extractValidSpeakers(speakersRaw);
 
   const data = validation.data;
   if (req.profile?.role !== 'admin' && ((data.photos?.length ?? 0) > 0 || (data.videos?.length ?? 0) > 0 || data.photos_zip_url)) {
     return res.status(403).json({ ok: false, error: 'Only admins can add event photos or videos.' });
   }
   const adminId = req.user?.id;
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  // Organizers can only create events for their own club; admins can assign any club
+  const clubIdToAssign = isGlobalAdmin ? (data.club_id || userClubId) : userClubId;
 
   const supabase = createAdminClient();
   const sanitizedEvent = {
     ...data,
+    club_id: clubIdToAssign,
     title: sanitizeText(data.title),
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
@@ -406,13 +533,14 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
   insertedEvent = insertRes.data;
   eventError = insertRes.error;
 
-  // Graceful fallback if database migration for photos, videos, or photos_zip_url has not been applied yet
+  // Graceful fallback if database migration for photos, videos, photos_zip_url, or club_id has not been applied yet
   if (isColumnMissingErr(eventError)) {
-    console.warn('[Admin] media columns missing in public.events table or schema cache not reloaded. Retrying insert without new columns.');
+    console.warn('[Admin] new columns missing in public.events table or schema cache not reloaded. Retrying insert without new columns.');
     const fallbackEvent = { ...sanitizedEvent };
     delete (fallbackEvent as any).photos;
     delete (fallbackEvent as any).videos;
     delete (fallbackEvent as any).photos_zip_url;
+    delete (fallbackEvent as any).club_id;
     const retryRes = await supabase
       .from('events')
       .insert(fallbackEvent)
@@ -432,14 +560,14 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Event insertion failed.' });
   }
 
-  if (speakers.data.length > 0) {
-    const speakersToInsert = speakers.data.map((s: SpeakerPayload) => ({
+  if (validSpeakers.length > 0) {
+    const speakersToInsert = validSpeakers.map((s) => ({
       event_id: insertedEvent.id,
-      name: sanitizeText(s.name),
-      role: s.role ? sanitizeText(s.role) : null,
-      email: s.email ? s.email.toLowerCase().trim() : null,
-      bio: s.bio ? sanitizeText(s.bio) : null,
-      profile_image_url: s.profile_image_url || null,
+      name: s.name,
+      role: s.role,
+      email: s.email,
+      bio: s.bio,
+      profile_image_url: s.profile_image_url,
     }));
 
     const { error: speakersError } = await supabase.from('event_owners').insert(speakersToInsert);
@@ -452,10 +580,33 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
   return res.json({ ok: true, success: true, eventId: insertedEvent.id });
 });
 
-router.put('/events/:id', async (req: Request, res: Response) => {
+router.put('/events/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid event id' });
+  }
+
+  const supabase = createAdminClient();
+  const { data: existingEvent, error: fetchErr } = await supabase
+    .from('events')
+    .select('id, club_id')
+    .eq('id', parsed.data)
+    .single();
+
+  if (fetchErr || !existingEvent) {
+    return res.status(404).json({ ok: false, error: 'Event not found' });
+  }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const eventClubId = existingEvent.club_id || DEFAULT_CLUB_ID;
+
+  // Organizers can only modify events belonging to their own club
+  if (!isGlobalAdmin && eventClubId !== userClubId) {
+    return res.status(403).json({
+      ok: false,
+      error: 'You only have permission to edit events belonging to your club.',
+    });
   }
 
   const payload = req.body.payload ?? req.body;
@@ -466,19 +617,18 @@ router.put('/events/:id', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
   }
 
-  const speakers = z.array(speakerSchema).safeParse(speakersRaw);
-  if (!speakers.success) {
-    return res.status(400).json({ ok: false, error: 'Invalid speakers data' });
-  }
+  const validSpeakers = extractValidSpeakers(speakersRaw);
 
   const data = validation.data;
-  if ((req as AuthedRequest).profile?.role !== 'admin' && ((data.photos?.length ?? 0) > 0 || (data.videos?.length ?? 0) > 0 || data.photos_zip_url)) {
+  if (!isGlobalAdmin && ((data.photos?.length ?? 0) > 0 || (data.videos?.length ?? 0) > 0 || data.photos_zip_url)) {
     return res.status(403).json({ ok: false, error: 'Only admins can add event photos or videos.' });
   }
-  const supabase = createAdminClient();
+
+  const clubIdToSave = isGlobalAdmin ? (data.club_id || eventClubId) : userClubId;
 
   const sanitizedEvent = {
     ...data,
+    club_id: clubIdToSave,
     title: sanitizeText(data.title),
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
@@ -495,11 +645,12 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   updateError = updateRes.error;
 
   if (isColumnMissingErr(updateError)) {
-    console.warn('[Admin] media columns missing in public.events table or schema cache not reloaded. Retrying update without new columns.');
+    console.warn('[Admin] columns missing in public.events table or schema cache not reloaded. Retrying update without new columns.');
     const fallbackEvent = { ...sanitizedEvent };
     delete (fallbackEvent as any).photos;
     delete (fallbackEvent as any).videos;
     delete (fallbackEvent as any).photos_zip_url;
+    delete (fallbackEvent as any).club_id;
     const retryUpdate = await supabase
       .from('events')
       .update(fallbackEvent)
@@ -516,14 +667,14 @@ router.put('/events/:id', async (req: Request, res: Response) => {
 
   await supabase.from('event_owners').delete().eq('event_id', parsed.data);
 
-  if (speakers.data.length > 0) {
-    const speakersToInsert = speakers.data.map((s: SpeakerPayload) => ({
+  if (validSpeakers.length > 0) {
+    const speakersToInsert = validSpeakers.map((s) => ({
       event_id: parsed.data,
-      name: sanitizeText(s.name),
-      role: s.role ? sanitizeText(s.role) : null,
-      email: s.email ? s.email.toLowerCase().trim() : null,
-      bio: s.bio ? sanitizeText(s.bio) : null,
-      profile_image_url: s.profile_image_url || null,
+      name: s.name,
+      role: s.role,
+      email: s.email,
+      bio: s.bio,
+      profile_image_url: s.profile_image_url,
     }));
 
     await supabase.from('event_owners').insert(speakersToInsert);
@@ -533,10 +684,21 @@ router.put('/events/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true, success: true });
 });
 
-router.patch('/events/:id/status', async (req: Request, res: Response) => {
+router.patch('/events/:id/status', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid event id' });
+  }
+
+  const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  if (!isGlobalAdmin) {
+    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
+    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your club.' });
+    }
   }
 
   const statusSchema = z.enum(['draft', 'published', 'completed', 'cancelled']);
@@ -545,7 +707,6 @@ router.patch('/events/:id/status', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: 'Invalid status' });
   }
 
-  const supabase = createAdminClient();
   const { error } = await supabase
     .from('events')
     .update({ status: parsedStatus.data })
@@ -559,10 +720,21 @@ router.patch('/events/:id/status', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.patch('/events/:id/meeting-link', async (req: Request, res: Response) => {
+router.patch('/events/:id/meeting-link', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid event id' });
+  }
+
+  const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  if (!isGlobalAdmin) {
+    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
+    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your club.' });
+    }
   }
 
   const linkSchema = z.union([z.url('Invalid URL'), z.literal('')]);
@@ -571,7 +743,6 @@ router.patch('/events/:id/meeting-link', async (req: Request, res: Response) => 
     return res.status(400).json({ ok: false, error: parsedLink.error.issues[0].message });
   }
 
-  const supabase = createAdminClient();
   const { error } = await supabase
     .from('events')
     .update({ meeting_link: parsedLink.data || null })
@@ -585,10 +756,21 @@ router.patch('/events/:id/meeting-link', async (req: Request, res: Response) => 
   return res.json({ ok: true });
 });
 
-router.patch('/events/:id/archive', async (req: Request, res: Response) => {
+router.patch('/events/:id/archive', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid event id' });
+  }
+
+  const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  if (!isGlobalAdmin) {
+    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
+    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your club.' });
+    }
   }
 
   const archiveSchema = z.object({
@@ -600,7 +782,6 @@ router.patch('/events/:id/archive', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: 'Invalid archive data' });
   }
 
-  const supabase = createAdminClient();
   const { error } = await supabase
     .from('events')
     .update(parsedData.data)
@@ -614,13 +795,23 @@ router.patch('/events/:id/archive', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.delete('/events/:id', async (req: Request, res: Response) => {
+router.delete('/events/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid event id' });
   }
 
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  if (!isGlobalAdmin) {
+    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
+    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to delete events belonging to your club.' });
+    }
+  }
+
   const { error } = await supabase.from('events').delete().eq('id', parsed.data);
 
   if (error) {
@@ -631,18 +822,21 @@ router.delete('/events/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.get('/events/:id/registrations', async (req: Request, res: Response) => {
+router.get('/events/:id/registrations', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid event id' });
   }
 
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
   const [eventResult, regsResult] = await Promise.all([
-    supabase.from('events').select('title').eq('id', parsed.data).single(),
+    supabase.from('events').select('title, club_id').eq('id', parsed.data).single(),
     supabase
       .from('registrations')
-      .select('*, events(title)')
+      .select('*, events(title, club_id)')
       .eq('event_id', parsed.data)
       .order('registered_at', { ascending: false }),
   ]);
@@ -650,18 +844,29 @@ router.get('/events/:id/registrations', async (req: Request, res: Response) => {
   if (eventResult.error || regsResult.error) {
     return res.status(500).json({ ok: false, error: 'Failed to load registrations' });
   }
+
+  if (!isGlobalAdmin) {
+    const evClubId = eventResult.data?.club_id || DEFAULT_CLUB_ID;
+    if (evClubId !== userClubId) {
+      return res.status(403).json({
+        ok: false,
+        error: "You only have permission to view registrations for your club's events.",
+      });
+    }
+  }
+
   return res.json({ ok: true, event: eventResult.data, registrations: regsResult.data });
 });
 
 // ---------- Registrations ----------
 
-router.get('/registrations', async (req: Request, res: Response) => {
+router.get('/registrations', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
   const eventId = req.query.eventId as string | undefined;
 
   let query = supabase
     .from('registrations')
-    .select('*, events(title)')
+    .select('*, events(title, club_id)')
     .order('registered_at', { ascending: false });
 
   if (eventId) {
@@ -673,10 +878,23 @@ router.get('/registrations', async (req: Request, res: Response) => {
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to load registrations' });
   }
-  return res.json({ ok: true, registrations: data });
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  let registrations = data || [];
+  if (!isGlobalAdmin) {
+    // Only return registrations for events belonging to the organizer's club
+    registrations = registrations.filter((r: any) => {
+      const evClub = r.events?.club_id || DEFAULT_CLUB_ID;
+      return evClub === userClubId;
+    });
+  }
+
+  return res.json({ ok: true, registrations });
 });
 
-router.patch('/registrations/:id/attendance', async (req: Request, res: Response) => {
+router.patch('/registrations/:id/attendance', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid registration id' });
@@ -689,6 +907,24 @@ router.patch('/registrations/:id/attendance', async (req: Request, res: Response
   }
 
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  if (!isGlobalAdmin) {
+    const { data: reg } = await supabase
+      .from('registrations')
+      .select('event_id, events(club_id)')
+      .eq('id', parsed.data)
+      .single();
+    const eventClubId = (reg as any)?.events?.club_id || DEFAULT_CLUB_ID;
+    if (eventClubId !== userClubId) {
+      return res.status(403).json({
+        ok: false,
+        error: "You only have permission to update attendance for your club's events.",
+      });
+    }
+  }
+
   const { error } = await supabase
     .from('registrations')
     .update({ attendance_status: parsedStatus.data })
@@ -700,13 +936,31 @@ router.patch('/registrations/:id/attendance', async (req: Request, res: Response
   return res.json({ ok: true });
 });
 
-router.delete('/registrations/:id', async (req: Request, res: Response) => {
+router.delete('/registrations/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid registration id' });
   }
 
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  if (!isGlobalAdmin) {
+    const { data: reg } = await supabase
+      .from('registrations')
+      .select('event_id, events(club_id)')
+      .eq('id', parsed.data)
+      .single();
+    const eventClubId = (reg as any)?.events?.club_id || DEFAULT_CLUB_ID;
+    if (eventClubId !== userClubId) {
+      return res.status(403).json({
+        ok: false,
+        error: "You only have permission to delete registrations for your club's events.",
+      });
+    }
+  }
+
   const { error } = await supabase.from('registrations').delete().eq('id', parsed.data);
 
   if (error) {
@@ -717,67 +971,140 @@ router.delete('/registrations/:id', async (req: Request, res: Response) => {
 
 // ---------- Students ----------
 
-router.get('/students', async (_req: Request, res: Response) => {
+router.get('/students', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
   const [profilesResult, registrationsResult] = await Promise.all([
     supabase.from('profiles').select('*').order('created_at', { ascending: false }),
     supabase
       .from('registrations')
-      .select('full_name, email, event_id, attendance_status, registered_at, events(title)'),
+      .select('full_name, email, event_id, attendance_status, registered_at, events(id, title, club_id)'),
   ]);
 
   if (profilesResult.error) {
     return res.status(500).json({ ok: false, error: 'Failed to load students' });
   }
+
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+
+  let profiles = profilesResult.data || [];
+  let registrations = registrationsResult.error ? [] : (registrationsResult.data || []);
+
+  // In student directory ONLY students must be there (organizers are in Clubs & Communities)
+  profiles = profiles.filter((p: any) => p.role === 'student');
+
+  if (!isGlobalAdmin) {
+    // Collect event registrations belonging to the organizer's club
+    const clubRegistrations = registrations.filter((r: any) => {
+      const evClub = r.events?.club_id || DEFAULT_CLUB_ID;
+      return evClub === userClubId;
+    });
+
+    registrations = clubRegistrations;
+  }
+
+  // Enrich profiles with club info (only organizers belong to a club) and canEdit permissions
+  const enrichedProfiles = profiles.map((p: any) => {
+    const orgClubId = p.role === 'organizer' ? (p.club_id || null) : null;
+    const isTargetAdmin = p.role === 'admin';
+    const isTargetSelf = req.user?.id === p.id;
+    let canEdit = false;
+    if (isGlobalAdmin) {
+      canEdit = !isTargetAdmin || isTargetSelf;
+    } else if (req.profile?.role === 'organizer') {
+      canEdit = p.role === 'student';
+    }
+
+    return {
+      ...p,
+      club_id: orgClubId,
+      club: orgClubId ? (clubsMap.get(orgClubId) || null) : null,
+      canEdit,
+    };
+  });
+
   return res.json({
     ok: true,
-    profiles: profilesResult.data,
-    registrations: registrationsResult.error ? [] : registrationsResult.data,
+    profiles: enrichedProfiles,
+    registrations,
+    scopedClubId: !isGlobalAdmin ? userClubId : null,
   });
 });
 
-router.get('/students/:id', async (req: Request, res: Response) => {
+router.get('/students/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid student id' });
   }
 
   const supabase = createAdminClient();
-  const [profileResult, registrationsResult] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', parsed.data).single(),
-    supabase
-      .from('registrations')
-      .select('id, full_name, email, event_id, attendance_status, registered_at, events(title)')
-      .eq('email', '')
-      .order('registered_at', { ascending: false }),
-  ]);
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', parsed.data)
+    .single();
 
-  if (profileResult.error || !profileResult.data) {
+  if (profileError || !profile) {
     return res.status(404).json({ ok: false, error: 'Student not found' });
   }
 
-  // Fetch registrations by email of the profile (the profiles table is the
-  // single source of truth — registrations are linked by email not profile id).
-  const studentEmail = (profileResult.data as { email?: string | null }).email;
-  let studentRegistrations: unknown[] = [];
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const studentClubId = (profile as any).club_id || DEFAULT_CLUB_ID;
+
+  const studentEmail = profile.email;
+  let studentRegistrations: any[] = [];
   if (studentEmail) {
-    const { data, error } = await supabase
+    const { data: regs } = await supabase
       .from('registrations')
-      .select('id, full_name, email, event_id, attendance_status, registered_at, events(title)')
+      .select('id, full_name, email, event_id, attendance_status, registered_at, events(id, title, club_id)')
       .eq('email', studentEmail)
       .order('registered_at', { ascending: false });
-    if (!error && data) {
-      studentRegistrations = data;
+    if (regs) {
+      studentRegistrations = regs;
     }
   }
 
-  // Suppress the unused-var lint for the throwaway registrationsResult
-  // declared above so the parallel-shape is preserved if we extend it later.
-  void registrationsResult;
+  if (!isGlobalAdmin) {
+    if (profile.role !== 'student') {
+      return res.status(403).json({
+        ok: false,
+        error: 'Organizers can only view student profiles.',
+      });
+    }
+
+    // Filter registrations so organizers only see registrations for their own club's events
+    studentRegistrations = studentRegistrations.filter((r: any) => {
+      const evClub = r.events?.club_id || DEFAULT_CLUB_ID;
+      return evClub === userClubId;
+    });
+  }
+
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+  const orgClubId = profile.role === 'organizer' ? (studentClubId || null) : null;
+
+  const isTargetAdmin = profile.role === 'admin';
+  const isTargetSelf = req.user?.id === profile.id;
+  let canEdit = false;
+  if (isGlobalAdmin) {
+    canEdit = !isTargetAdmin || isTargetSelf;
+  } else if (req.profile?.role === 'organizer') {
+    canEdit = profile.role === 'student';
+  }
 
   return res.json({
     ok: true,
-    profile: profileResult.data,
+    profile: {
+      ...profile,
+      club_id: orgClubId,
+      club: orgClubId ? (clubsMap.get(orgClubId) || null) : null,
+      canEdit,
+    },
+    canEdit,
     registrations: studentRegistrations,
   });
 });
@@ -788,9 +1115,56 @@ router.put('/students/:id', async (req: AuthedRequest, res: Response) => {
     return res.status(400).json({ ok: false, error: 'Invalid student id' });
   }
 
+  const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const isOrganizer = req.profile?.role === 'organizer';
+  const requesterId = req.user?.id;
+  const targetId = parsed.data;
+
+  // Retrieve the target user's current profile from database
+  const { data: targetProfile, error: targetError } = await supabase
+    .from('profiles')
+    .select('id, role, club_id, email')
+    .eq('id', targetId)
+    .single();
+
+  if (targetError || !targetProfile) {
+    return res.status(404).json({ ok: false, error: 'Student profile not found' });
+  }
+
+  // 1. Organizers can ONLY edit the profile of students (all students belong to all clubs)
+  if (isOrganizer) {
+    if (targetProfile.role !== 'student') {
+      return res.status(403).json({
+        ok: false,
+        error: 'Organizers can only edit the profile of students.',
+      });
+    }
+  } else if (!isGlobalAdmin) {
+    return res.status(403).json({ ok: false, error: 'Unauthorized' });
+  }
+
+  // 2. Admins can edit the profile of anyone (students, organizers) but NOT another admin
+  if (isGlobalAdmin) {
+    if (targetProfile.role === 'admin' && targetId !== requesterId) {
+      return res.status(403).json({
+        ok: false,
+        error: 'Administrators cannot edit the profile of another administrator.',
+      });
+    }
+  }
+
   const validation = studentProfileUpdateSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
+  }
+
+  // Non-admins cannot alter roles or clubs
+  if (!isGlobalAdmin && (validation.data.role !== undefined || validation.data.club_id !== undefined)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Only administrators can assign organizer or admin roles.',
+    });
   }
 
   // Block admins from demoting themselves — would lock them out of the console.
@@ -816,7 +1190,6 @@ router.put('/students/:id', async (req: AuthedRequest, res: Response) => {
     payload.year = null;
   }
 
-  const supabase = createAdminClient();
   const { error } = await supabase
     .from('profiles')
     .update(payload)
@@ -830,36 +1203,124 @@ router.put('/students/:id', async (req: AuthedRequest, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.patch('/students/:id', async (req: Request, res: Response) => {
+router.patch('/students/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid student id' });
   }
 
-  const roleSchema = z.enum(['student', 'admin', 'organizer']);
-  const parsedRole = roleSchema.safeParse(req.body.role);
-  if (!parsedRole.success) {
-    return res.status(400).json({ ok: false, error: 'Invalid role' });
+  if (req.profile?.role !== 'admin') {
+    return res.status(403).json({ ok: false, error: 'Only administrators can change user roles and clubs.' });
+  }
+
+  const patchSchema = z.object({
+    role: z.enum(['student', 'admin', 'organizer']).optional(),
+    club_id: z.string().uuid().nullable().optional(),
+  });
+  const parsedBody = patchSchema.safeParse(req.body);
+  if (!parsedBody.success) {
+    return res.status(400).json({ ok: false, error: parsedBody.error.issues[0].message });
+  }
+
+  // Prevent admin from demoting self
+  if (parsedBody.data.role && parsedBody.data.role !== 'admin' && req.user?.id === parsed.data) {
+    return res.status(400).json({ ok: false, error: 'You cannot demote your own admin account.' });
   }
 
   const supabase = createAdminClient();
-  const { error } = await supabase
-    .from('profiles')
-    .update({ role: parsedRole.data })
-    .eq('id', parsed.data);
+  const requesterId = req.user?.id;
+  const targetId = parsed.data;
 
-  if (error) {
-    return res.status(500).json({ ok: false, error: 'Failed to update role' });
+  // Retrieve target user profile to enforce admin protection
+  const { data: targetProfile, error: targetError } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', targetId)
+    .single();
+
+  if (targetError || !targetProfile) {
+    return res.status(404).json({ ok: false, error: 'User profile not found' });
   }
 
+  // Admins cannot modify another admin
+  if (targetProfile.role === 'admin' && targetId !== requesterId) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Administrators cannot modify another administrator account.',
+    });
+  }
+
+  const updateData: Database['public']['Tables']['profiles']['Update'] = {};
+
+  if (parsedBody.data.role !== undefined) {
+    updateData.role = parsedBody.data.role;
+    // Students and Admins must never have a club_id
+    if (parsedBody.data.role !== 'organizer') {
+      updateData.club_id = null;
+    }
+  }
+
+  if (parsedBody.data.club_id !== undefined) {
+    if (parsedBody.data.role === 'organizer') {
+      updateData.club_id = parsedBody.data.club_id;
+    } else if (parsedBody.data.role !== undefined) {
+      updateData.club_id = null;
+    } else {
+      const { data: curr } = await supabase.from('profiles').select('role').eq('id', parsed.data).single();
+      updateData.club_id = curr?.role === 'organizer' ? parsedBody.data.club_id : null;
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).json({ ok: false, error: 'No fields provided to update.' });
+  }
+
+  let { data: updated, error } = await supabase
+    .from('profiles')
+    .update(updateData)
+    .eq('id', parsed.data)
+    .select('*')
+    .single();
+
+  if (isColumnMissingErr(error)) {
+    delete (updateData as any).club_id;
+    const retry = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', parsed.data)
+      .select('*')
+      .single();
+    updated = retry.data;
+    error = retry.error;
+  }
+
+  if (error) {
+    return res.status(500).json({ ok: false, error: 'Failed to update user profile' });
+  }
+
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+  const orgClubId = updated?.role === 'organizer' ? (updated.club_id || null) : null;
+
   appCache.invalidateTags(['auth_sessions']);
-  return res.json({ ok: true });
+  return res.json({
+    ok: true,
+    profile: {
+      ...updated,
+      club_id: orgClubId,
+      club: orgClubId ? (clubsMap.get(orgClubId) || null) : null,
+    },
+  });
 });
 
 router.delete('/students/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid student id' });
+  }
+
+  if (req.profile?.role !== 'admin') {
+    return res.status(403).json({ ok: false, error: 'Only administrators can delete student accounts.' });
   }
 
   // Prevent self-deletion to avoid admin lockout
@@ -869,12 +1330,20 @@ router.delete('/students/:id', async (req: AuthedRequest, res: Response) => {
 
   const supabase = createAdminClient();
 
-  // Retrieve student's email to clean up event registrations
+  // Retrieve student's email and role to clean up event registrations and enforce permissions
   const { data: studentProfile } = await supabase
     .from('profiles')
-    .select('email')
+    .select('email, role')
     .eq('id', parsed.data)
     .maybeSingle();
+
+  // Admins cannot delete another admin
+  if (studentProfile?.role === 'admin') {
+    return res.status(403).json({
+      ok: false,
+      error: 'Administrators cannot delete another administrator account.',
+    });
+  }
 
   if (studentProfile?.email) {
     try {
@@ -942,7 +1411,7 @@ router.post('/announcements', async (req: AuthedRequest, res: Response) => {
     return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
   }
 
-  const { publish_date, ...data } = validation.data;
+  const { publish_date: _publish_date, ...data } = validation.data;
   const supabase = createAdminClient();
   const { error } = await supabase.from('announcements').insert({
     ...data,
@@ -970,7 +1439,7 @@ router.put('/announcements/:id', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
   }
 
-  const { publish_date, ...data } = validation.data;
+  const { publish_date: _publish_date, ...data } = validation.data;
   const supabase = createAdminClient();
   const { error } = await supabase
     .from('announcements')

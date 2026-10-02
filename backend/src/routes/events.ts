@@ -17,7 +17,10 @@ function sanitizeText(text: string) {
     .replace(/'/g, '&#x27;');
 }
 
-router.get('/', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
+import { getAllClubs, getDefaultClub } from '../lib/clubsHelper';
+import { DEFAULT_CLUB_ID } from '../constants/clubs';
+
+router.get('/', cacheRoute(60, ['events'], 30), async (req: Request, res: Response) => {
   const supabase = createAnonClient();
   const { data, error } = await supabase
     .from('events')
@@ -28,7 +31,28 @@ router.get('/', cacheRoute(60, ['events'], 30), async (_req: Request, res: Respo
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to load events' });
   }
-  return res.json({ ok: true, events: data });
+
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+  const defaultClub = getDefaultClub();
+
+  let events = (data || []).map((ev: any) => {
+    const clubId = ev.club_id || DEFAULT_CLUB_ID;
+    return {
+      ...ev,
+      club_id: clubId,
+      club: clubsMap.get(clubId) || defaultClub,
+    };
+  });
+
+  const clubParam = req.query.club as string | undefined;
+  if (clubParam) {
+    events = events.filter((ev: any) =>
+      ev.club_id === clubParam || ev.club?.slug === clubParam
+    );
+  }
+
+  return res.json({ ok: true, events });
 });
 
 router.get('/featured', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
@@ -116,7 +140,21 @@ router.get('/slug/:slug', cacheRoute(60, ['events'], 30), async (req: Request, r
   if (error || !data) {
     return res.status(404).json({ ok: false, error: 'Event not found' });
   }
-  return res.json({ ok: true, event: data });
+
+  const allClubs = await getAllClubs();
+  const clubsMap = new Map(allClubs.map(c => [c.id, c]));
+  const defaultClub = getDefaultClub();
+  const clubId = (data as any).club_id || DEFAULT_CLUB_ID;
+  const club = clubsMap.get(clubId) || defaultClub;
+
+  return res.json({
+    ok: true,
+    event: {
+      ...(data as Record<string, any>),
+      club_id: clubId,
+      club,
+    },
+  });
 });
 
 router.get('/slug/:slug/related', cacheRoute(60, ['events'], 30), async (req: Request, res: Response) => {

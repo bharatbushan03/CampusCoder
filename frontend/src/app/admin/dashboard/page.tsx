@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
 
 interface AnalyticsPayload {
@@ -71,6 +72,10 @@ interface AnalyticsPayload {
 }
 
 export default function AdminDashboardPage() {
+  const { profile } = useAuth();
+  const isOrganizer = profile?.role === 'organizer';
+  const clubName = profile?.club?.name;
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [data, setData] = useState<AnalyticsPayload | null>(null);
@@ -128,10 +133,20 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">
-            Admin <span className="text-emerald-500">Dashboard</span>
+            {isOrganizer ? (
+              <>
+                {clubName || 'Chapter'} <span className="text-sky-400">Dashboard</span>
+              </>
+            ) : (
+              <>
+                Admin <span className="text-emerald-500">Dashboard</span>
+              </>
+            )}
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Real-time analytics and telemetry across students, events, and registrations.
+            {isOrganizer
+              ? `Real-time analytics and telemetry scoped to ${clubName || 'chapter'} events, RSVPs, and attendees.`
+              : 'Real-time analytics and telemetry across all campus communities, events, and students.'}
           </p>
         </div>
 

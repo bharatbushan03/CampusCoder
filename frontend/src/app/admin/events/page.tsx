@@ -5,9 +5,10 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
   AlertTriangle, PlusCircle, Trash2,
-  Search, Filter, ArrowLeft, ArrowUpRight, Eye
+  Search, Filter, ArrowLeft, ArrowUpRight, Eye, Shield, Lock
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
@@ -33,10 +34,21 @@ type EventRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  club_id?: string;
+  club?: {
+    id: string;
+    name: string;
+    slug: string;
+    category?: string;
+  };
+  can_edit?: boolean;
 };
 type EventStatus = 'draft' | 'published' | 'completed' | 'cancelled';
 
 export default function AdminEventsListingPage() {
+  const searchParams = useSearchParams();
+  const initialClub = searchParams ? searchParams.get('club') || '' : '';
+
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [isDbOffline, setIsDbOffline] = useState(false);
@@ -44,6 +56,7 @@ export default function AdminEventsListingPage() {
   // Filtering & search
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [clubFilter, setClubFilter] = useState(initialClub);
 
   const loadEvents = async () => {
     try {
@@ -55,9 +68,9 @@ export default function AdminEventsListingPage() {
       setIsDbOffline(true);
       const now = new Date().toISOString();
       setEvents([
-        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', short_description: null, full_description: null, event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', status: 'published', meeting_link: 'https://meet.google.com/abc', registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now },
-        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', short_description: null, full_description: null, event_type: 'webinar', mode: 'online', date: '2026-06-12', start_time: '18:00', end_time: '19:30', status: 'published', meeting_link: 'https://meet.google.com/def', registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now },
-        { id: '3', title: 'Weekly Coding Sprint: HackerRank practice', slug: 'weekly-coding-sprint-hackerrank', short_description: null, full_description: null, event_type: 'coding_session', mode: 'online', date: '2026-05-20', start_time: '17:00', end_time: '19:00', status: 'completed', meeting_link: null, registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now }
+        { id: '1', title: 'Hands-on React & Next.js Workshop', slug: 'react-nextjs-workshop', short_description: null, full_description: null, event_type: 'workshop', mode: 'online', date: '2026-06-05', start_time: '14:00', end_time: '16:00', status: 'published', meeting_link: 'https://meet.google.com/abc', registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now, can_edit: true },
+        { id: '2', title: 'Cracking the Coding Interview: AMA', slug: 'cracking-coding-interview-ama', short_description: null, full_description: null, event_type: 'webinar', mode: 'online', date: '2026-06-12', start_time: '18:00', end_time: '19:30', status: 'published', meeting_link: 'https://meet.google.com/def', registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now, can_edit: true },
+        { id: '3', title: 'Weekly Coding Sprint: HackerRank practice', slug: 'weekly-coding-sprint-hackerrank', short_description: null, full_description: null, event_type: 'coding_session', mode: 'online', date: '2026-05-20', start_time: '17:00', end_time: '19:00', status: 'completed', meeting_link: null, registration_deadline: null, banner_url: null, meeting_link_sent_at: null, summary: null, recording_url: null, created_by: null, created_at: now, updated_at: now, can_edit: true }
       ]);
     } finally {
       setLoading(false);
@@ -65,7 +78,6 @@ export default function AdminEventsListingPage() {
   };
 
   useEffect(() => {
-     
     void loadEvents();
   }, []);
 
@@ -96,7 +108,8 @@ export default function AdminEventsListingPage() {
     const matchesSearch = ev.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           ev.slug?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === '' || ev.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesClub = !clubFilter || ev.club?.slug === clubFilter || ev.club_id === clubFilter;
+    return matchesSearch && matchesStatus && matchesClub;
   });
 
   if (loading) {
@@ -168,6 +181,28 @@ export default function AdminEventsListingPage() {
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
+
+        <div className="relative w-full sm:w-64">
+          <Shield className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
+          <select
+            value={clubFilter}
+            onChange={(e) => setClubFilter(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+          >
+            <option value="">All Clubs</option>
+            {Array.from(
+              new Map(
+                events
+                  .filter((e) => e.club)
+                  .map((e) => [e.club?.id || e.club_id || '', e.club?.name || 'Central'])
+              ).entries()
+            ).map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Events Table */}
@@ -178,6 +213,7 @@ export default function AdminEventsListingPage() {
               <thead>
                 <tr className="border-b border-slate-900 bg-slate-950/60 font-mono text-xs text-slate-500">
                   <th className="py-4 px-6 font-semibold">Sprint Title</th>
+                  <th className="py-4 px-6 font-semibold">Hosting Club</th>
                   <th className="py-4 px-6 font-semibold">Date & Type</th>
                   <th className="py-4 px-6 font-semibold">Status</th>
                   <th className="py-4 px-6 font-semibold text-right">Actions</th>
@@ -194,6 +230,12 @@ export default function AdminEventsListingPage() {
                         </Link>
                       </div>
                       <div className="text-xs text-slate-500 font-mono mt-0.5">slug: {ev.slug}</div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                        <Shield className="size-3" />
+                        {ev.club?.name || 'CampusCoder Central'}
+                      </span>
                     </td>
                     <td className="py-4 px-6">
                       <div className="font-mono text-xs text-slate-200">{ev.date} @ {ev.start_time}</div>
@@ -213,48 +255,59 @@ export default function AdminEventsListingPage() {
                       <div className="flex items-center justify-end gap-2">
                         <Link href={`/admin/events/${ev.id}`}>
                           <button type="button" className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 rounded flex items-center gap-1 cursor-pointer">
-                            <Eye className="size-3" /> Manage
+                            <Eye className="size-3" /> {ev.can_edit === false ? 'View' : 'Manage'}
                           </button>
                         </Link>
-                        {ev.status !== 'published' && (
-                          <button type="button"
-                            onClick={() => handleUpdateStatus(ev.id, 'published')}
-                            className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 rounded transition-colors cursor-pointer"
+                        {ev.can_edit === false ? (
+                          <span
+                            className="text-[10px] font-mono text-amber-400/90 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded flex items-center gap-1"
+                            title={`Only ${ev.club?.name || 'hosting club'} organizers or admins can modify this event.`}
                           >
-                            Publish
-                          </button>
+                            <Lock className="size-3" /> View Only
+                          </span>
+                        ) : (
+                          <>
+                            {ev.status !== 'published' && (
+                              <button type="button"
+                                onClick={() => handleUpdateStatus(ev.id, 'published')}
+                                className="text-[10px] font-mono px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 rounded transition-colors cursor-pointer"
+                              >
+                                Publish
+                              </button>
+                            )}
+                            {ev.status === 'published' && (
+                              <button type="button"
+                                onClick={() => handleUpdateStatus(ev.id, 'draft')}
+                                className="text-[10px] font-mono px-2 py-1 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white rounded transition-colors cursor-pointer"
+                              >
+                                Unpublish
+                              </button>
+                            )}
+                            {ev.status === 'published' && (
+                              <button type="button"
+                                onClick={() => handleUpdateStatus(ev.id, 'completed')}
+                                className="text-[10px] font-mono px-2 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-colors cursor-pointer"
+                              >
+                                Complete
+                              </button>
+                            )}
+                            {ev.status !== 'cancelled' && ev.status !== 'completed' && (
+                              <button type="button"
+                                onClick={() => handleUpdateStatus(ev.id, 'cancelled')}
+                                className="text-[10px] font-mono px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                            <button type="button"
+                              onClick={() => handleDeleteEvent(ev.id)}
+                              className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
+                              title="Delete Event"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          </>
                         )}
-                        {ev.status === 'published' && (
-                          <button type="button"
-                            onClick={() => handleUpdateStatus(ev.id, 'draft')}
-                            className="text-[10px] font-mono px-2 py-1 bg-slate-800 border border-slate-700 text-slate-400 hover:text-white rounded transition-colors cursor-pointer"
-                          >
-                            Unpublish
-                          </button>
-                        )}
-                        {ev.status === 'published' && (
-                          <button type="button"
-                            onClick={() => handleUpdateStatus(ev.id, 'completed')}
-                            className="text-[10px] font-mono px-2 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 rounded transition-colors cursor-pointer"
-                          >
-                            Complete
-                          </button>
-                        )}
-                        {ev.status !== 'cancelled' && ev.status !== 'completed' && (
-                          <button type="button"
-                            onClick={() => handleUpdateStatus(ev.id, 'cancelled')}
-                            className="text-[10px] font-mono px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded transition-colors cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        <button type="button"
-                          onClick={() => handleDeleteEvent(ev.id)}
-                          className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
-                          title="Delete Event"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>

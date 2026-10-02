@@ -12,7 +12,6 @@ import {
   AlertOctagon,
   AlertTriangle,
   MessageSquare,
-  Phone,
   Target,
   BookOpen,
   Users,
@@ -64,6 +63,8 @@ type EventData = {
   photos_zip_url?: string | null;
   event_owners?: EventOwnerRow[] | null;
   speaker?: { name: string; role?: string; bio?: string } | null;
+  club_id?: string | null;
+  club?: { id: string; name: string; slug: string; category?: string } | null;
 } & Partial<CodingEvent>;
 type RelatedEvent = EventData;
 type CommunityLinkItem = { id?: string; platform: string; url: string; is_active?: boolean };
@@ -224,12 +225,14 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
 
   const isRegistrationDisabled = isDeadlinePassed || isCompleted || isCancelled;
 
-  const speaker = event?.event_owners?.[0] || event?.speaker || {
-    name: 'CampusCoder Tech Panel',
-    role: 'Industry Mentors',
-    bio: 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.',
+  const owners = (event?.event_owners || []).filter((o: any) => o && o.name && typeof o.name === 'string' && o.name.trim().length > 0);
+  const hasAssignedSpeaker = owners.length > 0 || Boolean(event?.speaker && typeof event.speaker.name === 'string' && event.speaker.name.trim().length > 0);
+  const speaker = owners[0] || event?.speaker || {
+    name: event?.club?.name ? `${event.club.name} Community Leads` : 'CampusCoder Mentors',
+    role: event?.club?.name ? `${event.club.name} Organizing Team` : 'Community Leads',
+    bio: 'Guiding technical workshops, code walkthroughs, and peer mentoring sessions on campus.',
   };
-  const speakerBio = 'bio' in speaker ? (speaker.bio || 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.') : 'Seniors and industry mentors volunteering to build coding competencies and bridge knowledge gaps on campus.';
+  const speakerBio = ('bio' in speaker && speaker.bio) ? speaker.bio : 'Guiding technical workshops, code walkthroughs, and peer mentoring sessions on campus.';
 
   const eventType = (event?.event_type || event?.type || 'workshop') as string;
   const learningItems = learningByType[eventType] || learningByType.workshop;
@@ -498,19 +501,28 @@ export default function EventDetailsPage({ initialEvent }: { initialEvent: Event
               </Card>
             </AnimatedSection>
 
-            {/* Speakers */}
+            {/* Speakers / Host Panel */}
             <AnimatedSection delay={0.14}>
               <Card hoverEffect className="p-6 md:p-8">
-                <h2 className="text-base font-semibold text-slate-50 mb-4">Speaker</h2>
+                <h2 className="text-base font-semibold text-slate-50 mb-4">
+                  {hasAssignedSpeaker ? 'Speaker & Mentor' : 'Hosted By'}
+                </h2>
                 <div className="flex items-start gap-4">
                   <div className="size-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
                     <span className="text-sm font-bold text-emerald-400">
-                      {speaker.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+                      {(speaker.name || 'CC')
+                        .trim()
+                        .split(' ')
+                        .filter(Boolean)
+                        .map((n: string) => n[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase() || 'CC'}
                     </span>
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-slate-50">{speaker.name}</h3>
-                    <p className="text-xs text-emerald-400 mt-0.5">{speaker.role}</p>
+                    {speaker.role && <p className="text-xs text-emerald-400 mt-0.5">{speaker.role}</p>}
                     <p className="text-xs text-slate-500 mt-2 leading-relaxed">
                       {speakerBio}
                     </p>

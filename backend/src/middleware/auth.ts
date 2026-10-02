@@ -8,6 +8,8 @@ import { createAdminClient } from '../utils/supabase/admin';
 import { appCache } from '../lib/cache';
 import { fetchWithTimeout } from '../utils/supabase/fetch';
 
+import { getClubByIdOrSlug } from '../lib/clubsHelper';
+
 export interface AuthedRequest extends Request {
   user?: {
     id: string;
@@ -18,6 +20,16 @@ export interface AuthedRequest extends Request {
     email?: string | null;
     role: string;
     full_name?: string | null;
+    college?: string | null;
+    branch?: string | null;
+    year?: string | null;
+    club_id?: string | null;
+    club?: {
+      id: string;
+      name: string;
+      slug: string;
+      category?: string | null;
+    } | null;
   } | null;
 }
 
@@ -125,15 +137,35 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
     }
 
     const supabase = createAdminClient();
-    const { data: profile } = await supabase
+    let profile: any = null;
+    const { data: profileData, error: profileErr } = await supabase
       .from('profiles')
-      .select('id, email, role, full_name')
+      .select('id, email, role, full_name, college, branch, year, club_id')
       .eq('id', user.id)
       .maybeSingle();
+
+    if (profileErr || !profileData) {
+      // Fallback in case club_id column doesn't exist yet
+      const { data: fallbackProfile } = await supabase
+        .from('profiles')
+        .select('id, email, role, full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      profile = fallbackProfile;
+    } else {
+      profile = profileData;
+    }
 
     if (!profile) {
       clearSessionCookies(res);
       return res.status(401).json({ ok: false, error: 'Account not found or has been deleted.' });
+    }
+
+    if (profile.club_id) {
+      const club = await getClubByIdOrSlug(profile.club_id);
+      profile.club = club ? { id: club.id, name: club.name, slug: club.slug, category: club.category } : null;
+    } else {
+      profile.club = null;
     }
 
     // Cache verified session for 30 seconds
@@ -164,15 +196,34 @@ export async function getOptionalSession(req: AuthedRequest, res: Response) {
   if (!user) return { user: null, profile: null };
 
   const supabase = createAdminClient();
-  const { data: profile } = await supabase
+  let profile: any = null;
+  const { data: profileData, error: profileErr } = await supabase
     .from('profiles')
-    .select('id, email, role, full_name')
+    .select('id, email, role, full_name, college, branch, year, club_id')
     .eq('id', user.id)
     .maybeSingle();
+
+  if (profileErr || !profileData) {
+    const { data: fallbackProfile } = await supabase
+      .from('profiles')
+      .select('id, email, role, full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+    profile = fallbackProfile;
+  } else {
+    profile = profileData;
+  }
 
   if (!profile) {
     clearSessionCookies(res);
     return { user: null, profile: null };
+  }
+
+  if (profile.club_id) {
+    const club = await getClubByIdOrSlug(profile.club_id);
+    profile.club = club ? { id: club.id, name: club.name, slug: club.slug, category: club.category } : null;
+  } else {
+    profile.club = null;
   }
 
   if (accessToken) {

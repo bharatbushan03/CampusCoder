@@ -77,3 +77,4 @@ CHAT.md
 # Supabase local CLI cache
 supabase/.temp/
 .temp/
+.vscode/

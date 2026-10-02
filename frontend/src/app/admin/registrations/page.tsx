@@ -6,16 +6,23 @@ import { Button } from '@/components/ui/Button';
 import { 
   Calendar, CheckCircle2, AlertTriangle, Search, 
   Filter, Download, Eye, Trash2, X, ArrowLeft, Mail, Phone, 
-  School, GraduationCap, Code2, MessageSquare, Clock
+  School, GraduationCap, Code2, MessageSquare, Clock, Shield
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { Skeleton, SkeletonTable } from '@/components/ui/Skeleton';
+import { useAuth } from '@/lib/auth';
 
 type EventRow = {
   id: string;
   title: string;
+  club_id?: string;
+  club?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
 };
 type RegistrationRow = {
   id: string;
@@ -34,11 +41,15 @@ type RegistrationRow = {
 };
 type AttendanceStatus = 'registered' | 'attended' | 'absent';
 type RegistrationType = RegistrationRow & {
-  events: Pick<EventRow, 'title'> | null;
+  events: (Pick<EventRow, 'title'> & { club_id?: string; club?: { name: string } }) | null;
 };
 type EventFilterOption = Pick<EventRow, 'id' | 'title'>;
 
 export default function AdminRegistrationsPage() {
+  const { profile } = useAuth();
+  const isGlobalAdmin = profile?.role === 'admin';
+  const userClubName = profile?.club?.name || 'Your Club';
+
   const [loading, setLoading] = useState(true);
   const [registrations, setRegistrations] = useState<RegistrationType[]>([]);
   const [events, setEvents] = useState<EventFilterOption[]>([]);
@@ -401,7 +412,12 @@ export default function AdminRegistrationsPage() {
                       <div className="text-[10px] font-mono text-slate-500 mt-0.5">Lvl: {reg.coding_level || 'Not Specified'}</div>
                     </td>
                     <td className="py-4 px-6 font-medium text-slate-200">
-                      {reg.events?.title || 'General RSVP'}
+                      <div>{reg.events?.title || 'General RSVP'}</div>
+                      {reg.events?.club?.name && (
+                        <div className="inline-flex items-center gap-1 text-[10px] font-mono text-sky-400 mt-0.5">
+                          <Shield className="size-2.5" /> {reg.events.club.name}
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 px-6">
                       <select

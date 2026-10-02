@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Users,
   Search,
-  Filter,
   Download,
   Eye,
   Trash2,
@@ -23,11 +22,14 @@ import {
   AlertTriangle,
   Loader2,
   CheckCircle2,
+  Shield,
+  ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { deleteStudent } from '@/app/actions/adminActions';
+import { useAuth } from '@/lib/auth';
 
 type ProfileRow = {
   id: string;
@@ -37,6 +39,13 @@ type ProfileRow = {
   college: string | null;
   branch: string | null;
   year: string | null;
+  club_id?: string | null;
+  club?: {
+    id: string;
+    name: string;
+    slug: string;
+    category?: string;
+  };
   created_at: string;
 };
 type RegistrationRow = {
@@ -57,6 +66,11 @@ type StudentWithStats = ProfileRow & {
 };
 
 export default function AdminStudentsPage() {
+  const { profile } = useAuth();
+
+  const isGlobalAdmin = profile?.role === 'admin';
+  const userClubName = profile?.club?.name || 'Your Club';
+
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<StudentWithStats[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -64,7 +78,6 @@ export default function AdminStudentsPage() {
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [roleFilter, setRoleFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'active' | 'inactive' | ''>('');
 
   // Modals state
@@ -72,17 +85,51 @@ export default function AdminStudentsPage() {
   const [studentToDelete, setStudentToDelete] = useState<StudentWithStats | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [availableClubs, setAvailableClubs] = useState<Array<{ id: string; name: string; slug: string }>>([
+    { id: '00000000-0000-0000-0000-000000000001', name: 'ACM', slug: 'acm' },
+    { id: '00000000-0000-0000-0000-000000000002', name: 'IEEE', slug: 'ieee' },
+    { id: '00000000-0000-0000-0000-000000000003', name: 'LeetCode', slug: 'leetcode' },
+  ]);
+
+  // Admin Permission Control Modal
+  const [permissionStudent, setPermissionStudent] = useState<StudentWithStats | null>(null);
+  const [targetRole, setTargetRole] = useState<'student' | 'admin' | 'organizer'>('student');
+  const [targetClubId, setTargetClubId] = useState<string>('');
+  const [isSavingPermission, setIsSavingPermission] = useState(false);
+
+  const openPermissionModal = (student: StudentWithStats) => {
+    setPermissionStudent(student);
+    setTargetRole((student.role as any) || 'student');
+    setTargetClubId(student.club_id || student.club?.id || availableClubs[0]?.id || '');
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionStudent) return;
+    setIsSavingPermission(true);
+    try {
+      const clubIdToAssign = targetRole === 'organizer' ? (targetClubId || availableClubs[0]?.id) : null;
+      await handleUpdateRoleAndClub(permissionStudent.id, targetRole, clubIdToAssign);
+      setPermissionStudent(null);
+    } finally {
+      setIsSavingPermission(false);
+    }
+  };
 
   // Fetch students from backend
   const loadStudentsData = useCallback(async () => {
     try {
-      const [data, me] = await Promise.all([
+      const [data, me, clubsData] = await Promise.all([
         api<{ ok: boolean; profiles: ProfileRow[]; registrations: RegistrationRow[] }>('/admin/students'),
         api<{ ok: boolean; user: { id: string } }>('/auth/me').catch(() => ({ ok: false, user: { id: '' } })),
+        api<{ ok: boolean; clubs: Array<{ id: string; name: string; slug: string }> }>('/clubs').catch(() => ({ ok: false, clubs: [] })),
       ]);
 
       if (me.user?.id) {
         setCurrentUserId(me.user.id);
+      }
+
+      if (clubsData?.ok && clubsData.clubs && clubsData.clubs.length > 0) {
+        setAvailableClubs(clubsData.clubs);
       }
 
       // Calculate stats per student
@@ -148,20 +195,55 @@ export default function AdminStudentsPage() {
     void loadStudentsData();
   }, [loadStudentsData]);
 
-  // Update student role
-  const handleUpdateRole = async (studentId: string, newRole: 'student' | 'admin' | 'organizer') => {
+  // Update student role & assigned club
+  const handleUpdateRoleAndClub = async (
+    studentId: string,
+    newRole: 'student' | 'admin' | 'organizer',
+    newClubId?: string | null
+  ) => {
     try {
-      await api(`/admin/students/${studentId}`, {
+      const payload: { role: string; club_id?: string | null } = { role: newRole };
+      if (newClubId !== undefined) {
+        payload.club_id = newClubId;
+      }
+
+      const res = await api<{ ok: boolean; profile?: any }>(`/admin/students/${studentId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify(payload),
       });
 
-      setStudents((prev) => prev.map((s) => (s.id === studentId ? { ...s, role: newRole } : s)));
+      const targetClub = availableClubs.find((c) => c.id === newClubId);
+
+      setStudents((prev) =>
+        prev.map((s) => {
+          if (s.id !== studentId) return s;
+          const updatedClub = newRole === 'organizer'
+            ? (res.profile?.club || (targetClub ? { id: targetClub.id, name: targetClub.name, slug: targetClub.slug } : null))
+            : null;
+          return {
+            ...s,
+            role: newRole,
+            club_id: newRole === 'organizer' ? (newClubId || null) : null,
+            club: updatedClub,
+          };
+        })
+      );
 
       if (selectedStudent && selectedStudent.id === studentId) {
-        setSelectedStudent({ ...selectedStudent, role: newRole });
+        const updatedClub = newRole === 'organizer'
+          ? (res.profile?.club || (targetClub ? { id: targetClub.id, name: targetClub.name, slug: targetClub.slug } : null))
+          : null;
+        setSelectedStudent({
+          ...selectedStudent,
+          role: newRole,
+          club_id: newRole === 'organizer' ? (newClubId || null) : null,
+          club: updatedClub,
+        });
       }
-      setFeedbackMsg({ type: 'success', text: `Role updated to ${newRole}` });
+
+      const clubName = targetClub?.name || selectedStudent?.club?.name || 'Club';
+      const label = newRole === 'organizer' ? `${clubName} Organizer` : newRole === 'admin' ? 'Global Admin' : 'Student (General)';
+      setFeedbackMsg({ type: 'success', text: `Role updated to ${label}` });
       setTimeout(() => setFeedbackMsg(null), 4000);
     } catch (err) {
       setFeedbackMsg({ type: 'error', text: 'Failed to update role: ' + getErrorMessage(err) });
@@ -200,13 +282,12 @@ export default function AdminStudentsPage() {
       student.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.college?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesRole = roleFilter === '' || student.role === roleFilter;
     const matchesStatus =
       statusFilter === '' ||
       (statusFilter === 'active' && student.registrationCount > 0) ||
       (statusFilter === 'inactive' && student.registrationCount === 0);
 
-    return matchesSearch && matchesRole && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   // Export students as CSV
@@ -258,10 +339,8 @@ export default function AdminStudentsPage() {
   }, [filteredStudents]);
 
   // Calculate statistics
-  const totalStudents = students.filter((s) => s.role === 'student').length;
-  const activeStudents = students.filter((s) => s.role === 'student' && s.registrationCount > 0).length;
-  const adminsCount = students.filter((s) => s.role === 'admin').length;
-  const organizersCount = students.filter((s) => s.role === 'organizer').length;
+  const totalStudents = students.length;
+  const activeStudents = students.filter((s) => s.registrationCount > 0).length;
   const totalRegistrations = students.reduce((sum, s) => sum + s.registrationCount, 0);
 
   if (loading) {
@@ -296,9 +375,11 @@ export default function AdminStudentsPage() {
             <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
           </Link>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">
-            User & Student <span className="text-emerald-500">Accounts</span>
+            Campus Students <span className="text-emerald-500">Directory</span>
           </h1>
-          <p className="text-sm text-slate-400">View, edit, promote, and delete student or staff accounts.</p>
+          <p className="text-sm text-slate-400">
+            All registered campus students across all communities. View activity, RSVPs, and manage student profiles.
+          </p>
         </div>
         <div>
           <Button variant="primary" onClick={handleExportCSV} className="flex items-center gap-1.5 w-full sm:w-auto">
@@ -343,7 +424,7 @@ export default function AdminStudentsPage() {
       )}
 
       {/* Metrics Panel */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className={`grid grid-cols-2 ${isGlobalAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
         <Card hoverEffect={false} className="border-slate-900 bg-slate-950/40 p-4">
           <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Total Students</p>
           <p className="text-2xl font-mono font-bold text-white mt-1">{totalStudents}</p>
@@ -355,44 +436,36 @@ export default function AdminStudentsPage() {
           <p className="text-2xl font-mono font-bold text-emerald-400 mt-1">{activeStudents}</p>
         </Card>
         <Card hoverEffect={false} className="border-slate-900 bg-slate-950/40 p-4">
-          <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Admins</p>
-          <p className="text-2xl font-mono font-bold text-cyan-400 mt-1">{adminsCount}</p>
-        </Card>
-        <Card hoverEffect={false} className="border-slate-900 bg-slate-950/40 p-4">
-          <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Organizers</p>
-          <p className="text-2xl font-mono font-bold text-purple-400 mt-1">{organizersCount}</p>
-        </Card>
-        <Card hoverEffect={false} className="border-slate-900 bg-slate-950/40 p-4">
           <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-slate-500">Total RSVPs</p>
           <p className="text-2xl font-mono font-bold text-amber-400 mt-1">{totalRegistrations}</p>
         </Card>
+        {isGlobalAdmin && (
+          <Link href="/admin/clubs" className="block">
+            <Card hoverEffect={true} className="border-slate-800 bg-slate-900/40 p-4 hover:border-emerald-500/40 transition-colors h-full flex flex-col justify-between">
+              <div>
+                <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                  <Shield className="size-3" /> Community Organizers
+                </p>
+                <p className="text-xs text-slate-300 mt-1">Organizers are managed in</p>
+              </div>
+              <p className="text-xs font-mono text-emerald-400 font-semibold mt-1">Clubs & Communities →</p>
+            </Card>
+          </Link>
+        )}
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-950/40 p-4 rounded-xl border border-slate-900">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
           <input
-            aria-label="Search name, email, college"
+            aria-label="Search student name, email, college"
             type="text"
-            placeholder="Search name, email, college&hellip;"
+            placeholder="Search student name, email, college&hellip;"
             value={searchQuery}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
           />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-          <select
-            value={roleFilter}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
-          >
-            <option value="">All Roles</option>
-            <option value="student">Students</option>
-            <option value="admin">Admins</option>
-            <option value="organizer">Organizers</option>
-          </select>
         </div>
         <div className="relative">
           <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
@@ -415,8 +488,7 @@ export default function AdminStudentsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-900 bg-slate-950/60 font-mono text-xs text-slate-500 uppercase tracking-widest">
-                  <th className="py-4 px-6 font-semibold">User</th>
-                  <th className="py-4 px-6 font-semibold">Role</th>
+                  <th className="py-4 px-6 font-semibold">Student</th>
                   <th className="py-4 px-6 font-semibold">Campus</th>
                   <th className="py-4 px-6 font-semibold">Activity</th>
                   <th className="py-4 px-6 font-semibold">Joined Date</th>
@@ -430,7 +502,7 @@ export default function AdminStudentsPage() {
                     <tr key={student.id} className="hover:bg-slate-900/20 transition-colors">
                       <td className="py-4 px-6">
                         <div className="font-semibold text-white flex items-center gap-2">
-                          <span>{student.full_name || 'Unnamed User'}</span>
+                          <span>{student.full_name || 'Unnamed Student'}</span>
                           {isSelf && (
                             <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 rounded">
                               You
@@ -440,20 +512,6 @@ export default function AdminStudentsPage() {
                         <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
                           <Mail className="size-3" /> {student.email}
                         </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <Badge
-                          variant={
-                            student.role === 'admin'
-                              ? 'accent'
-                              : student.role === 'organizer'
-                              ? 'success'
-                              : 'default'
-                          }
-                          className="text-[10px] font-medium capitalize"
-                        >
-                          {student.role}
-                        </Badge>
                       </td>
                       <td className="py-4 px-6">
                         <div className="font-semibold text-slate-200 truncate max-w-xs">{student.college || '—'}</div>
@@ -480,6 +538,16 @@ export default function AdminStudentsPage() {
                       </td>
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {isGlobalAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => openPermissionModal(student)}
+                              className="text-slate-500 hover:text-sky-400 p-1.5 rounded hover:bg-slate-900 transition-colors cursor-pointer"
+                              title="Grant / Manage Community Permissions"
+                            >
+                              <ShieldCheck className="size-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setSelectedStudent(student)}
@@ -495,7 +563,7 @@ export default function AdminStudentsPage() {
                           >
                             <Edit className="size-4" />
                           </Link>
-                          {!isSelf && (
+                          {isGlobalAdmin && !isSelf && (
                             <button
                               type="button"
                               onClick={() => setStudentToDelete(student)}
@@ -552,15 +620,67 @@ export default function AdminStudentsPage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Role</p>
-                  <select
-                    value={selectedStudent.role}
-                    onChange={(e) => handleUpdateRole(selectedStudent.id, e.target.value as any)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50"
-                  >
-                    <option value="student">Student</option>
-                    <option value="admin">Admin</option>
-                    <option value="organizer">Organizer</option>
-                  </select>
+                  <span className="inline-block px-2.5 py-1 text-xs font-mono font-medium rounded bg-slate-900 text-slate-200 capitalize border border-slate-800">
+                    {selectedStudent.role === 'organizer'
+                      ? `${selectedStudent.club?.name ? `${selectedStudent.club.name} ` : ''}Organizer`
+                      : selectedStudent.role === 'admin'
+                      ? 'Global Admin'
+                      : 'Student'}
+                  </span>
+                </div>
+                <div className="space-y-1 col-span-2">
+                  <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <Shield className="size-3 text-sky-400" /> Community Affiliation
+                  </p>
+                  {selectedStudent.role === 'organizer' ? (
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                      <div>
+                        <p className="text-xs text-emerald-400 font-semibold flex items-center gap-1.5">
+                          <Shield className="size-3.5" />
+                          {selectedStudent.club?.name || 'Unassigned'} Organizer
+                        </p>
+                        <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                          Permission granted to manage {selectedStudent.club?.name || 'this community'}&apos;s events and registrations.
+                        </p>
+                      </div>
+                      {isGlobalAdmin && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            openPermissionModal(selectedStudent);
+                            setSelectedStudent(null);
+                          }}
+                          className="text-xs font-mono flex items-center gap-1"
+                        >
+                          <ShieldCheck className="size-3.5" /> Change Club
+                        </Button>
+                      )}
+                    </div>
+                  ) : selectedStudent.role === 'admin' ? (
+                    <p className="text-xs text-red-300 font-mono p-2 rounded bg-red-500/5 border border-red-500/20">
+                      Full Global Platform Administrator (does not belong to any club &mdash; universal platform authority).
+                    </p>
+                  ) : (
+                    <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+                      <p className="text-xs text-slate-400 font-mono">
+                        None (Universal campus student &mdash; not part of any club).
+                      </p>
+                      {isGlobalAdmin && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            openPermissionModal(selectedStudent);
+                            setSelectedStudent(null);
+                          }}
+                          className="text-xs font-mono flex items-center gap-1"
+                        >
+                          <ShieldCheck className="size-3.5" /> Grant Organizer Permission
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1 col-span-2">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-1">
@@ -628,8 +748,8 @@ export default function AdminStudentsPage() {
                 </div>
               )}
 
-              {/* Danger Zone */}
-              {currentUserId !== selectedStudent.id && (
+              {/* Danger Zone (Global Admin Only, Protected Against Other Admins) */}
+              {isGlobalAdmin && currentUserId !== selectedStudent.id && selectedStudent.role !== 'admin' && (
                 <div className="pt-4 border-t border-slate-900/60">
                   <p className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-3">Danger Zone</p>
                   <Button
@@ -652,7 +772,9 @@ export default function AdminStudentsPage() {
                 className="text-xs text-slate-400 hover:text-emerald-400 transition-colors font-mono inline-flex items-center gap-1"
                 onClick={() => setSelectedStudent(null)}
               >
-                Open full profile →
+                {((isGlobalAdmin && (selectedStudent.role !== 'admin' || selectedStudent.id === currentUserId)) || (!isGlobalAdmin && selectedStudent.role === 'student'))
+                  ? 'Edit full profile →'
+                  : 'View full profile →'}
               </Link>
               <Button variant="secondary" onClick={() => setSelectedStudent(null)}>
                 Close
@@ -727,6 +849,140 @@ export default function AdminStudentsPage() {
                     <Trash2 className="size-3.5" /> Delete Account
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin Permission Control Modal */}
+      {permissionStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-6 shadow-2xl relative">
+            <div className="flex items-start justify-between border-b border-slate-800/80 pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white font-mono flex items-center gap-2">
+                  <ShieldCheck className="size-5 text-sky-400" />
+                  Admin Permission Control
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Manage role and designated community permission for <strong>{permissionStudent.full_name || permissionStudent.email}</strong>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPermissionStudent(null)}
+                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
+                  Step 1: Select Platform Role
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[
+                    { id: 'student', label: 'Student', desc: 'No community scoping' },
+                    { id: 'organizer', label: 'Organizer', desc: 'Manage 1 community' },
+                    { id: 'admin', label: 'Global Admin', desc: 'Full platform control' },
+                  ].map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setTargetRole(r.id as any)}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                        targetRole === r.id
+                          ? 'bg-sky-500/10 border-sky-500 text-white shadow-lg shadow-sky-500/10'
+                          : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <p className="text-xs font-bold font-mono">{r.label}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{r.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {targetRole === 'organizer' && (
+                <div className="space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-400">
+                    Step 2: Grant Permission To Specific Community *
+                  </label>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Select which club this organizer is granted permission to lead. They will only have permissions to manage events and student attendees within this chosen community:
+                  </p>
+                  <div className="space-y-2">
+                    {availableClubs.map((club) => {
+                      const isSelected = targetClubId === club.id;
+                      return (
+                        <button
+                          key={club.id}
+                          type="button"
+                          onClick={() => setTargetClubId(club.id)}
+                          className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-500/10 border-emerald-500 text-white'
+                              : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className={`size-3 rounded-full ${isSelected ? 'bg-emerald-400 ring-4 ring-emerald-400/20' : 'bg-slate-700'}`} />
+                            <div>
+                              <p className="text-xs font-bold font-mono text-white flex items-center gap-1.5">
+                                <Shield className="size-3.5 text-emerald-400" />
+                                {club.name} Community
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                Grant {club.name} event publishing &amp; participant management rights
+                              </p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-semibold">
+                              Selected
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {targetRole === 'student' && (
+                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-xs text-slate-400 font-mono">
+                  ℹ️ Students do not belong to any community. Setting this role will ensure this user has no organizing permissions and their club affiliation is set to None.
+                </div>
+              )}
+
+              {targetRole === 'admin' && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 font-mono">
+                  ⚠️ Global Admins have universal platform access across all communities (ACM, IEEE, LeetCode) and do not belong to any specific club.
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPermissionStudent(null)}
+                disabled={isSavingPermission}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSavePermissions}
+                disabled={isSavingPermission || (targetRole === 'organizer' && !targetClubId)}
+                className="flex items-center gap-1.5"
+              >
+                {isSavingPermission ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5" />}
+                Grant &amp; Save Permissions
               </Button>
             </div>
           </div>

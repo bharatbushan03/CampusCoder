@@ -7,19 +7,20 @@ import { Button } from '@/components/ui/Button';
 import {
   Terminal, Lock, Unlock, Upload, X, Plus, Trash2, Mail, User, Users,
   Briefcase, AlignLeft, Globe, Loader2, AlertTriangle, Calendar, Clock, Link2, Info,
-  Camera, Archive, FileArchive, CheckCircle2, Download
+  Camera, Archive, FileArchive, CheckCircle2, Download, Shield
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { eventSchema } from '@/lib/validation';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth';
 
 interface Speaker {
   id?: string;
   name: string;
-  role: string;
-  email: string;
-  bio: string;
-  profile_image_url: string;
+  role?: string | null;
+  email?: string | null;
+  bio?: string | null;
+  profile_image_url?: string | null;
 }
 
 interface EventFormProps {
@@ -91,7 +92,37 @@ export default function EventForm({
   const [uploadingVideos, setUploadingVideos] = useState(false);
   const [status, setStatus] = useState(initialData?.status || 'draft');
 
+  const { profile } = useAuth();
+  const isGlobalAdmin = profile?.role === 'admin';
+  const userClubId = profile?.club_id || '00000000-0000-0000-0000-000000000001';
+  const [clubId, setClubId] = useState(initialData?.club_id || userClubId);
+  const [clubs, setClubs] = useState<Array<{ id: string; name: string; category?: string }>>([
+    { id: '00000000-0000-0000-0000-000000000001', name: 'CampusCoder Central' },
+    { id: '00000000-0000-0000-0000-000000000002', name: 'Google Developer Group (GDG)' },
+    { id: '00000000-0000-0000-0000-000000000003', name: 'AI & Machine Learning Club' },
+    { id: '00000000-0000-0000-0000-000000000004', name: 'Cyber Security Club' },
+    { id: '00000000-0000-0000-0000-000000000005', name: 'Web & App Development Club' },
+    { id: '00000000-0000-0000-0000-000000000006', name: 'Robotics & IoT Club' },
+  ]);
+
+  React.useEffect(() => {
+    fetch('/api/clubs')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.ok && Array.isArray(data.clubs) && data.clubs.length > 0) {
+          setClubs(data.clubs);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const [speakers, setSpeakers] = useState<Speaker[]>(initialSpeakers);
+
+  React.useEffect(() => {
+    if (initialSpeakers && Array.isArray(initialSpeakers)) {
+      setSpeakers(initialSpeakers);
+    }
+  }, [initialSpeakers]);
 
   const [newSpeakerName, setNewSpeakerName] = useState('');
   const [newSpeakerRole, setNewSpeakerRole] = useState('');
@@ -242,17 +273,17 @@ export default function EventForm({
 
   const handleAddSpeaker = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!newSpeakerName) {
-      alert('Speaker name is required.');
+    if (!newSpeakerName.trim()) {
+      toast.error('Please enter a speaker name to add.');
       return;
     }
 
     const speaker: Speaker = {
-      name: newSpeakerName,
-      role: newSpeakerRole,
-      email: newSpeakerEmail,
-      bio: newSpeakerBio,
-      profile_image_url: newSpeakerImageUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(newSpeakerName)}`
+      name: newSpeakerName.trim(),
+      role: newSpeakerRole.trim() || null,
+      email: newSpeakerEmail.trim() || null,
+      bio: newSpeakerBio.trim() || null,
+      profile_image_url: newSpeakerImageUrl.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(newSpeakerName.trim())}`
     };
 
     setSpeakers([...speakers, speaker]);
@@ -524,7 +555,8 @@ export default function EventForm({
       photos,
       videos,
       photos_zip_url: photosZipUrl?.trim() || null,
-      status
+      status,
+      club_id: isGlobalAdmin ? (clubId || userClubId) : userClubId,
     };
 
     const validation = eventSchema.safeParse(eventData);
@@ -548,6 +580,18 @@ export default function EventForm({
       }
     }
 
+    const allSpeakers = [...speakers];
+    if (newSpeakerName.trim()) {
+      allSpeakers.push({
+        name: newSpeakerName.trim(),
+        role: newSpeakerRole.trim() || null,
+        email: newSpeakerEmail.trim() || null,
+        bio: newSpeakerBio.trim() || null,
+        profile_image_url: newSpeakerImageUrl.trim() || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(newSpeakerName.trim())}`
+      });
+    }
+    const cleanSpeakers = allSpeakers.filter(s => s && s.name && s.name.trim().length > 0);
+
     try {
       await onSubmit({
         ...eventData,
@@ -555,7 +599,7 @@ export default function EventForm({
         photos,
         videos,
         photos_zip_url: photosZipUrl?.trim() || null,
-      }, speakers);
+      }, cleanSpeakers);
     } catch (err: any) {
       toast.error(err.message || 'Failed to save event');
     } finally {
@@ -617,7 +661,26 @@ export default function EventForm({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div>
+            <label htmlFor="eventform-club" className={labelClass}>
+              <Shield className="size-3.5 inline mr-1 text-emerald-400" /> Hosting Club
+            </label>
+            <select
+              id="eventform-club"
+              disabled={!isGlobalAdmin}
+              value={clubId}
+              onChange={(e) => setClubId(e.target.value)}
+              className={selectClass + (!isGlobalAdmin ? ' opacity-80 cursor-not-allowed bg-slate-900/60' : '')}
+            >
+              {clubs.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <HelpText text={isGlobalAdmin ? 'Select community hosting this sprint' : 'Automatically scoped to your club'} />
+          </div>
           <div>
             <label htmlFor="eventform-type" className={labelClass}>Event Type</label>
             <select id="eventform-type"
@@ -840,7 +903,7 @@ export default function EventForm({
         <SectionHeader
           icon={Users}
           title="Speakers &amp; Event Owners"
-          description="Add the people hosting or presenting at this event."
+          description="Add speakers or industry mentors for this event (optional)."
         />
 
         {speakers.length > 0 ? (
@@ -848,7 +911,7 @@ export default function EventForm({
             {speakers.map((speaker, idx) => (
               <div key={speaker.id || `${speaker.email || speaker.name}-${speaker.role}`} className="flex gap-4 p-4 rounded-xl border border-slate-800 bg-slate-950/40 relative group">
                 <Image
-                  src={speaker.profile_image_url}
+                  src={speaker.profile_image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(speaker.name)}`}
                   alt={speaker.name}
                   width={48}
                   height={48}
@@ -857,7 +920,7 @@ export default function EventForm({
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-white">{speaker.name}</p>
-                  <p className="text-xs text-emerald-400 font-mono">{speaker.role}</p>
+                  {speaker.role && <p className="text-xs text-emerald-400 font-mono">{speaker.role}</p>}
                   {speaker.email && <p className="text-[10px] text-slate-500 font-mono truncate">{speaker.email}</p>}
                   {speaker.bio && <p className="text-xs text-slate-400 mt-1 line-clamp-2">{speaker.bio}</p>}
                 </div>
@@ -873,17 +936,17 @@ export default function EventForm({
             ))}
           </div>
         ) : (
-          <p className="text-xs text-slate-500 font-mono pb-4 border-b border-slate-900/40">No speakers added yet. Sprints should ideally feature at least one speaker or organizer.</p>
+          <p className="text-xs text-slate-500 font-mono pb-4 border-b border-slate-900/40">No speakers added yet. (Optional &mdash; events can be published without assigned speakers.)</p>
         )}
 
         <div className="bg-slate-950/40 p-5 rounded-xl border border-slate-900 space-y-5">
           <h4 className="text-xs font-mono font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-            <Plus className="size-4 text-emerald-500" /> Add Speaker
+            <Plus className="size-4 text-emerald-500" /> Add Speaker (Optional)
           </h4>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
-              <label htmlFor="eventform-speaker-name" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Name *</label>
+              <label htmlFor="eventform-speaker-name" className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Speaker Name (Optional)</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-600" />
                 <input id="eventform-speaker-name"

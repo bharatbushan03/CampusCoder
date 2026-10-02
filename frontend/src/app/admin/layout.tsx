@@ -11,6 +11,8 @@ type MeResponse = {
     email?: string | null;
     role: string;
     full_name?: string | null;
+    club_id?: string | null;
+    club?: { id: string; name: string; slug: string; category?: string } | null;
   } | null;
 };
 

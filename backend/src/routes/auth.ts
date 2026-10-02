@@ -1,7 +1,7 @@
 import React from 'react';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { createAnonClient, getOptionalSession, invalidateAuthSession, requireAuth, type AuthedRequest } from '../middleware/auth';
+import { createAnonClient, getOptionalSession, invalidateAuthSession, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import { clearSessionCookies, REFRESH_COOKIE, SESSION_COOKIE, setSessionCookies } from '../lib/session';
 import { generateOtpCode, storeOtp, verifyAndConsumeOtp, checkResendCooldown, getExistingPayload } from '../lib/otpStore';
@@ -11,6 +11,8 @@ import { PasswordResetEmail } from '../components/emails/PasswordResetEmail';
 import { authRateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
+
+import { getClubByIdOrSlug } from '../lib/clubsHelper';
 
 const loginSchema = z.object({
   email: z
@@ -32,6 +34,7 @@ const signupSchema = z.object({
   college: z.string().min(2, 'College name is required'),
   branch: z.string().min(2, 'Branch is required'),
   year: z.string().min(1, 'Year is required'),
+  club_id: z.string().uuid().optional().nullable(),
 });
 
 const signupVerifyOtpSchema = z.object({
@@ -73,12 +76,34 @@ const resetPasswordSchema = z.object({
 
 async function loadProfile(userId: string) {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  let profile: any = null;
+  const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, role, full_name, college, branch, year, created_at')
+    .select('id, email, role, full_name, college, branch, year, club_id, created_at')
     .eq('id', userId)
     .maybeSingle();
-  return data;
+
+  if (error || !data) {
+    const { data: fallback } = await supabase
+      .from('profiles')
+      .select('id, email, role, full_name, college, branch, year, created_at')
+      .eq('id', userId)
+      .maybeSingle();
+    profile = fallback;
+  } else {
+    profile = data;
+  }
+
+  if (profile && (profile.role === 'admin' || profile.role === 'student')) {
+    profile.club_id = null;
+    profile.club = null;
+  } else if (profile && profile.role === 'organizer' && profile.club_id) {
+    const club = await getClubByIdOrSlug(profile.club_id);
+    profile.club = club ? { id: club.id, name: club.name, slug: club.slug, category: club.category } : null;
+  } else if (profile) {
+    profile.club = null;
+  }
+  return profile;
 }
 
 async function cleanupOrphanAuthUser(email: string): Promise<boolean> {
@@ -198,6 +223,7 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
       college,
       branch,
       year,
+      club_id: null,
     });
 
     // Send OTP email using Resend
@@ -265,6 +291,7 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
         branch,
         year,
         role: 'student',
+        club_id: null,
       },
     });
 
@@ -282,6 +309,7 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
             branch,
             year,
             role: 'student',
+            club_id: null,
           },
         });
         createdUser = retryResult.data;
@@ -298,6 +326,13 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
 
     if (!createdUser?.user) {
       return res.status(400).json({ ok: false, error: 'Failed to create user account' });
+    }
+
+    // Ensure student profile has club_id explicitly set to null
+    try {
+      await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
+    } catch {
+      // Continue if column not ready
     }
 
     // Authenticate and issue 48-hour session cookies
@@ -321,6 +356,7 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
         email: createdUser.user.email,
         role: 'student',
         full_name: fullName,
+        club_id: null,
       },
     });
   } catch (err: any) {
@@ -425,6 +461,7 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
         branch,
         year,
         role: 'student',
+        club_id: null,
       },
     });
 
@@ -441,6 +478,7 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
             branch,
             year,
             role: 'student',
+            club_id: null,
           },
         });
         createdUser = retryResult.data;
@@ -457,6 +495,13 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
 
     if (!createdUser?.user) {
       return res.status(400).json({ ok: false, error: 'Signup failed' });
+    }
+
+    // Explicitly set student profile club_id to null
+    try {
+      await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
+    } catch {
+      // Continue if column not ready
     }
 
     const anon = createAnonClient();
@@ -479,6 +524,7 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
         email: createdUser.user.email,
         role: 'student',
         full_name: fullName,
+        club_id: null,
       },
       requiresEmailConfirmation: false,
     });

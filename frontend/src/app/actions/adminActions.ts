@@ -17,18 +17,39 @@ import type { z } from 'zod';
 type EventPayload = z.infer<typeof eventSchema>;
 type NotePayload = z.input<typeof noteSchema>;
 type SpeakerPayload = {
-  name: string;
-  role?: string;
-  email?: string;
-  bio?: string;
-  profile_image_url?: string;
+  id?: string;
+  name?: string | null;
+  role?: string | null;
+  email?: string | null;
+  bio?: string | null;
+  profile_image_url?: string | null;
 };
 
-export async function createEvent(payload: EventPayload, speakers: SpeakerPayload[]) {
+function sanitizeSpeakers(speakers?: SpeakerPayload[]): Array<{
+  name: string;
+  role: string | null;
+  email: string | null;
+  bio: string | null;
+  profile_image_url: string | null;
+}> {
+  if (!Array.isArray(speakers)) return [];
+  return speakers
+    .filter((s): s is SpeakerPayload & { name: string } => Boolean(s && typeof s.name === 'string' && s.name.trim().length > 0))
+    .map((s) => ({
+      name: s.name.trim(),
+      role: s.role?.trim() || null,
+      email: s.email?.trim() || null,
+      bio: s.bio?.trim() || null,
+      profile_image_url: s.profile_image_url?.trim() || null,
+    }));
+}
+
+export async function createEvent(payload: EventPayload, speakers: SpeakerPayload[] = []) {
   try {
+    const cleanSpeakers = sanitizeSpeakers(speakers);
     const result = await serverApi<{ ok: boolean; success: boolean; eventId: string }>('/admin/events', {
       method: 'POST',
-      body: JSON.stringify({ payload, speakers }),
+      body: JSON.stringify({ payload, speakers: cleanSpeakers }),
     });
 
     return { success: result.success, eventId: result.eventId };
@@ -41,11 +62,12 @@ export async function createEvent(payload: EventPayload, speakers: SpeakerPayloa
   }
 }
 
-export async function updateEvent(id: string, payload: EventPayload, speakers: SpeakerPayload[]) {
+export async function updateEvent(id: string, payload: EventPayload, speakers: SpeakerPayload[] = []) {
   try {
+    const cleanSpeakers = sanitizeSpeakers(speakers);
     await serverApi(`/admin/events/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ payload, speakers }),
+      body: JSON.stringify({ payload, speakers: cleanSpeakers }),
     });
 
     return { success: true };

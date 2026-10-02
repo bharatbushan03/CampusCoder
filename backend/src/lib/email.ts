@@ -8,9 +8,8 @@ const resendApiKey = process.env.RESEND_API_KEY;
 
 export const azureEmailClient = azureConnectionString ? new EmailClient(azureConnectionString) : null;
 export const getResendClient = (): Resend | null => {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
-  return new Resend(key);
+  if (!resendApiKey) return null;
+  return new Resend(resendApiKey);
 };
 
 export const getFromEmail = (): string => {
