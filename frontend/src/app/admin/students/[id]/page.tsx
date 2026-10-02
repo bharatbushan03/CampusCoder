@@ -40,6 +40,7 @@ export default function AdminStudentDetailPage({ params }: PageProps) {
   const [profile, setProfile] = useState<StudentProfileData | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; role?: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -50,11 +51,12 @@ export default function AdminStudentDetailPage({ params }: PageProps) {
       try {
         const [data, me] = await Promise.all([
           api<{ ok: boolean; profile: StudentProfileData; registrations: RegistrationRow[] }>(`/admin/students/${id}`),
-          api<{ ok: boolean; user: { id: string } }>('/auth/me'),
+          api<{ ok: boolean; user: { id: string }; profile?: { role?: string; id?: string } }>('/auth/me'),
         ]);
         setProfile(data.profile);
         setRegistrations(data.registrations || []);
         setCurrentUserId(me.user?.id || null);
+        setCurrentUser({ id: me.user?.id, role: me.profile?.role });
       } catch (err) {
         setErrorMsg('Failed to load student: ' + getErrorMessage(err));
       } finally {
@@ -132,7 +134,18 @@ export default function AdminStudentDetailPage({ params }: PageProps) {
     );
   }
 
+  const isGlobalAdmin = currentUser?.role === 'admin';
+  const isOrganizer = currentUser?.role === 'organizer';
+  const isTargetAdmin = profile.role === 'admin';
+  const isTargetStudent = profile.role === 'student';
   const isSelf = currentUserId === profile.id;
+  const isAnotherAdmin = isTargetAdmin && !isSelf;
+
+  // The organizer can only edit the profile of students
+  // Admins can edit the profile of anyone (student, organizer) but not another admin
+  const canEdit = isGlobalAdmin ? !isAnotherAdmin : (isOrganizer ? isTargetStudent : false);
+  const canDelete = isGlobalAdmin && !isSelf && !isTargetAdmin;
+
   const attendedCount = registrations.filter((r) => r.attendance_status === 'attended').length;
   const attendanceRate =
     registrations.length > 0 ? Math.round((attendedCount / registrations.length) * 100) : null;
@@ -170,6 +183,20 @@ export default function AdminStudentDetailPage({ params }: PageProps) {
         </div>
       </div>
 
+      {isAnotherAdmin && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
+          <Shield className="size-4 text-amber-400 shrink-0" />
+          <span>Protected Administrator Profile: Administrators cannot edit or delete another administrator&apos;s profile.</span>
+        </div>
+      )}
+
+      {isOrganizer && !isTargetStudent && (
+        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
+          <Shield className="size-4 text-amber-400 shrink-0" />
+          <span>Access Restricted: Organizers are only permitted to edit the profiles of students.</span>
+        </div>
+      )}
+
       {successMsg && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
           <CheckCircle2 className="size-4" /> {successMsg}
@@ -187,6 +214,8 @@ export default function AdminStudentDetailPage({ params }: PageProps) {
           <StudentForm
             initialData={profile}
             isSelf={isSelf}
+            canEdit={canEdit}
+            currentUserRole={currentUser?.role}
             onSubmit={handleSave}
             isSubmitting={isSubmitting}
           />
@@ -259,13 +288,19 @@ export default function AdminStudentDetailPage({ params }: PageProps) {
             <p className="text-xs text-slate-400 leading-relaxed">
               Permanently delete this student&apos;s profile. This cannot be undone.
             </p>
-            <Button
-              variant="outline"
-              onClick={handleDelete}
-              className="w-full border-red-950/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 flex items-center justify-center gap-1.5"
-            >
-              <Trash2 className="size-4" /> Delete Profile
-            </Button>
+            {canDelete ? (
+              <Button
+                variant="outline"
+                onClick={handleDelete}
+                className="w-full border-red-950/40 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="size-4" /> Delete Profile
+              </Button>
+            ) : (
+              <div className="text-[11px] font-mono text-slate-500 bg-slate-900/40 p-2.5 rounded border border-slate-800/80">
+                {isTargetAdmin ? 'Administrator accounts cannot be deleted.' : isSelf ? 'You cannot delete your own account.' : 'Only administrators can delete accounts.'}
+              </div>
+            )}
           </Card>
         </div>
       </div>

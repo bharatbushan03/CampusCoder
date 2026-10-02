@@ -36,6 +36,8 @@ interface StudentFormProps {
   initialData: StudentProfileData;
   /** True when the form is editing the currently-signed-in admin. Used to lock role. */
   isSelf: boolean;
+  canEdit?: boolean;
+  currentUserRole?: string;
   onSubmit: (data: {
     full_name: string;
     college: string | null;
@@ -49,6 +51,8 @@ interface StudentFormProps {
 export default function StudentForm({
   initialData,
   isSelf,
+  canEdit = true,
+  currentUserRole = 'admin',
   onSubmit,
   isSubmitting,
 }: StudentFormProps) {
@@ -112,7 +116,8 @@ export default function StudentForm({
               placeholder="Aman Sharma"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+              disabled={!canEdit}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               required
             />
           </div>
@@ -143,7 +148,8 @@ export default function StudentForm({
               id="studentform-college"
               value={college}
               onChange={(e) => setCollege(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+              disabled={!canEdit}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {COLLEGES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -160,7 +166,8 @@ export default function StudentForm({
                 id="studentform-branch"
                 value={branch}
                 onChange={(e) => setBranch(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+                disabled={!canEdit}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="">Select branch</option>
                 {BRANCHES.map((b) => (
@@ -177,7 +184,8 @@ export default function StudentForm({
                 id="studentform-year"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none font-mono"
+                disabled={!canEdit}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none font-mono disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <option value="">Select year</option>
                 <option value="2026">2026</option>
@@ -198,7 +206,7 @@ export default function StudentForm({
             <select id="studentform-role"
               value={role}
               onChange={(e) => setRole(e.target.value as 'student' | 'admin' | 'organizer')}
-              disabled={isSelf}
+              disabled={isSelf || !canEdit || currentUserRole !== 'admin'}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="student">Student</option>
@@ -210,28 +218,41 @@ export default function StudentForm({
                 <Info className="size-3" /> You cannot change your own role. Ask another admin to do this.
               </p>
             )}
+            {!isSelf && currentUserRole !== 'admin' && (
+              <p className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                <Info className="size-3" /> Only administrators can change user roles.
+              </p>
+            )}
           </div>
         </div>
       </Card>
 
-      <div className="flex justify-end">
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={isSubmitting || !isDirty}
-          className="flex items-center gap-2 min-w-[150px] justify-center"
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="size-4 animate-spin" /> Saving&hellip;
-            </>
-          ) : (
-            <>
-              <Save className="size-4" /> Save Changes
-            </>
-          )}
-        </Button>
-      </div>
+      {canEdit ? (
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isSubmitting || !isDirty}
+            className="flex items-center gap-2 min-w-[150px] justify-center"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Saving&hellip;
+              </>
+            ) : (
+              <>
+                <Save className="size-4" /> Save Changes
+              </>
+            )}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex justify-end">
+          <span className="text-xs font-mono text-slate-500 bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded-lg">
+            Profile is in read-only mode
+          </span>
+        </div>
+      )}
     </form>
   );
 }

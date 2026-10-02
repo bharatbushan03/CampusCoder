@@ -8,6 +8,14 @@ export type SessionUser = {
   email?: string;
 };
 
+export type ClubInfo = {
+  id: string;
+  name: string;
+  slug: string;
+  category?: string | null;
+  logo_url?: string | null;
+};
+
 export type Profile = {
   id: string;
   email?: string | null;
@@ -16,6 +24,8 @@ export type Profile = {
   college?: string | null;
   branch?: string | null;
   year?: string | null;
+  club_id?: string | null;
+  club?: ClubInfo | null;
   created_at?: string;
 };
 
@@ -31,6 +41,7 @@ export type SignupData = {
   college: string;
   branch: string;
   year: string;
+  club_id?: string | null;
 };
 
 type AuthContextValue = {

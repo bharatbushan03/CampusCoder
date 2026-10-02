@@ -21,6 +21,7 @@ import {
   Sparkles,
   Trophy,
   GraduationCap,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
@@ -29,9 +30,9 @@ interface AdminSidebarProps {
   role: string;
 }
 
-const navGroups = [
+const adminNavGroups = [
   {
-    label: 'Main',
+    label: 'Platform & Control',
     links: [
       { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
       { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
@@ -39,17 +40,18 @@ const navGroups = [
     ],
   },
   {
-    label: 'Content',
+    label: 'Campus & Students',
     links: [
-      { label: 'Events', href: '/admin/events', icon: Calendar },
-      { label: 'Registrations', href: '/admin/registrations', icon: Users },
-      { label: 'Students', href: '/admin/students', icon: UserCheck },
+      { label: 'All Events', href: '/admin/events', icon: Calendar },
+      { label: 'All Registrations', href: '/admin/registrations', icon: Users },
+      { label: 'Students Directory', href: '/admin/students', icon: UserCheck },
       { label: 'Notes (PDFs)', href: '/admin/notes', icon: GraduationCap },
     ],
   },
   {
-    label: 'Community',
+    label: 'Communities & Content',
     links: [
+      { label: 'Clubs & Communities', href: '/admin/clubs', icon: Shield },
       { label: 'Showcase', href: '/admin/showcase', icon: Sparkles },
       { label: 'Competitions', href: '/admin/competitions', icon: Trophy },
       { label: 'Announcements', href: '/admin/announcements', icon: Bell },
@@ -59,12 +61,47 @@ const navGroups = [
   },
 ];
 
+const organizerNavGroups = [
+  {
+    label: 'Chapter Portal',
+    links: [
+      { label: 'Chapter Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+      { label: 'Clubs & Communities', href: '/admin/clubs', icon: Shield },
+    ],
+  },
+  {
+    label: 'Chapter Operations',
+    links: [
+      { label: 'Chapter Events', href: '/admin/events', icon: Calendar },
+      { label: 'Event RSVPs', href: '/admin/registrations', icon: Users },
+      { label: 'Students Directory', href: '/admin/students', icon: UserCheck },
+      { label: 'Chapter Resources', href: '/admin/resources', icon: BookOpen },
+      { label: 'Announcements', href: '/admin/announcements', icon: Bell },
+    ],
+  },
+];
+
 export default function AdminSidebar({ email, role }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, profile } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  const isOrganizer = role === 'organizer';
+  const clubName = profile?.club?.name;
+  const clubSlug = profile?.club?.slug;
+
+  const getThemeColor = () => {
+    if (!isOrganizer) return { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' };
+    if (clubSlug === 'acm') return { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' };
+    if (clubSlug === 'ieee') return { text: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20' };
+    if (clubSlug === 'leetcode') return { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' };
+    return { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' };
+  };
+
+  const theme = getThemeColor();
+  const navGroups = isOrganizer ? organizerNavGroups : adminNavGroups;
 
   useEffect(() => {
     try {
@@ -139,13 +176,21 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
         {/* Header with Title & Collapse Toggle */}
         <div className="h-16 flex items-center justify-between px-3.5 border-b border-slate-800/60 shrink-0">
           <div className={`flex items-center gap-2.5 min-w-0 ${collapsed ? 'justify-center w-full' : ''}`}>
-            <div className="size-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-              <LayoutDashboard className="size-4 text-emerald-400" />
+            <div className={`size-8 rounded-lg ${theme.bg} border ${theme.border} flex items-center justify-center shrink-0`}>
+              {isOrganizer ? (
+                <Shield className={`size-4 ${theme.text}`} />
+              ) : (
+                <LayoutDashboard className="size-4 text-emerald-400" />
+              )}
             </div>
             {!collapsed && (
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-slate-50 leading-tight truncate">CampusCoder</p>
-                <p className="text-[10px] text-emerald-400 font-mono">Admin Console</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`text-[10px] font-mono font-medium ${theme.text} truncate`}>
+                    {isOrganizer ? `${clubName || 'Chapter'} Console` : 'Admin Console'}
+                  </span>
+                </div>
               </div>
             )}
           </div>
@@ -197,16 +242,16 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
                         collapsed ? 'justify-center px-0 py-2.5' : 'justify-between px-3 py-2'
                       } rounded-lg text-sm transition-all group ${
                         active
-                          ? 'bg-emerald-500/10 text-emerald-400 font-medium shadow-sm shadow-emerald-500/5'
+                          ? `${theme.bg} ${theme.text} font-medium shadow-sm`
                           : 'text-slate-400 hover:text-slate-100 hover:bg-slate-900/60'
                       }`}
                     >
                       <span className="flex items-center gap-2.5">
-                        <Icon className={`size-4 shrink-0 transition-transform ${active ? 'text-emerald-400' : 'group-hover:scale-110'}`} />
+                        <Icon className={`size-4 shrink-0 transition-transform ${active ? theme.text : 'group-hover:scale-110'}`} />
                         {!collapsed && <span>{link.label}</span>}
                       </span>
                       {!collapsed && active && (
-                        <ChevronRight className="size-3.5 text-emerald-400 shrink-0" />
+                        <ChevronRight className={`size-3.5 ${theme.text} shrink-0`} />
                       )}
                     </Link>
                   );
@@ -230,9 +275,19 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
             {!collapsed && (
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-slate-200 truncate">{email}</p>
-                <span className="inline-block text-[9px] font-mono font-medium bg-emerald-500/10 text-emerald-400 px-1.5 py-0.2 rounded mt-0.5 uppercase tracking-wider">
-                  {role}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <span className="inline-block text-[9px] font-mono font-medium bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                    {role}
+                  </span>
+                  {isOrganizer && profile?.club?.name && (
+                    <span
+                      className="inline-block text-[9px] font-mono font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20 px-1.5 py-0.5 rounded truncate max-w-[130px]"
+                      title={profile.club.name}
+                    >
+                      {profile.club.name}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>

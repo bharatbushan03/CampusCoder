@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+// Zod v4's z.string().uuid() / z.uuid() rejects zero-version UUIDs (e.g. 00000000-0000-0000-...)
+// which we use as hardcoded club IDs. Use a lenient regex instead.
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const uuidSchema = z.string().regex(uuidRegex, 'Invalid UUID');
+
 export const registrationSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.email('Invalid email address'),
@@ -31,16 +36,27 @@ export const eventSchema = z.object({
   photos: z.array(z.string()).optional().default([]),
   videos: z.array(z.string()).optional().default([]),
   photos_zip_url: z.string().url().or(z.literal('')).nullable().optional(),
+  club_id: uuidSchema.nullable().optional(),
   status: z.enum(['draft', 'published', 'completed', 'cancelled']),
 }).refine((data) => data.end_time > data.start_time, {
   message: 'End time must be after start time',
   path: ['end_time'],
 });
 
+export const clubSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  slug: z.string().regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric and hyphens only'),
+  description: z.string().max(1000).nullable().optional(),
+  category: z.string().max(50).default('Technical'),
+  logo_url: z.string().url().or(z.literal('')).nullable().optional(),
+  banner_url: z.string().url().or(z.literal('')).nullable().optional(),
+  is_active: z.boolean().default(true),
+});
+
 export const announcementSchema = z.object({
   title: z.string().min(3, 'Title is too short').max(150),
   message: z.string().min(10, 'Message must be at least 10 characters'),
-  event_id: z.uuid().nullable().optional(),
+  event_id: uuidSchema.nullable().optional(),
   is_active: z.boolean().default(true),
   publish_date: z.string(),
 });
@@ -56,7 +72,7 @@ export const resourceSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   link: z.url('Invalid URL format'),
   category: z.string().min(2, 'Category is required').max(50),
-  event_id: z.uuid().nullable().optional(),
+  event_id: uuidSchema.nullable().optional(),
   is_active: z.boolean().default(true),
 });
 
@@ -90,7 +106,7 @@ export const competitionSchema = z.object({
 export const noteFolderSchema = z.object({
   name: z.string().min(1, 'Folder name is required').max(100),
   subject_code: z.string().min(2, 'Subject code is required').max(50),
-  parent_id: z.string().uuid().optional().nullable(),
+  parent_id: uuidSchema.optional().nullable(),
   color: z.string().max(30).default('blue').optional().nullable(),
 });
 
@@ -109,7 +125,7 @@ export const noteSchema = z.object({
   tags: z.array(z.string()).default([]),
   topics: z.array(z.any()).default([]),
   highlights: z.array(z.string()).default([]),
-  folder_id: z.string().uuid().optional().nullable(),
+  folder_id: uuidSchema.optional().nullable(),
   folder_name: z.string().max(100).optional().nullable(),
   is_active: z.boolean().default(true),
 });
@@ -120,7 +136,7 @@ export const batchNotesSchema = z.object({
   year: z.enum(['1st-year', '2nd-year', '3rd-year', '4th-year']).default('1st-year'),
   semester: z.string().min(2).max(50).default('sem-1'),
   branch: z.string().max(100).default('All Branches'),
-  folder_id: z.string().uuid().optional().nullable(),
+  folder_id: uuidSchema.optional().nullable(),
   folder_name: z.string().max(100).optional().nullable(),
   files: z.array(
     z.object({

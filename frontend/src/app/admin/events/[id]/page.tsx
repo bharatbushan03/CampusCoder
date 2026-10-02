@@ -125,11 +125,13 @@ export default function EventManagementPage({ params }: PageProps) {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href={`/admin/events/${id}/edit`}>
-            <Button variant="secondary" size="sm" className="flex items-center gap-1.5">
-              Edit Config
-            </Button>
-          </Link>
+          {event.can_edit !== false && (
+            <Link href={`/admin/events/${id}/edit`}>
+              <Button variant="secondary" size="sm" className="flex items-center gap-1.5">
+                Edit Config
+              </Button>
+            </Link>
+          )}
           <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" size="sm" className="flex items-center gap-1.5">
               <ExternalLink className="size-4" /> View Public
@@ -137,6 +139,15 @@ export default function EventManagementPage({ params }: PageProps) {
           </a>
         </div>
       </div>
+
+      {event.can_edit === false && (
+        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs px-4 py-3 rounded-lg flex items-center gap-2.5 font-mono">
+          <AlertTriangle className="size-4 shrink-0 text-amber-400" />
+          <span>
+            <strong>View-Only Mode:</strong> This sprint event belongs to <strong>{event.club?.name || 'ACM'}</strong>. Organizers from other clubs cannot modify meeting links or dispatch emails.
+          </span>
+        </div>
+      )}
 
       {successMsg && (
         <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-lg flex items-center gap-2 font-mono">
@@ -176,13 +187,14 @@ export default function EventManagementPage({ params }: PageProps) {
                     placeholder="https://meet.google.com/..."
                     value={meetingLink}
                     onChange={(e) => setMeetingLink(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors font-mono"
+                    disabled={event.can_edit === false}
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors font-mono disabled:opacity-60 disabled:cursor-not-allowed"
                   />
                   <Button 
                     variant="secondary" 
                     size="sm" 
                     onClick={handleSaveLink}
-                    disabled={isSavingLink || meetingLink === (event.meeting_link || '')}
+                    disabled={isSavingLink || event.can_edit === false || meetingLink === (event.meeting_link || '')}
                     className="flex items-center gap-1.5"
                   >
                     {isSavingLink ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
@@ -218,7 +230,7 @@ export default function EventManagementPage({ params }: PageProps) {
                     variant="primary" 
                     size="sm" 
                     onClick={() => setShowConfirmModal(true)}
-                    disabled={isSendingEmails || !event.meeting_link || event.status !== 'published'}
+                    disabled={isSendingEmails || event.can_edit === false || !event.meeting_link || event.status !== 'published'}
                     className="flex items-center gap-1.5"
                   >
                     {isSendingEmails ? (

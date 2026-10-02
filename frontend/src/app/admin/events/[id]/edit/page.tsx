@@ -90,15 +90,41 @@ export default function EditEventPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Form Wrapper */}
-      {eventData && (
-        <EventForm
-          initialData={eventData}
-          initialSpeakers={speakers}
-          onSubmit={handleFormSubmit}
-          isSubmitting={isSubmitting}
-          submitButtonText="Save Changes"
-        />
+      {/* Permission Block for Other Club Organizers */}
+      {eventData && eventData.can_edit === false ? (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-6 text-center space-y-4">
+          <div className="size-12 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto">
+            <AlertTriangle className="size-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-white font-mono">Modify Permission Restricted</h3>
+            <p className="text-xs text-slate-300 max-w-md mx-auto">
+              This sprint event is hosted by <strong>{eventData.club?.name || 'another club'}</strong>. Only {eventData.club?.name || 'hosting club'} organizers or global administrators have permission to edit or delete it.
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center gap-3">
+            <Link href={`/admin/events/${id}`}>
+              <button type="button" className="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white rounded-lg text-xs font-mono transition-colors cursor-pointer">
+                View Event Overview
+              </button>
+            </Link>
+            <Link href="/admin/events">
+              <button type="button" className="px-4 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 rounded-lg text-xs font-mono transition-colors cursor-pointer">
+                Back to All Events
+              </button>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        eventData && (
+          <EventForm
+            initialData={eventData}
+            initialSpeakers={speakers}
+            onSubmit={handleFormSubmit}
+            isSubmitting={isSubmitting}
+            submitButtonText="Save Changes"
+          />
+        )
       )}
     </div>
   );

@@ -11,6 +11,7 @@ import {
   MessageSquare,
   CalendarDays,
   AlertCircle,
+  Shield,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -35,6 +36,13 @@ type EventRow = {
   photos?: string[] | null;
   videos?: string[] | null;
   photos_zip_url?: string | null;
+  club_id?: string | null;
+  club?: {
+    id: string;
+    name: string;
+    slug: string;
+    category?: string;
+  };
 };
 
 const eventTypeOptions = [
@@ -110,6 +118,7 @@ export default function EventsPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [modeFilter, setModeFilter] = useState('all');
+  const [clubFilter, setClubFilter] = useState('all');
   
   useEffect(() => {
     const loadEvents = async () => {
@@ -124,6 +133,20 @@ export default function EventsPage() {
     };
     void loadEvents();
   }, []);
+
+  const clubOptions = useMemo(() => {
+    const list = [{ value: 'all', label: 'All communities' }];
+    const seen = new Set<string>();
+    events.forEach((ev) => {
+      const slug = ev.club?.slug;
+      const name = ev.club?.name;
+      if (slug && name && !seen.has(slug)) {
+        seen.add(slug);
+        list.push({ value: slug, label: name });
+      }
+    });
+    return list;
+  }, [events]);
 
   const featuredEvent = useMemo(() => {
     const today = new Date();
@@ -160,8 +183,12 @@ export default function EventsPage() {
       list = list.filter(ev => ev.mode === modeFilter);
     }
 
+    if (clubFilter !== 'all') {
+      list = list.filter(ev => ev.club?.slug === clubFilter || ev.club_id === clubFilter);
+    }
+
     return list;
-  }, [events, searchQuery, typeFilter, statusFilter, modeFilter, featuredEvent]);
+  }, [events, searchQuery, typeFilter, statusFilter, modeFilter, clubFilter, featuredEvent]);
 
   if (loading) {
     return (
@@ -217,9 +244,17 @@ export default function EventsPage() {
                   </div>
                 </div>
                 <div className="flex-1 p-8 md:p-10 flex flex-col justify-center">
-                  <Badge variant="default" className="mb-3 w-fit">
-                    {featuredEvent.event_type.replace('_', ' ')}
-                  </Badge>
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <Badge variant="default" className="w-fit">
+                      {featuredEvent.event_type.replace('_', ' ')}
+                    </Badge>
+                    {featuredEvent.club?.name && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-md">
+                        <Shield className="size-3" />
+                        {featuredEvent.club.name}
+                      </span>
+                    )}
+                  </div>
                   <h2 className="text-2xl md:text-3xl font-bold text-slate-50 leading-tight">
                     {featuredEvent.title}
                   </h2>
@@ -261,6 +296,12 @@ export default function EventsPage() {
         <AnimatedSection delay={0.1}>
           <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center justify-between">
             <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <SelectFilter
+                options={clubOptions}
+                value={clubFilter}
+                onChange={setClubFilter}
+                label="Filter by community"
+              />
               <SelectFilter
                 options={eventTypeOptions}
                 value={typeFilter}
@@ -309,10 +350,18 @@ export default function EventsPage() {
 
                   <div className="p-5 md:p-6 flex flex-col flex-1 gap-4">
                     {/* Badge row */}
-                    <div className="flex items-start justify-between gap-2">
-                      <Badge variant="default">
-                        {ev.event_type.replace('_', ' ')}
-                      </Badge>
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge variant="default">
+                          {ev.event_type.replace('_', ' ')}
+                        </Badge>
+                        {ev.club?.name && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-mono text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-md">
+                            <Shield className="size-2.5" />
+                            {ev.club.name}
+                          </span>
+                        )}
+                      </div>
                       <Badge variant={getStatusVariant(ev.status)}>
                         {getStatusLabel(ev.status)}
                       </Badge>

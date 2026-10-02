@@ -9,6 +9,45 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      clubs: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          category: string | null;
+          logo_url: string | null;
+          banner_url: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          description?: string | null;
+          category?: string | null;
+          logo_url?: string | null;
+          banner_url?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          description?: string | null;
+          category?: string | null;
+          logo_url?: string | null;
+          banner_url?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;
@@ -18,6 +57,7 @@ export type Database = {
           college: string | null;
           branch: string | null;
           year: string | null;
+          club_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -28,6 +68,7 @@ export type Database = {
           college?: string | null;
           branch?: string | null;
           year?: string | null;
+          club_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -38,6 +79,7 @@ export type Database = {
           college?: string | null;
           branch?: string | null;
           year?: string | null;
+          club_id?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -64,6 +106,7 @@ export type Database = {
           photos: string[] | null;
           videos: string[] | null;
           photos_zip_url: string | null;
+          club_id: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -89,6 +132,7 @@ export type Database = {
           photos?: string[] | null;
           videos?: string[] | null;
           photos_zip_url?: string | null;
+          club_id?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -114,6 +158,7 @@ export type Database = {
           photos?: string[] | null;
           videos?: string[] | null;
           photos_zip_url?: string | null;
+          club_id?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;

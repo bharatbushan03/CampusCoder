@@ -138,6 +138,7 @@ export function ZipPhotoViewer({
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {media.map((item, index) => (
             <button key={`${item.type}-${index}`} type="button" onClick={() => setActiveIndex(index)} className="group relative aspect-4/3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950 text-left cursor-pointer shadow-sm hover:border-emerald-500/40 transition-all">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               {item.type === 'photo' ? <img src={item.url} alt={`Event photo ${index + 1}`} className="object-cover w-full h-full transition-transform group-hover:scale-105" /> : <video src={item.url} preload="metadata" muted className="h-full w-full object-cover" />}
               <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded bg-black/70 px-2 py-1 text-[10px] text-white font-mono">{item.type === 'photo' ? <ImageIcon className="size-3" /> : <Video className="size-3" />} {item.type === 'photo' ? 'Photo' : 'Video'}</span>
             </button>
@@ -151,6 +152,7 @@ export function ZipPhotoViewer({
           <button type="button" onClick={(event) => { event.stopPropagation(); showPrevious(); }} className="absolute left-3 sm:left-8 z-10 rounded-full bg-white/10 p-3 text-white hover:bg-white/20" aria-label="Previous media"><ChevronLeft className="size-7" /></button>
           <div className="flex max-h-full max-w-5xl flex-col items-center gap-4" onClick={(event) => event.stopPropagation()}>
             {activeMedia.type === 'photo' ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={activeMedia.url}
                 alt={`Event photo ${activeIndex + 1}`}
