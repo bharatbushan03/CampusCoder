@@ -498,9 +498,6 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
   const validSpeakers = extractValidSpeakers(speakersRaw);
 
   const data = validation.data;
-  if (req.profile?.role !== 'admin' && ((data.photos?.length ?? 0) > 0 || (data.videos?.length ?? 0) > 0 || data.photos_zip_url)) {
-    return res.status(403).json({ ok: false, error: 'Only admins can add event photos or videos.' });
-  }
   const adminId = req.user?.id;
   const isGlobalAdmin = req.profile?.role === 'admin';
   const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
@@ -620,9 +617,6 @@ router.put('/events/:id', async (req: AuthedRequest, res: Response) => {
   const validSpeakers = extractValidSpeakers(speakersRaw);
 
   const data = validation.data;
-  if (!isGlobalAdmin && ((data.photos?.length ?? 0) > 0 || (data.videos?.length ?? 0) > 0 || data.photos_zip_url)) {
-    return res.status(403).json({ ok: false, error: 'Only admins can add event photos or videos.' });
-  }
 
   const clubIdToSave = isGlobalAdmin ? (data.club_id || eventClubId) : userClubId;
 

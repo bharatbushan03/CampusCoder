@@ -24,6 +24,7 @@ export type Profile = {
   college?: string | null;
   branch?: string | null;
   year?: string | null;
+  avatar_url?: string | null;
   club_id?: string | null;
   club?: ClubInfo | null;
   created_at?: string;

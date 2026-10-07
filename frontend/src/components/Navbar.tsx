@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Menu, X, LogOut, LayoutDashboard, ShieldAlert, ChevronDown } from 'lucide-react';
@@ -122,9 +123,21 @@ export const Navbar: React.FC = React.memo(function Navbar() {
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-lg bg-[#0e1422] border border-white/[0.08] hover:border-white/[0.16] transition-all cursor-pointer"
                 >
-                  <div className="size-6 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center font-mono text-[10px] font-bold text-emerald-400">
-                    {getInitials()}
-                  </div>
+                  {profile?.avatar_url ? (
+                    <div className="size-6 rounded-md overflow-hidden relative border border-emerald-500/30 shrink-0">
+                      <Image
+                        src={profile.avatar_url}
+                        alt={profile.full_name || 'Profile'}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="size-6 rounded-md bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center font-mono text-[10px] font-bold text-emerald-400">
+                      {getInitials()}
+                    </div>
+                  )}
                   <span className="text-[11px] font-medium text-slate-300 hidden lg:block">{profile?.full_name?.split(' ')[0] || 'Coder'}</span>
                   <ChevronDown className={`size-3 text-slate-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </motion.button>
@@ -138,14 +151,27 @@ export const Navbar: React.FC = React.memo(function Navbar() {
                       transition={{ duration: 0.15, ease: "easeOut" }}
                       className="absolute right-0 mt-2.5 w-60 rounded-xl border border-white/[0.09] bg-[#0e1422] p-1.5 shadow-2xl z-[70]"
                     >
-                      <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1">
-                        <p className="text-xs font-bold text-white truncate">{profile?.full_name || 'Member'}</p>
-                        <p className="text-[10px] text-slate-500 font-mono truncate">{user.email}</p>
-                        {profile?.role && (
-                          <span className="inline-flex mt-1.5 items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-emerald-400 border border-emerald-500/20 uppercase">
-                            {profile.role}
-                          </span>
+                      <div className="px-3 py-2.5 border-b border-white/[0.07] mb-1 flex items-center gap-2.5">
+                        {profile?.avatar_url && (
+                          <div className="size-8 rounded-full overflow-hidden relative border border-emerald-500/30 shrink-0">
+                            <Image
+                              src={profile.avatar_url}
+                              alt={profile.full_name || 'Profile'}
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          </div>
                         )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-white truncate">{profile?.full_name || 'Member'}</p>
+                          <p className="text-[10px] text-slate-500 font-mono truncate">{user.email}</p>
+                          {profile?.role && (
+                            <span className="inline-flex mt-1.5 items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[9px] font-mono font-bold text-emerald-400 border border-emerald-500/20 uppercase">
+                              {profile.role}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       <Link

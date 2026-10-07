@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -269,8 +270,18 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
             } py-1`}
             title={collapsed ? `${email} (${role})` : undefined}
           >
-            <div className="size-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-xs font-semibold text-emerald-400 shrink-0">
-              {initials}
+            <div className="size-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-xs font-semibold text-emerald-400 shrink-0 overflow-hidden relative">
+              {profile?.avatar_url ? (
+                <Image
+                  src={profile.avatar_url}
+                  alt={email}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : (
+                initials
+              )}
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
