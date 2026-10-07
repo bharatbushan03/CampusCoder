@@ -233,7 +233,6 @@ export default function AdminEventsListingPage() {
                     </td>
                     <td className="py-4 px-6">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                        <Shield className="size-3" />
                         {ev.club?.name || 'CampusCoder Central'}
                       </span>
                     </td>

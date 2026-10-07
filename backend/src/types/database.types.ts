@@ -57,6 +57,7 @@ export type Database = {
           college: string | null;
           branch: string | null;
           year: string | null;
+          avatar_url: string | null;
           club_id: string | null;
           created_at: string;
         };
@@ -68,6 +69,7 @@ export type Database = {
           college?: string | null;
           branch?: string | null;
           year?: string | null;
+          avatar_url?: string | null;
           club_id?: string | null;
           created_at?: string;
         };
@@ -79,6 +81,7 @@ export type Database = {
           college?: string | null;
           branch?: string | null;
           year?: string | null;
+          avatar_url?: string | null;
           club_id?: string | null;
           created_at?: string;
         };

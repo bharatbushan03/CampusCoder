@@ -415,20 +415,31 @@ export default function EventForm({
       // 1. Client-side inspection and extraction preview using JSZip
       const zip = await JSZip.loadAsync(file);
       const imageNames: string[] = [];
+      const videoNames: string[] = [];
 
       zip.forEach((relativePath, zipEntry) => {
-        if (!zipEntry.dir && /\.(jpe?g|png|webp|gif|avif|heic|heif)$/i.test(relativePath)) {
+        if (zipEntry.dir) return;
+        const baseName = relativePath.split('/').pop() || '';
+        if (baseName.startsWith('.') || relativePath.includes('__MACOSX/')) return;
+
+        if (/\.(jpe?g|png|webp|gif|avif|heic|heif|bmp|tiff?|svg)$/i.test(baseName)) {
           imageNames.push(relativePath);
+        } else if (/\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i.test(baseName)) {
+          videoNames.push(relativePath);
         }
       });
 
-      if (imageNames.length === 0) {
-        toast.warning('ZIP archive opened, but no image files (.jpg, .png, .webp, .heic, .heif, .gif) were found inside.', { id: toastId });
+      const totalMedia = imageNames.length + videoNames.length;
+      if (totalMedia === 0) {
+        toast.warning('ZIP archive opened, but no image or video files were found inside.', { id: toastId });
       } else {
-        toast.loading(`Found ${imageNames.length} images! Uploading ZIP archive...`, { id: toastId });
+        const parts: string[] = [];
+        if (imageNames.length > 0) parts.push(`${imageNames.length} image${imageNames.length === 1 ? '' : 's'}`);
+        if (videoNames.length > 0) parts.push(`${videoNames.length} video${videoNames.length === 1 ? '' : 's'}`);
+        toast.loading(`Found ${parts.join(' and ')}! Extracting & uploading to storage...`, { id: toastId });
       }
 
-      // 2. Upload ZIP file to backend (direct backend API url to bypass Next.js 100MB proxy limits)
+      // 2. Upload ZIP file to backend — it will extract and store each file individually
       const backendBase = process.env.NEXT_PUBLIC_SITE_URL ? '' : 'http://localhost:4000';
       const formData = new FormData();
       formData.append('file', file);
@@ -440,14 +451,32 @@ export default function EventForm({
       });
 
       const data = await res.json();
-      if (res.ok && data.ok && data.url) {
-        setPhotosZipUrl(data.url);
+      if (res.ok && data.ok) {
+        // Add extracted photo and video URLs to state
+        const newPhotoUrls: string[] = Array.isArray(data.photo_urls) ? data.photo_urls : [];
+        const newVideoUrls: string[] = Array.isArray(data.video_urls) ? data.video_urls : [];
+
+        if (newPhotoUrls.length > 0) {
+          setPhotos(prev => [...prev, ...newPhotoUrls]);
+        }
+        if (newVideoUrls.length > 0) {
+          setVideos(prev => [...prev, ...newVideoUrls]);
+        }
+
+        if (data.url) {
+          setPhotosZipUrl(data.url);
+        }
         setZipFileName(file.name);
         setZipFileSize(file.size);
-        setZipImageCount(imageNames.length);
+        setZipImageCount(data.photoCount ?? imageNames.length);
+
+        const successParts: string[] = [];
+        if (newPhotoUrls.length > 0) successParts.push(`${newPhotoUrls.length} photos`);
+        if (newVideoUrls.length > 0) successParts.push(`${newVideoUrls.length} videos`);
+        const summary = successParts.length > 0 ? successParts.join(' + ') : 'files';
 
         toast.success(
-          `ZIP archive attached! (${imageNames.length} photos, ${(file.size / (1024 * 1024)).toFixed(1)} MB)`,
+          `ZIP extracted! ${summary} uploaded to storage (${(file.size / (1024 * 1024)).toFixed(1)} MB)`,
           { id: toastId }
         );
       } else {

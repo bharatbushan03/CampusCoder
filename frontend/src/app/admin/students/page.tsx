@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -39,6 +40,7 @@ type ProfileRow = {
   college: string | null;
   branch: string | null;
   year: string | null;
+  avatar_url?: string | null;
   club_id?: string | null;
   club?: {
     id: string;
@@ -501,16 +503,35 @@ export default function AdminStudentsPage() {
                   return (
                     <tr key={student.id} className="hover:bg-slate-900/20 transition-colors">
                       <td className="py-4 px-6">
-                        <div className="font-semibold text-white flex items-center gap-2">
-                          <span>{student.full_name || 'Unnamed Student'}</span>
-                          {isSelf && (
-                            <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 rounded">
-                              You
-                            </span>
+                        <div className="flex items-center gap-3">
+                          {student.avatar_url ? (
+                            <div className="size-8 rounded-full overflow-hidden relative border border-emerald-500/30 shrink-0">
+                              <Image
+                                src={student.avatar_url}
+                                alt={student.full_name || 'Student'}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="size-8 rounded-full bg-slate-800 border border-slate-700/80 flex items-center justify-center text-xs font-mono font-bold text-slate-300 shrink-0">
+                              {student.full_name ? student.full_name[0].toUpperCase() : '?'}
+                            </div>
                           )}
-                        </div>
-                        <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
-                          <Mail className="size-3" /> {student.email}
+                          <div>
+                            <div className="font-semibold text-white flex items-center gap-2">
+                              <span>{student.full_name || 'Unnamed Student'}</span>
+                              {isSelf && (
+                                <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 rounded">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-mono">
+                              <Mail className="size-3" /> {student.email}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="py-4 px-6">
@@ -595,9 +616,26 @@ export default function AdminStudentsPage() {
           <div className="w-full max-w-2xl bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-6 md:p-8 space-y-6 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-900 pb-4">
-              <div>
-                <h2 className="text-xl font-bold text-white font-mono">{selectedStudent.full_name || 'User Profile'}</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Account & Registration Activity</p>
+              <div className="flex items-center gap-3.5">
+                {selectedStudent.avatar_url ? (
+                  <div className="size-12 rounded-full overflow-hidden relative border-2 border-emerald-500/30 shrink-0 shadow-md">
+                    <Image
+                      src={selectedStudent.avatar_url}
+                      alt={selectedStudent.full_name || 'Student'}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="size-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center font-mono text-base font-bold text-emerald-400 shrink-0">
+                    {selectedStudent.full_name ? selectedStudent.full_name[0].toUpperCase() : '?'}
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-xl font-bold text-white font-mono">{selectedStudent.full_name || 'User Profile'}</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Account & Registration Activity</p>
+                </div>
               </div>
               <button
                 type="button"

@@ -140,18 +140,27 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
     let profile: any = null;
     const { data: profileData, error: profileErr } = await supabase
       .from('profiles')
-      .select('id, email, role, full_name, college, branch, year, club_id')
+      .select('id, email, role, full_name, college, branch, year, club_id, avatar_url')
       .eq('id', user.id)
       .maybeSingle();
 
     if (profileErr || !profileData) {
-      // Fallback in case club_id column doesn't exist yet
+      // Fallback in case avatar_url or club_id column doesn't exist yet
       const { data: fallbackProfile } = await supabase
         .from('profiles')
-        .select('id, email, role, full_name')
+        .select('id, email, role, full_name, college, branch, year, club_id')
         .eq('id', user.id)
         .maybeSingle();
-      profile = fallbackProfile;
+      if (fallbackProfile) {
+        profile = fallbackProfile;
+      } else {
+        const { data: minimalProfile } = await supabase
+          .from('profiles')
+          .select('id, email, role, full_name')
+          .eq('id', user.id)
+          .maybeSingle();
+        profile = minimalProfile;
+      }
     } else {
       profile = profileData;
     }
@@ -199,17 +208,26 @@ export async function getOptionalSession(req: AuthedRequest, res: Response) {
   let profile: any = null;
   const { data: profileData, error: profileErr } = await supabase
     .from('profiles')
-    .select('id, email, role, full_name, college, branch, year, club_id')
+    .select('id, email, role, full_name, college, branch, year, club_id, avatar_url')
     .eq('id', user.id)
     .maybeSingle();
 
   if (profileErr || !profileData) {
     const { data: fallbackProfile } = await supabase
       .from('profiles')
-      .select('id, email, role, full_name')
+      .select('id, email, role, full_name, college, branch, year, club_id')
       .eq('id', user.id)
       .maybeSingle();
-    profile = fallbackProfile;
+    if (fallbackProfile) {
+      profile = fallbackProfile;
+    } else {
+      const { data: minimalProfile } = await supabase
+        .from('profiles')
+        .select('id, email, role, full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      profile = minimalProfile;
+    }
   } else {
     profile = profileData;
   }

@@ -282,7 +282,7 @@ const videoUpload = multer({
   },
 });
 
-router.post('/photo', requireRole('admin'), photoUpload.single('file'), async (req: Request, res: Response) => {
+router.post('/photo', requireRole('admin', 'organizer'), photoUpload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ ok: false, error: 'No image file uploaded' });
   }
@@ -327,7 +327,7 @@ router.post('/photo', requireRole('admin'), photoUpload.single('file'), async (r
   }
 });
 
-router.post('/photos', requireRole('admin'), photoUpload.array('files', 20), async (req: Request, res: Response) => {
+router.post('/photos', requireRole('admin', 'organizer'), photoUpload.array('files', 20), async (req: Request, res: Response) => {
   const rawFiles = req.files as Express.Multer.File[];
   if (!rawFiles || rawFiles.length === 0) {
     return res.status(400).json({ ok: false, error: 'No image files uploaded' });
@@ -387,7 +387,7 @@ router.post('/photos', requireRole('admin'), photoUpload.array('files', 20), asy
   }
 });
 
-router.post('/videos', requireRole('admin'), videoUpload.array('files', 5), async (req: Request, res: Response) => {
+router.post('/videos', requireRole('admin', 'organizer'), videoUpload.array('files', 5), async (req: Request, res: Response) => {
   const files = req.files as Express.Multer.File[];
   if (!files || files.length === 0) {
     return res.status(400).json({ ok: false, error: 'No video files uploaded' });
@@ -458,58 +458,185 @@ const zipUpload = multer({
   },
 });
 
-router.post('/zip', requireRole('admin'), zipUpload.single('file'), async (req: Request, res: Response) => {
+router.post('/zip', requireRole('admin', 'organizer'), zipUpload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ ok: false, error: 'No ZIP file uploaded' });
   }
 
-  const cleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const fileName = `event-zips/${Date.now()}-${cleanName.toLowerCase().endsWith('.zip') ? cleanName : `${cleanName}.zip`}`;
+  const JSZip = (await import('jszip')).default;
 
-  // 1. Try Azure Blob Storage if configured
+  // --- 1. Extract the ZIP and classify entries as photos or videos ---
+  let zip: InstanceType<typeof JSZip>;
+  try {
+    zip = await JSZip.loadAsync(req.file.buffer);
+  } catch (parseErr: any) {
+    return res.status(400).json({ ok: false, error: 'Invalid or corrupted ZIP archive: ' + (parseErr.message || '') });
+  }
+
+  const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.heic', '.heif', '.bmp', '.tiff', '.tif', '.svg']);
+  const VIDEO_EXTS = new Set(['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.m4v']);
+
+  type ExtractedFile = { name: string; ext: string; buffer: Buffer; type: 'photo' | 'video' };
+  const extracted: ExtractedFile[] = [];
+
+  const entries = Object.values(zip.files).filter(f => !f.dir);
+  for (const entry of entries) {
+    // Skip macOS resource fork files and hidden files
+    const baseName = entry.name.split('/').pop() || '';
+    if (baseName.startsWith('.') || baseName.startsWith('__MACOSX') || entry.name.includes('__MACOSX/')) continue;
+
+    const ext = path.extname(baseName).toLowerCase();
+    let fileType: 'photo' | 'video' | null = null;
+    if (IMAGE_EXTS.has(ext)) fileType = 'photo';
+    else if (VIDEO_EXTS.has(ext)) fileType = 'video';
+
+    if (!fileType) continue; // skip non-media files
+
+    try {
+      const buf = await entry.async('nodebuffer');
+      extracted.push({ name: baseName, ext, buffer: buf, type: fileType });
+    } catch (readErr: any) {
+      console.warn(`[Upload/ZIP] Could not read entry "${entry.name}":`, readErr.message);
+    }
+  }
+
+  if (extracted.length === 0) {
+    return res.status(400).json({
+      ok: false,
+      error: 'ZIP archive contains no supported image or video files. Supported: PNG, JPG, WEBP, GIF, AVIF, HEIC, MP4, WEBM, MOV, etc.',
+    });
+  }
+
+  // --- 2. Upload each extracted file to blob storage ---
+  const photoUrls: string[] = [];
+  const videoUrls: string[] = [];
+  const timestamp = Date.now();
+  let uploadErrors = 0;
+
+  for (let i = 0; i < extracted.length; i++) {
+    const file = extracted[i];
+    const cleanEntryName = safeBaseName(file.name);
+    const fileExt = file.ext.replace('.', '');
+
+    if (file.type === 'photo') {
+      // Process HEIC/HEIF conversion if needed
+      let uploadBuffer = file.buffer;
+      let uploadMime = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+      let uploadExt = fileExt;
+
+      const isHeic = ['heic', 'heif'].includes(fileExt);
+      if (isHeic) {
+        try {
+          const outputBuffer = await convert({
+            buffer: file.buffer,
+            format: 'JPEG',
+            quality: 0.92,
+          });
+          uploadBuffer = Buffer.from(outputBuffer);
+          uploadMime = 'image/jpeg';
+          uploadExt = 'jpg';
+        } catch (heicErr: any) {
+          console.warn(`[Upload/ZIP] HEIC conversion failed for ${file.name}:`, heicErr.message);
+        }
+      }
+
+      const blobName = `event-photos/${timestamp}-${i}-${cleanEntryName}.${uploadExt}`;
+
+      if (isAzureStorageConfigured()) {
+        try {
+          const azUrl = await uploadToAzureBlob('event-photos', blobName, uploadBuffer, uploadMime);
+          if (azUrl) { photoUrls.push(azUrl); continue; }
+        } catch (azErr: any) {
+          console.warn(`[Upload/ZIP] Azure photo upload failed for ${file.name}:`, azErr.message);
+        }
+      }
+
+      // Supabase fallback
+      try {
+        const supabase = createAdminClient();
+        const { error } = await supabase.storage.from('banners').upload(blobName, uploadBuffer, {
+          cacheControl: '3600', upsert: false, contentType: uploadMime,
+        });
+        if (!error) {
+          const { data } = supabase.storage.from('banners').getPublicUrl(blobName);
+          photoUrls.push(data.publicUrl);
+        } else {
+          uploadErrors++;
+        }
+      } catch { uploadErrors++; }
+    } else {
+      // Video
+      const mimeMap: Record<string, string> = {
+        mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg',
+        mov: 'video/quicktime', avi: 'video/x-msvideo', mkv: 'video/x-matroska', m4v: 'video/mp4',
+      };
+      const videoMime = mimeMap[fileExt] || 'video/mp4';
+      const blobName = `event-videos/${timestamp}-${i}-${cleanEntryName}.${fileExt}`;
+
+      if (isAzureStorageConfigured()) {
+        try {
+          const azUrl = await uploadToAzureBlob('event-videos', blobName, file.buffer, videoMime);
+          if (azUrl) { videoUrls.push(azUrl); continue; }
+        } catch (azErr: any) {
+          console.warn(`[Upload/ZIP] Azure video upload failed for ${file.name}:`, azErr.message);
+        }
+      }
+
+      // Supabase fallback
+      try {
+        const supabase = createAdminClient();
+        const { error } = await supabase.storage.from('banners').upload(blobName, file.buffer, {
+          cacheControl: '3600', upsert: false, contentType: videoMime,
+        });
+        if (!error) {
+          const { data } = supabase.storage.from('banners').getPublicUrl(blobName);
+          videoUrls.push(data.publicUrl);
+        } else {
+          uploadErrors++;
+        }
+      } catch { uploadErrors++; }
+    }
+  }
+
+  // --- 3. Also store the raw ZIP for download purposes ---
+  let zipUrl = '';
+  const zipCleanName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const zipFileName = `event-zips/${timestamp}-${zipCleanName.toLowerCase().endsWith('.zip') ? zipCleanName : `${zipCleanName}.zip`}`;
+
   if (isAzureStorageConfigured()) {
     try {
-      const azureUrl = await uploadToAzureBlob('event-zips', fileName, req.file.buffer, 'application/zip');
-      if (azureUrl) {
-        return res.json({
-          ok: true,
-          url: azureUrl,
-          fileName: req.file.originalname,
-          fileSize: req.file.size,
-          provider: 'azure',
-        });
-      }
+      const azureUrl = await uploadToAzureBlob('event-zips', zipFileName, req.file.buffer, 'application/zip');
+      if (azureUrl) zipUrl = azureUrl;
     } catch (azErr: any) {
-      console.warn('[Upload] Azure ZIP upload failed, falling back to Supabase:', azErr.message);
+      console.warn('[Upload] Azure ZIP archive upload failed:', azErr.message);
     }
   }
 
-  // 2. Supabase Storage fallback
-  try {
-    const supabase = createAdminClient();
-    const { error } = await supabase.storage
-      .from('banners')
-      .upload(fileName, req.file.buffer, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: 'application/zip',
+  if (!zipUrl) {
+    try {
+      const supabase = createAdminClient();
+      const { error } = await supabase.storage.from('banners').upload(zipFileName, req.file.buffer, {
+        cacheControl: '3600', upsert: false, contentType: 'application/zip',
       });
-
-    if (error) {
-      return res.status(500).json({ ok: false, error: error.message });
-    }
-
-    const { data } = supabase.storage.from('banners').getPublicUrl(fileName);
-    return res.json({
-      ok: true,
-      url: data.publicUrl,
-      fileName: req.file.originalname,
-      fileSize: req.file.size,
-      provider: 'supabase',
-    });
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err.message || 'ZIP upload failed' });
+      if (!error) {
+        const { data } = supabase.storage.from('banners').getPublicUrl(zipFileName);
+        zipUrl = data.publicUrl;
+      }
+    } catch {}
   }
+
+  return res.json({
+    ok: true,
+    url: zipUrl,
+    photo_urls: photoUrls,
+    video_urls: videoUrls,
+    fileName: req.file.originalname,
+    fileSize: req.file.size,
+    photoCount: photoUrls.length,
+    videoCount: videoUrls.length,
+    uploadErrors,
+    provider: isAzureStorageConfigured() ? 'azure' : 'supabase',
+  });
 });
 
 router.use((err: any, _req: Request, res: Response, next: any) => {
