@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Terminal, KeyRound, Mail, ArrowRight, Loader2, ShieldCheck } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -11,7 +11,6 @@ import { TechBackground } from '@/components/animations/TechBackground';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile, loading: authLoading, login } = useAuth();
   const [email, setEmail] = useState('');
@@ -21,17 +20,25 @@ function LoginForm() {
 
   const redirectParam = searchParams ? searchParams.get('redirect') || searchParams.get('from') : null;
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      if (redirectParam && redirectParam.startsWith('/')) {
-        router.replace(redirectParam);
-      } else if (profile?.role === 'admin' || profile?.role === 'organizer') {
-        router.replace('/admin');
-      } else {
-        router.replace('/dashboard');
+  const resolveTargetUrl = (redirect: string | null, role?: string): string => {
+    if (redirect && redirect.startsWith('/')) {
+      if (redirect === '/admin' || redirect === '/admin/') {
+        return '/admin/dashboard';
       }
+      return redirect;
     }
-  }, [user, profile, authLoading, redirectParam, router]);
+    if (role === 'admin' || role === 'organizer') {
+      return '/admin/dashboard';
+    }
+    return '/dashboard';
+  };
+
+  useEffect(() => {
+    if (!authLoading && user && !isSubmitting) {
+      const target = resolveTargetUrl(redirectParam, profile?.role);
+      window.location.href = target;
+    }
+  }, [user, profile, authLoading, redirectParam, isSubmitting]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,14 +52,8 @@ function LoginForm() {
 
     try {
       const loggedInProfile = await login(cleanEmail, password);
-      if (redirectParam && redirectParam.startsWith('/')) {
-        router.push(redirectParam);
-      } else if (loggedInProfile?.role === 'admin' || loggedInProfile?.role === 'organizer') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
-      router.refresh();
+      const target = resolveTargetUrl(redirectParam, loggedInProfile?.role);
+      window.location.href = target;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setErrorMsg(message);

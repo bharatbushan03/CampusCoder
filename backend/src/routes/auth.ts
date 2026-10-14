@@ -9,6 +9,7 @@ import { sendAppEmail } from '../lib/email';
 import { OtpVerificationEmail } from '../components/emails/OtpVerificationEmail';
 import { PasswordResetEmail } from '../components/emails/PasswordResetEmail';
 import { authRateLimiter } from '../middleware/rateLimit';
+import { appCache } from '../lib/cache';
 
 const router = Router();
 
@@ -164,9 +165,12 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
 
     setSessionCookies(res, data.session.access_token, data.session.refresh_token);
 
+    const user = { id: data.user.id, email: data.user.email };
+    await appCache.set(`auth_session:${data.session.access_token}`, { user, profile }, 60, ['auth_sessions']);
+
     return res.json({
       ok: true,
-      user: { id: data.user.id, email: data.user.email },
+      user,
       profile,
     });
   } catch (err: any) {
@@ -366,10 +370,15 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
     }
 
     const profile = await loadProfile(createdUser.user.id);
+    const user = { id: createdUser.user.id, email: createdUser.user.email };
+
+    if (sessionData?.session && profile) {
+      await appCache.set(`auth_session:${sessionData.session.access_token}`, { user, profile }, 60, ['auth_sessions']);
+    }
 
     return res.json({
       ok: true,
-      user: { id: createdUser.user.id, email: createdUser.user.email },
+      user,
       profile: profile || {
         id: createdUser.user.id,
         email: createdUser.user.email,
