@@ -53,6 +53,19 @@ export const DEFAULT_CLUBS: Club[] = [
     is_active: true,
     created_at: '2025-01-01T00:00:00Z',
     updated_at: '2025-01-01T00:00:00Z'
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000004',
+    name: 'hackerrankcampuscrew',
+    slug: 'hackerrankcampuscrew',
+    description: 'Official HackerRank Campus Crew community chapter focused on algorithms, coding sprints, hackathons, and technical interview preparation.',
+    category: 'Coding & DSA',
+    college: 'MIET',
+    logo_url: null,
+    banner_url: null,
+    is_active: true,
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z'
   }
 ];
 

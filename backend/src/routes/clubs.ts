@@ -111,27 +111,65 @@ router.get('/admin/all', requireAuth, requireRole('admin', 'organizer'), async (
   }
 });
 
-// GET /api/clubs/admin/candidates - Get students eligible to become organizers (Admin only)
-router.get('/admin/candidates', requireAuth, requireRole('admin'), async (_req: AuthedRequest, res: Response) => {
+// GET /api/clubs/admin/candidates - Get students eligible to become organizers (Admin & Chapter Organizers)
+// Strictly scoped to the specified club's or caller's campus/college
+router.get('/admin/candidates', requireAuth, requireRole('admin', 'organizer'), async (req: AuthedRequest, res: Response) => {
   try {
+    const isGlobalAdmin = req.profile?.role === 'admin';
+    const userCollege = (req.profile?.college || DEFAULT_COLLEGE).trim();
+
+    let targetCollege: string | null = null;
+    const queryCollege = (req.query.college as string | undefined)?.trim();
+    const queryClubId = (req.query.clubId as string | undefined)?.trim();
+
+    if (!isGlobalAdmin) {
+      // Organizers are strictly restricted to their own college/campus
+      targetCollege = userCollege;
+    } else if (queryClubId) {
+      const club = await getClubByIdOrSlug(queryClubId);
+      if (club && club.college) {
+        targetCollege = club.college.trim();
+      } else if (queryCollege) {
+        targetCollege = queryCollege;
+      }
+    } else if (queryCollege) {
+      targetCollege = queryCollege;
+    }
+
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from('profiles')
       .select('id, full_name, email, role, college, branch, year')
       .eq('role', 'student')
       .order('full_name', { ascending: true });
 
+    if (targetCollege && targetCollege.toUpperCase() !== 'ALL') {
+      query = query.ilike('college', targetCollege);
+    }
+
+    const { data, error } = await query;
+
     if (error) {
       return res.status(500).json({ ok: false, error: 'Failed to fetch candidate students' });
     }
-    return res.json({ ok: true, students: data || [] });
+
+    // Secondary strict filter in memory to ensure exact campus match (handles case-insensitivity & nulls)
+    let candidates = data || [];
+    if (targetCollege && targetCollege.toUpperCase() !== 'ALL') {
+      const targetNorm = targetCollege.trim().toUpperCase();
+      candidates = candidates.filter(
+        (s) => ((s.college || DEFAULT_COLLEGE).trim().toUpperCase() === targetNorm)
+      );
+    }
+
+    return res.json({ ok: true, students: candidates });
   } catch (_err: any) {
     return res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 });
 
-// POST /api/clubs/admin/:clubId/organizers - Appoint student as club organizer (Admin only)
-router.post('/admin/:clubId/organizers', requireAuth, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
+// POST /api/clubs/admin/:clubId/organizers - Appoint student as club organizer (Admin or Club Organizer)
+router.post('/admin/:clubId/organizers', requireAuth, requireRole('admin', 'organizer'), async (req: AuthedRequest, res: Response) => {
   const { clubId } = req.params;
   const { studentId } = req.body;
 
@@ -139,8 +177,41 @@ router.post('/admin/:clubId/organizers', requireAuth, requireRole('admin'), asyn
     return res.status(400).json({ ok: false, error: 'Student ID is required' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  // Organizers can only appoint organizers to their own club
+  if (!isGlobalAdmin && req.profile?.club_id !== clubId) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to appoint organizers for your own club.' });
+  }
+
   try {
+    const club = await getClubByIdOrSlug(clubId);
+    if (!club) {
+      return res.status(404).json({ ok: false, error: 'Club not found' });
+    }
+
     const supabase = createAdminClient();
+
+    // Fetch candidate student profile
+    const { data: student, error: studentErr } = await supabase
+      .from('profiles')
+      .select('id, full_name, email, role, college, branch, year')
+      .eq('id', studentId)
+      .single();
+
+    if (studentErr || !student) {
+      return res.status(404).json({ ok: false, error: 'Student profile not found' });
+    }
+
+    // STRICT CHECK: Student MUST belong to the SAME campus/college as the club!
+    const clubCollege = (club.college || DEFAULT_COLLEGE).trim().toUpperCase();
+    const studentCollege = ((student as any).college || DEFAULT_COLLEGE).trim().toUpperCase();
+    if (clubCollege !== studentCollege) {
+      return res.status(400).json({
+        ok: false,
+        error: `Cannot appoint student from ${student.college || 'another campus'} to ${club.name} at ${club.college || DEFAULT_COLLEGE}. Only students from the same campus can be appointed.`,
+      });
+    }
+
     const { data: updated, error } = await supabase
       .from('profiles')
       .update({ role: 'organizer', club_id: clubId })
@@ -152,6 +223,13 @@ router.post('/admin/:clubId/organizers', requireAuth, requireRole('admin'), asyn
       return res.status(500).json({ ok: false, error: 'Failed to appoint organizer to club' });
     }
 
+    // Update Supabase Auth user metadata
+    try {
+      await supabase.auth.admin.updateUserById(studentId, {
+        user_metadata: { role: 'organizer', club_id: clubId },
+      });
+    } catch {}
+
     appCache.invalidateTags(['auth_sessions']);
     return res.json({ ok: true, organizer: updated });
   } catch (_err: any) {
@@ -160,8 +238,12 @@ router.post('/admin/:clubId/organizers', requireAuth, requireRole('admin'), asyn
 });
 
 // DELETE /api/clubs/admin/:clubId/organizers/:organizerId - Remove organizer from club (revert to student)
-router.delete('/admin/:clubId/organizers/:organizerId', requireAuth, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
+router.delete('/admin/:clubId/organizers/:organizerId', requireAuth, requireRole('admin', 'organizer'), async (req: AuthedRequest, res: Response) => {
   const { clubId, organizerId } = req.params;
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  if (!isGlobalAdmin && req.profile?.club_id !== clubId) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to remove organizers from your own club.' });
+  }
 
   try {
     const supabase = createAdminClient();

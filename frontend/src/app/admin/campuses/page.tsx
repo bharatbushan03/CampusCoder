@@ -466,16 +466,19 @@ function AdminCampusesPageContent() {
     setRegisteringCampus(true);
     setCampusModalError('');
     try {
-      const res = await api<{ ok: boolean; college: string }>('/colleges', {
+      const res = await api<{ ok: boolean; college: string; club?: any; organizerAssigned?: boolean }>('/colleges', {
         method: 'POST',
         body: JSON.stringify({ name: newCampusName.trim() }),
       });
       if (res.ok) {
+        const feedbackMsg = res.organizerAssigned
+          ? `Campus "${res.college}" registered! Created "hackerrankcampuscrew" and assigned first member as organizer.`
+          : `Campus "${res.college}" registered! Automatically initialized "hackerrankcampuscrew" chapter.`;
         setActionFeedback({
           type: 'success',
-          text: `Campus "${res.college}" registered successfully!`,
+          text: feedbackMsg,
         });
-        setTimeout(() => setActionFeedback(null), 4000);
+        setTimeout(() => setActionFeedback(null), 5000);
         setShowAddCampusModal(false);
         setNewCampusName('');
         await loadData();
@@ -566,16 +569,22 @@ function AdminCampusesPageContent() {
     setSelectedCandidateId('');
     setLoadingCandidates(true);
     try {
-      const res = await api<{ ok: boolean; students: any[] }>('/clubs/admin/candidates');
+      const clubCollege = (club.college || selectedCampus || 'MIET').trim();
+      const res = await api<{ ok: boolean; students: any[] }>(
+        `/clubs/admin/candidates?clubId=${encodeURIComponent(club.id)}&college=${encodeURIComponent(clubCollege)}`
+      );
       if (res?.ok && res.students) {
-        const clubCollege = (club.college || selectedCampus || 'MIET').trim().toUpperCase();
+        const normClubCollege = clubCollege.toUpperCase();
         const collegeCandidates = res.students.filter(
-          (s) => ((s.college || 'MIET').trim().toUpperCase() === clubCollege)
+          (s) => ((s.college || 'MIET').trim().toUpperCase() === normClubCollege)
         );
-        setCandidates(collegeCandidates.length > 0 ? collegeCandidates : res.students);
+        setCandidates(collegeCandidates);
+      } else {
+        setCandidates([]);
       }
     } catch (err: any) {
       console.warn('Failed to load candidate students:', err);
+      setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
@@ -1946,8 +1955,11 @@ function AdminCampusesPageContent() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50"
                   required
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Once registered, this campus becomes available for college-scoped clubs, events, and student registrations.
+                <p className="text-[11px] text-emerald-400/90 mt-2 flex items-start gap-1.5 bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                  <Shield className="size-3.5 shrink-0 text-emerald-400 mt-0.5" />
+                  <span>
+                    A dedicated <strong className="text-white">hackerrankcampuscrew</strong> chapter will automatically be initialized for this campus, and the first registered member will be appointed as the organizer.
+                  </span>
                 </p>
               </div>
 
@@ -2188,7 +2200,7 @@ function AdminCampusesPageContent() {
                   </select>
                 ) : (
                   <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400">
-                    No eligible students found registered under {appointModalClub.college || selectedCampus || 'this campus'}.
+                    No eligible students found registered under {appointModalClub.college || selectedCampus || 'this campus'}. Only students from this same campus can be appointed as organizers.
                   </div>
                 )}
               </div>

@@ -96,6 +96,9 @@ export default function AdminSidebar({ email, role }: AdminSidebarProps) {
 
   const getThemeColor = () => {
     if (!isOrganizer) return { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' };
+    if (clubSlug?.includes('hackerrank') || clubName?.toLowerCase().includes('hackerrank')) {
+      return { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' };
+    }
     if (clubSlug === 'acm') return { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' };
     if (clubSlug === 'ieee') return { text: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20' };
     if (clubSlug === 'leetcode') return { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' };
