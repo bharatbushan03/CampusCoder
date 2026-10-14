@@ -158,6 +158,12 @@ router.get('/analytics', async (req: AuthedRequest, res: Response) => {
   const userClubId = isGlobalAdmin ? null : (req.profile?.club_id || DEFAULT_CLUB_ID);
   const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
+  const cacheKey = `admin_analytics:${req.profile?.role || 'admin'}:${userCollege}:${userClubId || 'all'}`;
+  const cached = await appCache.get<any>(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
+
   const [profilesRes, eventsRes, registrationsRes, allClubs] = await Promise.all([
     supabase.from('profiles').select('id, full_name, email, role, college, branch, year, club_id, created_at').order('created_at', { ascending: false }),
     supabase.from('events').select('id, title, slug, event_type, mode, date, status, created_at, club_id, college').order('date', { ascending: false }),
@@ -359,7 +365,7 @@ router.get('/analytics', async (req: AuthedRequest, res: Response) => {
     time: p.created_at,
   }));
 
-  return res.json({
+  const payload = {
     ok: true,
     summary: {
       totalStudents: studentProfiles.length,
@@ -385,7 +391,10 @@ router.get('/analytics', async (req: AuthedRequest, res: Response) => {
     recentSignups,
     isGlobalAdmin,
     scopedClub: !isGlobalAdmin && userClubId ? (clubsMap.get(userClubId) || defaultClub) : null,
-  });
+  };
+
+  await appCache.set(cacheKey, payload, 30, ['analytics', 'events', 'registrations']);
+  return res.json(payload);
 });
 
 // ---------- Events ----------

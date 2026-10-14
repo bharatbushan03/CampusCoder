@@ -32,7 +32,7 @@ export default async function AdminLayout({
   }
 
   if (!me?.user) {
-    redirect('/login?redirect=/admin');
+    redirect('/login?redirect=/admin/dashboard');
   }
 
   const profile = me.profile;

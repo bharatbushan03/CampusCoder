@@ -21,7 +21,10 @@ export function proxy(request: NextRequest) {
   }
 
   const loginUrl = new URL('/login', request.url);
-  const redirectPath = `${pathname}${search}`;
+  let redirectPath = `${pathname}${search}`;
+  if (redirectPath === '/admin' || redirectPath === '/admin/') {
+    redirectPath = '/admin/dashboard';
+  }
   if (redirectPath !== '/') {
     loginUrl.searchParams.set('redirect', redirectPath);
   }
