@@ -7,6 +7,9 @@ const nextConfig = {
   poweredByHeader: false,
   allowedDevOrigins: ['*.trycloudflare.com'],
   outputFileTracingRoot: __dirname,
+  logging: {
+    incomingRequests: false,
+  },
   experimental: {
     proxyClientMaxBodySize: '500mb',
     serverActions: {
