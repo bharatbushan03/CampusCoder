@@ -46,6 +46,7 @@ export interface ClubItem {
   slug: string;
   description: string | null;
   category: string;
+  college?: string | null;
   logo_url: string | null;
   banner_url: string | null;
   is_active: boolean;
@@ -147,16 +148,20 @@ export default function AdminClubsPage() {
     setSelectedCandidateId('');
     setLoadingCandidates(true);
     try {
-      const res = await api<{ ok: boolean; students: any[] }>('/clubs/admin/candidates').catch(() =>
-        api<{ ok: boolean; profiles: any[] }>('/admin/students')
+      const clubCollege = (club.college || profile?.college || 'MIET').trim();
+      const res = await api<{ ok: boolean; students: any[] }>(
+        `/clubs/admin/candidates?clubId=${encodeURIComponent(club.id)}&college=${encodeURIComponent(clubCollege)}`
+      ).catch(() => null);
+      const studentList = (res?.students || []).filter(
+        (s) => ((s.college || 'MIET').trim().toUpperCase() === clubCollege.toUpperCase())
       );
-      const studentList = (res as any)?.students || (res as any)?.profiles || [];
       setCandidates(studentList);
       if (studentList.length > 0) {
         setSelectedCandidateId(studentList[0].id);
       }
     } catch (err: any) {
       console.warn('Failed to load candidate students:', err);
+      setCandidates([]);
     } finally {
       setLoadingCandidates(false);
     }
@@ -890,7 +895,7 @@ export default function AdminClubsPage() {
               </div>
             ) : candidates.length === 0 ? (
               <div className="py-6 text-center text-xs font-mono text-slate-400 bg-slate-950/60 p-4 rounded-lg border border-slate-800">
-                No eligible students found in the directory.
+                No eligible students found registered under {appointModalClub.college || 'this campus'}. Only students belonging to this same campus can be appointed.
               </div>
             ) : (
               <div className="space-y-4">

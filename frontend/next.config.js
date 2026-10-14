@@ -8,7 +8,7 @@ const nextConfig = {
   allowedDevOrigins: ['*.trycloudflare.com'],
   outputFileTracingRoot: __dirname,
   experimental: {
-    middlewareClientMaxBodySize: '500mb',
+    proxyClientMaxBodySize: '500mb',
     serverActions: {
       bodySizeLimit: '500mb',
     },

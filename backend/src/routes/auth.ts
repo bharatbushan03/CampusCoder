@@ -12,8 +12,8 @@ import { authRateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
-import { getClubByIdOrSlug } from '../lib/clubsHelper';
-import { ensureCollegeExists } from '../lib/collegesHelper';
+import { getClubByIdOrSlug, autoSetupHackerRankCrewForCollege } from '../lib/clubsHelper';
+import { ensureCollegeExists, DEFAULT_COLLEGE } from '../lib/collegesHelper';
 
 const loginSchema = z.object({
   email: z
@@ -282,8 +282,18 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
     }
 
     const { password, fullName, college, branch, year } = verification.payload;
-    await ensureCollegeExists(college);
+    const cleanCollege = (college || DEFAULT_COLLEGE).trim();
+    await ensureCollegeExists(cleanCollege);
     const admin = createAdminClient();
+
+    // Check if this user will be the first registered member for this college
+    const { data: existingMembers } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('college', cleanCollege)
+      .neq('role', 'admin');
+
+    const isFirstMember = !existingMembers || existingMembers.length === 0;
 
     // Create confirmed user in Supabase Auth via Admin Client (bypasses Supabase SMTP rate limits)
     let { data: createdUser, error: createError } = await admin.auth.admin.createUser({
@@ -292,7 +302,7 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
       email_confirm: true,
       user_metadata: {
         full_name: fullName,
-        college,
+        college: cleanCollege,
         branch,
         year,
         role: 'student',
@@ -310,7 +320,7 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
           email_confirm: true,
           user_metadata: {
             full_name: fullName,
-            college,
+            college: cleanCollege,
             branch,
             year,
             role: 'student',
@@ -333,11 +343,15 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
       return res.status(400).json({ ok: false, error: 'Failed to create user account' });
     }
 
-    // Ensure student profile has club_id explicitly set to null
-    try {
-      await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
-    } catch {
-      // Continue if column not ready
+    // Auto-setup hackerrankcampuscrew club for this college and assign first member as organizer
+    if (isFirstMember) {
+      await autoSetupHackerRankCrewForCollege(cleanCollege, createdUser.user.id);
+    } else {
+      try {
+        await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
+      } catch {
+        // Continue if column not ready
+      }
     }
 
     // Authenticate and issue 48-hour session cookies
@@ -443,7 +457,8 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
 
   try {
     const { email, password, fullName, college, branch, year } = parsed.data;
-    await ensureCollegeExists(college);
+    const cleanCollege = (college || DEFAULT_COLLEGE).trim();
+    await ensureCollegeExists(cleanCollege);
     const admin = createAdminClient();
 
     // Check if active profile exists
@@ -457,13 +472,22 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
       return res.status(409).json({ ok: false, error: 'An account with this email already exists' });
     }
 
+    // Check if this user will be the first registered member for this college
+    const { data: existingMembers } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('college', cleanCollege)
+      .neq('role', 'admin');
+
+    const isFirstMember = !existingMembers || existingMembers.length === 0;
+
     let { data: createdUser, error: createError } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: {
         full_name: fullName,
-        college,
+        college: cleanCollege,
         branch,
         year,
         role: 'student',
@@ -480,7 +504,7 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
           email_confirm: true,
           user_metadata: {
             full_name: fullName,
-            college,
+            college: cleanCollege,
             branch,
             year,
             role: 'student',
@@ -503,11 +527,15 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
       return res.status(400).json({ ok: false, error: 'Signup failed' });
     }
 
-    // Explicitly set student profile club_id to null
-    try {
-      await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
-    } catch {
-      // Continue if column not ready
+    // Auto-setup hackerrankcampuscrew club for this college and assign first member as organizer
+    if (isFirstMember) {
+      await autoSetupHackerRankCrewForCollege(cleanCollege, createdUser.user.id);
+    } else {
+      try {
+        await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
+      } catch {
+        // Continue if column not ready
+      }
     }
 
     const anon = createAnonClient();

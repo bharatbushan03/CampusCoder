@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { getAllColleges, ensureCollegeExists, DEFAULT_COLLEGE } from '../lib/collegesHelper';
+import { autoSetupHackerRankCrewForCollege, getAllClubs } from '../lib/clubsHelper';
 import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 
@@ -27,13 +28,12 @@ router.get('/overview', requireAuth, requireRole('admin'), async (_req: AuthedRe
     const colleges = await getAllColleges();
     const supabase = createAdminClient();
 
-    const [clubsRes, eventsRes, profilesRes] = await Promise.all([
-      supabase.from('clubs').select('id, name, slug, description, category, college, is_active, created_at'),
+    const [clubs, eventsRes, profilesRes] = await Promise.all([
+      getAllClubs(),
       supabase.from('events').select('id, college'),
       supabase.from('profiles').select('id, role, college, club_id'),
     ]);
 
-    const clubs = clubsRes.data || [];
     const events = eventsRes.data || [];
     const profiles = profilesRes.data || [];
 
@@ -70,7 +70,13 @@ router.post('/', async (req: Request, res: Response) => {
 
   try {
     const registered = await ensureCollegeExists(parsed.data.name);
-    return res.status(201).json({ ok: true, college: registered });
+    const { club, organizerAssigned } = await autoSetupHackerRankCrewForCollege(registered);
+    return res.status(201).json({
+      ok: true,
+      college: registered,
+      club,
+      organizerAssigned,
+    });
   } catch (err: any) {
     console.error('Error registering college:', err);
     return res.status(500).json({ ok: false, error: 'Failed to register college' });

@@ -1,4 +1,5 @@
 import { createAdminClient } from '../utils/supabase/admin';
+import { autoSetupHackerRankCrewForCollege } from './clubsHelper';
 
 export const DEFAULT_COLLEGE = 'MIET';
 
@@ -89,6 +90,9 @@ export async function ensureCollegeExists(rawName: string): Promise<string> {
 
   // Normalize MIET
   if (trimmed.toUpperCase() === 'MIET') {
+    try {
+      await autoSetupHackerRankCrewForCollege(DEFAULT_COLLEGE);
+    } catch {}
     return DEFAULT_COLLEGE;
   }
 
@@ -108,6 +112,14 @@ export async function ensureCollegeExists(rawName: string): Promise<string> {
     }
   } catch (err: any) {
     console.warn('[CollegesHelper] Could not persist new college to database:', err?.message || err);
+  }
+
+  // Automatically initialize the hackerrankcampuscrew club for this new college
+  // and assign the first member as the organizer if present
+  try {
+    await autoSetupHackerRankCrewForCollege(trimmed);
+  } catch (err: any) {
+    console.warn('[CollegesHelper] Error auto-setting up hackerrank crew:', err?.message || err);
   }
 
   return trimmed;
