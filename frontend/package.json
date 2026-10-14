@@ -43,10 +43,12 @@
     "eslint": "^9",
     "eslint-config-next": "^16.4.0",
     "jsdom": "^29.1.1",
-    "lighthouse": "^12.6.1",
     "react-doctor": "^0.9.18",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"
+  },
+  "overrides": {
+    "braces": "^3.0.3"
   }
 }
