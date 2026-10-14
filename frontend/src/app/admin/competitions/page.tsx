@@ -41,17 +41,31 @@ export type AdminCompetitionRow = {
   concluded_date: string | null;
   description: string | null;
   tags: string[];
+  college?: string;
   is_active: boolean;
   created_at: string;
 };
 
 export default function AdminCompetitionsPage() {
   const [competitions, setCompetitions] = useState<AdminCompetitionRow[]>([]);
+  const [colleges, setColleges] = useState<string[]>(['MIET']);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [campusFilter, setCampusFilter] = useState('all');
   const [isSeeding, setIsSeeding] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/colleges')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.ok && Array.isArray(data.colleges)) {
+          setColleges(data.colleges);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchCompetitions = useCallback(async () => {
     setLoading(true);
@@ -122,15 +136,22 @@ export default function AdminCompetitionsPage() {
                             comp.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
 
       const matchesType = typeFilter === 'all' || comp.type === typeFilter;
-      
+
       const dateState = getCompetitionDateState(comp as any);
       const matchesStatus = statusFilter === 'all' || 
                             comp.status.toLowerCase() === statusFilter.toLowerCase() ||
                             dateState === statusFilter;
 
-      return matchesSearch && matchesType && matchesStatus;
+      const rawCollege = (comp.college || 'ALL').trim().toUpperCase();
+      const matchesCampus =
+        campusFilter === 'all' ||
+        rawCollege === 'ALL' ||
+        rawCollege === 'ALL CAMPUSES' ||
+        rawCollege.split(',').map((c) => c.trim()).includes(campusFilter.toUpperCase());
+
+      return matchesSearch && matchesType && matchesStatus && matchesCampus;
     });
-  }, [competitions, search, typeFilter, statusFilter]);
+  }, [competitions, search, typeFilter, statusFilter, campusFilter]);
 
   const counts = useMemo(() => {
     let live = 0;
@@ -238,6 +259,19 @@ export default function AdminCompetitionsPage() {
           <option value="upcoming">⚡ Upcoming & Open</option>
           <option value="concluded">🏁 Concluded</option>
         </select>
+
+        <select
+          value={campusFilter}
+          onChange={(e) => setCampusFilter(e.target.value)}
+          className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none focus:border-emerald-500/50 cursor-pointer"
+        >
+          <option value="all">Campus: All Audiences</option>
+          {colleges.map((c) => (
+            <option key={c} value={c}>
+              Campus: {c}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Competitions Table */}
@@ -253,6 +287,8 @@ export default function AdminCompetitionsPage() {
             const dateState = getCompetitionDateState(comp as any);
             const isLive = dateState === 'live';
             const isConcluded = dateState === 'concluded';
+            const rawCol = (comp.college || 'ALL').trim();
+            const rawColUpper = rawCol.toUpperCase();
 
             return (
               <Card 
@@ -277,6 +313,22 @@ export default function AdminCompetitionsPage() {
                       <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md bg-slate-900 text-slate-400">
                         {comp.type}
                       </span>
+
+                      {/* Campus Scope Badge */}
+                      {rawColUpper === 'ALL' || rawColUpper === 'ALL CAMPUSES' ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          🌐 All Campuses
+                        </span>
+                      ) : rawCol.includes(',') ? (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20" title={rawCol}>
+                          🏛️ {rawCol.split(',').length} Campuses: {rawCol}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                          🏫 {rawCol}
+                        </span>
+                      )}
+
                       {isLive ? (
                         <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" /> Live

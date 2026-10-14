@@ -1,17 +1,29 @@
 import { Router, type Request, type Response } from 'express';
-import { createAnonClient } from '../middleware/auth';
+import { createAnonClient, getOptionalSession, type AuthedRequest } from '../middleware/auth';
 import { cacheRoute } from '../lib/cache';
 import { queryAzure } from '../lib/azureDb';
+import { DEFAULT_COLLEGE } from '../lib/collegesHelper';
 
 const router = Router();
+
+function matchesCollege(itemCollege: string | null | undefined, targetCollege: string | null | undefined): boolean {
+  if (!targetCollege || targetCollege === 'all') return true;
+  const col = (itemCollege || DEFAULT_COLLEGE).trim().toUpperCase();
+  const target = targetCollege.trim().toUpperCase();
+  return col === target;
+}
 
 /**
  * GET /api/notes/folders
  * Fetch folders for a subject code (optionally nested by parent_id)
  */
 router.get('/folders', cacheRoute(30, ['notes', 'note_folders'], 15), async (req: Request, res: Response) => {
-  const { subject_code, code, parent_id } = req.query;
+  const { subject_code, code, parent_id, college } = req.query;
   const targetSubject = (subject_code || code) as string | undefined;
+  const { profile } = await getOptionalSession(req as AuthedRequest, res);
+  const targetCollege = (profile?.role === 'student' || profile?.role === 'organizer')
+    ? (profile.college || DEFAULT_COLLEGE)
+    : ((college as string | undefined)?.trim() || null);
 
   // 1. Try Azure DB
   const conditions: string[] = [];
@@ -41,7 +53,11 @@ router.get('/folders', cacheRoute(30, ['notes', 'note_folders'], 15), async (req
 
   const azureFolders = await queryAzure(azureSql, params);
   if (azureFolders !== null) {
-    return res.json({ ok: true, folders: azureFolders, source: 'azure' });
+    let filtered = azureFolders.map((f: any) => ({ ...f, college: f.college || DEFAULT_COLLEGE }));
+    if (targetCollege && targetCollege !== 'all') {
+      filtered = filtered.filter((f: any) => matchesCollege(f.college, targetCollege));
+    }
+    return res.json({ ok: true, folders: filtered, source: 'azure' });
   }
 
   // 2. Supabase Fallback
@@ -70,6 +86,7 @@ router.get('/folders', cacheRoute(30, ['notes', 'note_folders'], 15), async (req
 
     // Attach document counts
     const folderList = folders || [];
+    const countMap: Record<string, number> = {};
     if (folderList.length > 0) {
       const folderIds = folderList.map(f => f.id);
       const { data: docCounts } = await supabase
@@ -78,22 +95,24 @@ router.get('/folders', cacheRoute(30, ['notes', 'note_folders'], 15), async (req
         .in('folder_id', folderIds)
         .eq('is_active', true);
 
-      const countMap: Record<string, number> = {};
       (docCounts || []).forEach((d: { folder_id: string | null }) => {
         if (d.folder_id) {
           countMap[d.folder_id] = (countMap[d.folder_id] || 0) + 1;
         }
       });
-
-      const enriched = folderList.map(f => ({
-        ...f,
-        document_count: countMap[f.id] || 0,
-      }));
-
-      return res.json({ ok: true, folders: enriched, source: 'supabase' });
     }
 
-    return res.json({ ok: true, folders: folderList, source: 'supabase' });
+    let enriched = folderList.map(f => ({
+      ...f,
+      college: (f as any).college || DEFAULT_COLLEGE,
+      document_count: countMap[f.id] || 0,
+    }));
+
+    if (targetCollege && targetCollege !== 'all') {
+      enriched = enriched.filter((f: any) => matchesCollege(f.college, targetCollege));
+    }
+
+    return res.json({ ok: true, folders: enriched, source: 'supabase' });
   } catch (err: any) {
     console.error('Unexpected error fetching folders:', err);
     return res.status(500).json({ ok: false, error: 'Failed to load folders' });
@@ -102,9 +121,14 @@ router.get('/folders', cacheRoute(30, ['notes', 'note_folders'], 15), async (req
 
 /**
  * GET /api/notes
- * Fetch notes documents (supports filtering by subject code, folder_id, year, semester, search)
+ * Fetch notes documents (supports filtering by subject code, folder_id, year, semester, search, college)
  */
 router.get('/', cacheRoute(60, ['notes'], 30), async (req: Request, res: Response) => {
+  const { profile } = await getOptionalSession(req as AuthedRequest, res);
+  const collegeParam = (req.query.college as string | undefined)?.trim();
+  const targetCollege = (profile?.role === 'student' || profile?.role === 'organizer')
+    ? (profile.college || DEFAULT_COLLEGE)
+    : (collegeParam && collegeParam !== 'all' ? collegeParam : null);
   const { year, semester, search, code, folder_id } = req.query;
 
   // 1. Try Azure Database first if configured & healthy
@@ -141,7 +165,11 @@ router.get('/', cacheRoute(60, ['notes'], 30), async (req: Request, res: Respons
   const azureSql = `SELECT * FROM public.notes WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`;
   const azureNotes = await queryAzure(azureSql, params);
   if (azureNotes !== null) {
-    return res.json({ ok: true, notes: azureNotes, source: 'azure' });
+    let filtered = azureNotes.map((n: any) => ({ ...n, college: n.college || DEFAULT_COLLEGE }));
+    if (targetCollege && targetCollege !== 'all') {
+      filtered = filtered.filter((n: any) => matchesCollege(n.college, targetCollege));
+    }
+    return res.json({ ok: true, notes: filtered, source: 'azure' });
   }
 
   // 2. Resilient Supabase fallback
@@ -210,8 +238,16 @@ router.get('/', cacheRoute(60, ['notes'], 30), async (req: Request, res: Respons
     return res.status(500).json({ ok: false, error: 'Failed to load notes' });
   }
 
-  const resultNotes = data || [];
-  return res.json({ ok: true, notes: resultNotes, source: (data && data.length > 0) ? 'supabase' : 'empty' });
+  let resultNotes = (data || []).map((n: any) => ({
+    ...n,
+    college: (n as any).college || DEFAULT_COLLEGE,
+  }));
+
+  if (targetCollege && targetCollege !== 'all') {
+    resultNotes = resultNotes.filter((n: any) => matchesCollege(n.college, targetCollege));
+  }
+
+  return res.json({ ok: true, notes: resultNotes, source: (resultNotes.length > 0) ? 'supabase' : 'empty' });
 });
 
 export { router as notesRouter };

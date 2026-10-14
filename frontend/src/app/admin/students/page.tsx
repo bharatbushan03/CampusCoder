@@ -25,11 +25,13 @@ import {
   CheckCircle2,
   Shield,
   ShieldCheck,
+  Building2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import { deleteStudent } from '@/app/actions/adminActions';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 import { useAuth } from '@/lib/auth';
 
 type ProfileRow = {
@@ -97,12 +99,14 @@ export default function AdminStudentsPage() {
   const [permissionStudent, setPermissionStudent] = useState<StudentWithStats | null>(null);
   const [targetRole, setTargetRole] = useState<'student' | 'admin' | 'organizer'>('student');
   const [targetClubId, setTargetClubId] = useState<string>('');
+  const [targetCollege, setTargetCollege] = useState<string>('MIET');
   const [isSavingPermission, setIsSavingPermission] = useState(false);
 
   const openPermissionModal = (student: StudentWithStats) => {
     setPermissionStudent(student);
     setTargetRole((student.role as any) || 'student');
     setTargetClubId(student.club_id || student.club?.id || availableClubs[0]?.id || '');
+    setTargetCollege(student.college || 'MIET');
   };
 
   const handleSavePermissions = async () => {
@@ -110,7 +114,7 @@ export default function AdminStudentsPage() {
     setIsSavingPermission(true);
     try {
       const clubIdToAssign = targetRole === 'organizer' ? (targetClubId || availableClubs[0]?.id) : null;
-      await handleUpdateRoleAndClub(permissionStudent.id, targetRole, clubIdToAssign);
+      await handleUpdateRoleAndClub(permissionStudent.id, targetRole, clubIdToAssign, targetCollege);
       setPermissionStudent(null);
     } finally {
       setIsSavingPermission(false);
@@ -197,16 +201,20 @@ export default function AdminStudentsPage() {
     void loadStudentsData();
   }, [loadStudentsData]);
 
-  // Update student role & assigned club
+  // Update student role & assigned club & college
   const handleUpdateRoleAndClub = async (
     studentId: string,
     newRole: 'student' | 'admin' | 'organizer',
-    newClubId?: string | null
+    newClubId?: string | null,
+    newCollege?: string | null
   ) => {
     try {
-      const payload: { role: string; club_id?: string | null } = { role: newRole };
+      const payload: { role: string; club_id?: string | null; college?: string | null } = { role: newRole };
       if (newClubId !== undefined) {
         payload.club_id = newClubId;
+      }
+      if (newCollege !== undefined && newCollege !== null) {
+        payload.college = newCollege.trim();
       }
 
       const res = await api<{ ok: boolean; profile?: any }>(`/admin/students/${studentId}`, {
@@ -225,6 +233,7 @@ export default function AdminStudentsPage() {
           return {
             ...s,
             role: newRole,
+            college: newCollege !== undefined ? newCollege : s.college,
             club_id: newRole === 'organizer' ? (newClubId || null) : null,
             club: updatedClub,
           };
@@ -238,6 +247,7 @@ export default function AdminStudentsPage() {
         setSelectedStudent({
           ...selectedStudent,
           role: newRole,
+          college: newCollege !== undefined ? newCollege : selectedStudent.college,
           club_id: newRole === 'organizer' ? (newClubId || null) : null,
           club: updatedClub,
         });
@@ -245,7 +255,7 @@ export default function AdminStudentsPage() {
 
       const clubName = targetClub?.name || selectedStudent?.club?.name || 'Club';
       const label = newRole === 'organizer' ? `${clubName} Organizer` : newRole === 'admin' ? 'Global Admin' : 'Student (General)';
-      setFeedbackMsg({ type: 'success', text: `Role updated to ${label}` });
+      setFeedbackMsg({ type: 'success', text: `Role updated to ${label}${newCollege ? ` (${newCollege})` : ''}` });
       setTimeout(() => setFeedbackMsg(null), 4000);
     } catch (err) {
       setFeedbackMsg({ type: 'error', text: 'Failed to update role: ' + getErrorMessage(err) });
@@ -380,7 +390,9 @@ export default function AdminStudentsPage() {
             Campus Students <span className="text-emerald-500">Directory</span>
           </h1>
           <p className="text-sm text-slate-400">
-            All registered campus students across all communities. View activity, RSVPs, and manage student profiles.
+            {isGlobalAdmin
+              ? 'All registered campus students across all colleges and communities. View activity, RSVPs, and manage student profiles.'
+              : `Registered students for ${profile?.college || userClubName}. View activity, registrations, and student profiles.`}
           </p>
         </div>
         <div>
@@ -442,15 +454,15 @@ export default function AdminStudentsPage() {
           <p className="text-2xl font-mono font-bold text-amber-400 mt-1">{totalRegistrations}</p>
         </Card>
         {isGlobalAdmin && (
-          <Link href="/admin/clubs" className="block">
+          <Link href="/admin/campuses" className="block">
             <Card hoverEffect={true} className="border-slate-800 bg-slate-900/40 p-4 hover:border-emerald-500/40 transition-colors h-full flex flex-col justify-between">
               <div>
                 <p className="text-[10px] font-mono font-medium uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                  <Shield className="size-3" /> Community Organizers
+                  <Building2 className="size-3" /> Campus Chapters
                 </p>
-                <p className="text-xs text-slate-300 mt-1">Organizers are managed in</p>
+                <p className="text-xs text-slate-300 mt-1">Organizers are managed under</p>
               </div>
-              <p className="text-xs font-mono text-emerald-400 font-semibold mt-1">Clubs & Communities →</p>
+              <p className="text-xs font-mono text-emerald-400 font-semibold mt-1">Campuses & Clubs →</p>
             </Card>
           </Link>
         )}
@@ -942,6 +954,26 @@ export default function AdminStudentsPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* College Affiliation */}
+              <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                <label className="block text-xs font-mono uppercase tracking-wider text-slate-400">
+                  College Affiliation &amp; Scope *
+                </label>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  {targetRole === 'organizer'
+                    ? 'As an Organizer, this user will publish events, workshops, and notes specifically for students of this college.'
+                    : 'College associated with this user account:'}
+                </p>
+                <CollegeSelect
+                  id="modal-permission-college"
+                  value={targetCollege}
+                  onChange={setTargetCollege}
+                  required
+                  placeholder="Enter college name for this student/organizer..."
+                  helperText="New college names will automatically become available platform-wide."
+                />
               </div>
 
               {targetRole === 'organizer' && (

@@ -15,10 +15,15 @@ import { Button } from '@/components/ui/Button';
 import { updateNote } from '@/app/actions/adminActions';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 
 export default function EditNotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const { profile } = useAuth();
+  const isGlobalAdmin = profile?.role === 'admin';
+  const userCollege = profile?.college || 'MIET';
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
@@ -30,6 +35,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
     year: '1st-year' as '1st-year' | '2nd-year' | '3rd-year' | '4th-year',
     semester: 'sem-1',
     branch: 'All Branches',
+    college: userCollege,
     pdf_url: '',
     author: 'CampusCoder Academic Team',
     is_active: true,
@@ -48,6 +54,7 @@ export default function EditNotePage({ params }: { params: Promise<{ id: string 
             year: n.year || '1st-year',
             semester: n.semester || 'sem-1',
             branch: n.branch || 'All Branches',
+            college: n.college || userCollege,
             pdf_url: n.pdf_url || '',
             author: n.author || 'CampusCoder Academic Team',
             is_active: n.is_active ?? true,
@@ -133,6 +140,7 @@ if (file.size > 50 * 1024 * 1024) {
         year: formData.year,
         semester: formData.semester,
         branch: formData.branch.trim() || 'All Branches',
+        college: isGlobalAdmin ? (formData.college || userCollege) : userCollege,
         pdf_url: formData.pdf_url.trim(),
         author: formData.author.trim() || null,
         is_active: formData.is_active,
@@ -274,6 +282,33 @@ if (file.size > 50 * 1024 * 1024) {
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
               />
+            </div>
+
+            <div className="md:col-span-2">
+              {isGlobalAdmin ? (
+                <CollegeSelect
+                  id="edit-note-college"
+                  showLabel
+                  label="Target College / Campus"
+                  value={formData.college}
+                  onChange={(val) => setFormData({ ...formData, college: val })}
+                  placeholder="e.g. MIET, IIT..."
+                  helperText="Notes will be visible to students enrolled in this college"
+                  selectClassName="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 appearance-none"
+                  inputClassName="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+                />
+              ) : (
+                <div>
+                  <label className="block text-xs font-mono text-slate-400 mb-1">Target College / Campus</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={userCollege}
+                    className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-mono opacity-80 cursor-not-allowed"
+                  />
+                  <p className="text-[10px] text-slate-500 font-mono mt-1">Automatically scoped to your assigned college ({userCollege})</p>
+                </div>
+              )}
             </div>
 
             <div>

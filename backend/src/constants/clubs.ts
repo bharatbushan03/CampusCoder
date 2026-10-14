@@ -4,6 +4,7 @@ export interface Club {
   slug: string;
   description: string | null;
   category: string;
+  college: string | null;
   logo_url: string | null;
   banner_url: string | null;
   is_active: boolean;
@@ -20,6 +21,7 @@ export const DEFAULT_CLUBS: Club[] = [
     slug: 'acm',
     description: 'Association for Computing Machinery student chapter focused on algorithms, systems, computing research, and hackathons.',
     category: 'Technical',
+    college: 'MIET',
     logo_url: null,
     banner_url: null,
     is_active: true,
@@ -32,6 +34,7 @@ export const DEFAULT_CLUBS: Club[] = [
     slug: 'ieee',
     description: 'Institute of Electrical and Electronics Engineers branch dedicated to engineering, hardware, IoT, and technological innovation.',
     category: 'Technical',
+    college: 'MIET',
     logo_url: null,
     banner_url: null,
     is_active: true,
@@ -44,6 +47,7 @@ export const DEFAULT_CLUBS: Club[] = [
     slug: 'leetcode',
     description: 'Campus competitive programming community, daily DSA practice, algorithmic sprint contests, and technical interview preparation.',
     category: 'Coding & DSA',
+    college: 'MIET',
     logo_url: null,
     banner_url: null,
     is_active: true,
@@ -51,3 +55,4 @@ export const DEFAULT_CLUBS: Club[] = [
     updated_at: '2025-01-01T00:00:00Z'
   }
 ];
+

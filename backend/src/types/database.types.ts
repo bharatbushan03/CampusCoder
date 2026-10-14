@@ -9,6 +9,27 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      colleges: {
+        Row: {
+          id: string;
+          name: string;
+          code: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          code?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          code?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       clubs: {
         Row: {
           id: string;
@@ -16,6 +37,7 @@ export type Database = {
           slug: string;
           description: string | null;
           category: string | null;
+          college: string | null;
           logo_url: string | null;
           banner_url: string | null;
           is_active: boolean;
@@ -28,6 +50,7 @@ export type Database = {
           slug: string;
           description?: string | null;
           category?: string | null;
+          college?: string | null;
           logo_url?: string | null;
           banner_url?: string | null;
           is_active?: boolean;
@@ -40,6 +63,7 @@ export type Database = {
           slug?: string;
           description?: string | null;
           category?: string | null;
+          college?: string | null;
           logo_url?: string | null;
           banner_url?: string | null;
           is_active?: boolean;
@@ -110,6 +134,7 @@ export type Database = {
           videos: string[] | null;
           photos_zip_url: string | null;
           club_id: string | null;
+          college: string | null;
           created_by: string | null;
           created_at: string;
           updated_at: string;
@@ -136,6 +161,7 @@ export type Database = {
           videos?: string[] | null;
           photos_zip_url?: string | null;
           club_id?: string | null;
+          college?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -162,6 +188,7 @@ export type Database = {
           videos?: string[] | null;
           photos_zip_url?: string | null;
           club_id?: string | null;
+          college?: string | null;
           created_by?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -175,6 +202,7 @@ export type Database = {
           description: string | null;
           link: string;
           category: string;
+          college: string | null;
           event_id: string | null;
           is_active: boolean;
           created_at: string;
@@ -185,6 +213,7 @@ export type Database = {
           description?: string | null;
           link: string;
           category: string;
+          college?: string | null;
           event_id?: string | null;
           is_active?: boolean;
           created_at?: string;
@@ -195,6 +224,7 @@ export type Database = {
           description?: string | null;
           link?: string;
           category?: string;
+          college?: string | null;
           event_id?: string | null;
           is_active?: boolean;
           created_at?: string;
@@ -227,6 +257,7 @@ export type Database = {
           prep_kit: any;
           checklist: string[];
           featured: boolean;
+          college: string | null;
           is_active: boolean;
           created_at: string;
         };
@@ -255,6 +286,7 @@ export type Database = {
           prep_kit?: any;
           checklist?: string[];
           featured?: boolean;
+          college?: string | null;
           is_active?: boolean;
           created_at?: string;
         };
@@ -283,6 +315,7 @@ export type Database = {
           prep_kit?: any;
           checklist?: string[];
           featured?: boolean;
+          college?: string | null;
           is_active?: boolean;
           created_at?: string;
         };
@@ -295,6 +328,7 @@ export type Database = {
           name: string;
           parent_id: string | null;
           color: string | null;
+          college: string | null;
           created_at: string;
         };
         Insert: {
@@ -303,6 +337,7 @@ export type Database = {
           name: string;
           parent_id?: string | null;
           color?: string | null;
+          college?: string | null;
           created_at?: string;
         };
         Update: {
@@ -311,6 +346,7 @@ export type Database = {
           name?: string;
           parent_id?: string | null;
           color?: string | null;
+          college?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -334,6 +370,7 @@ export type Database = {
           highlights: string[];
           folder_id: string | null;
           folder_name: string | null;
+          college: string | null;
           is_active: boolean;
           created_at: string;
         };
@@ -355,6 +392,7 @@ export type Database = {
           highlights?: string[];
           folder_id?: string | null;
           folder_name?: string | null;
+          college?: string | null;
           is_active?: boolean;
           created_at?: string;
         };
@@ -376,6 +414,7 @@ export type Database = {
           highlights?: string[];
           folder_id?: string | null;
           folder_name?: string | null;
+          college?: string | null;
           is_active?: boolean;
           created_at?: string;
         };

@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Loader2,
   User,
-  School,
   BookOpen,
   CalendarCheck,
   MailCheck,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 import { useAuth } from '@/lib/auth';
 
 export default function SignupPage() {
@@ -30,7 +30,6 @@ export default function SignupPage() {
   const redirectParam = searchParams ? searchParams.get('redirect') || searchParams.get('from') : null;
 
   // Form State (Step 1)
-  const COLLEGES = ['MIET'];
   const BRANCHES = [
     'AIML',
     'Cyber Security',
@@ -41,7 +40,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [college, setCollege] = useState(COLLEGES[0]);
+  const [college, setCollege] = useState('MIET');
   const [branch, setBranch] = useState('');
   const [year, setYear] = useState('2027');
 
@@ -363,28 +362,14 @@ export default function SignupPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* College */}
-                <div>
-                  <label
-                    htmlFor="page-college-name"
-                    className="block text-xs font-mono uppercase tracking-wider text-slate-400 mb-2"
-                  >
-                    College Name
-                  </label>
-                  <div className="relative">
-                    <School className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-500" />
-                    <select
-                      id="page-college-name"
-                      required
-                      value={college}
-                      onChange={(e) => setCollege(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
-                    >
-                      {COLLEGES.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                <CollegeSelect
+                  id="page-college-name"
+                  value={college}
+                  onChange={setCollege}
+                  showLabel
+                  label="College Name"
+                  required
+                />
 
                 {/* Branch */}
                 <div>

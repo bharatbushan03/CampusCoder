@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
@@ -14,8 +15,6 @@ import {
   XCircle,
   Edit,
   Loader2,
-  Sparkles,
-  Info,
   Building2,
   Filter,
   Eye,
@@ -95,6 +94,7 @@ export default function AdminClubsPage() {
     is_active: true,
   });
 
+  const router = useRouter();
   const isGlobalAdmin = profile?.role === 'admin';
   const userClubId = profile?.club_id;
   const userClubName = profile?.club?.name || 'Your Club';
@@ -252,8 +252,12 @@ export default function AdminClubsPage() {
   };
 
   useEffect(() => {
+    if (isGlobalAdmin) {
+      router.replace('/admin/campuses');
+      return;
+    }
     loadClubs();
-  }, []);
+  }, [isGlobalAdmin, router]);
 
   const openCreateModal = () => {
     setEditingClub(null);
@@ -336,7 +340,9 @@ export default function AdminClubsPage() {
             Clubs & Communities
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Role-based community scoping for events, student access, and campus engagement.
+            {isGlobalAdmin
+              ? 'Global club management: create, edit, and organize communities across all colleges.'
+              : `Manage clubs and communities for ${profile?.college || userClubName}.`}
           </p>
         </div>
 

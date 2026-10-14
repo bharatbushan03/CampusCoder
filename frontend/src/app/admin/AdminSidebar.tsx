@@ -23,6 +23,7 @@ import {
   Trophy,
   GraduationCap,
   Shield,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
@@ -43,6 +44,7 @@ const adminNavGroups = [
   {
     label: 'Campus & Students',
     links: [
+      { label: 'Campuses', href: '/admin/campuses', icon: Building2 },
       { label: 'All Events', href: '/admin/events', icon: Calendar },
       { label: 'All Registrations', href: '/admin/registrations', icon: Users },
       { label: 'Students Directory', href: '/admin/students', icon: UserCheck },
@@ -50,9 +52,8 @@ const adminNavGroups = [
     ],
   },
   {
-    label: 'Communities & Content',
+    label: 'Content & Resources',
     links: [
-      { label: 'Clubs & Communities', href: '/admin/clubs', icon: Shield },
       { label: 'Showcase', href: '/admin/showcase', icon: Sparkles },
       { label: 'Competitions', href: '/admin/competitions', icon: Trophy },
       { label: 'Announcements', href: '/admin/announcements', icon: Bell },

@@ -21,6 +21,7 @@ import {
 import { deleteAzure, upsertAzure, upsertManyAzure } from '../lib/azureDb';
 import { getAllClubs, getDefaultClub } from '../lib/clubsHelper';
 import { DEFAULT_CLUB_ID } from '../constants/clubs';
+import { ensureCollegeExists, DEFAULT_COLLEGE } from '../lib/collegesHelper';
 
 const router = Router();
 
@@ -91,16 +92,16 @@ const studentProfileUpdateSchema = z.object({
 router.get('/overview', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   const [eventsResult, registrationsResult, studentsResult, announcementsResult, linksResult] =
     await Promise.all([
       supabase.from('events').select('*').order('date', { ascending: false }),
       supabase
         .from('registrations')
-        .select('*, events(title, club_id)')
+        .select('*, events(title, club_id, college)')
         .order('registered_at', { ascending: false }),
-      supabase.from('profiles').select('id, club_id').eq('role', 'student'),
+      supabase.from('profiles').select('id, club_id, college').eq('role', 'student'),
       supabase
         .from('announcements')
         .select('*, events(title)')
@@ -118,12 +119,14 @@ router.get('/overview', async (req: AuthedRequest, res: Response) => {
 
   let eventsData = eventsResult.data || [];
   let regsData = registrationsResult.data || [];
-  const totalStudentCount = studentsResult.data?.length ?? 0;
+  let studentProfiles = studentsResult.data || [];
 
   if (!isGlobalAdmin) {
-    eventsData = eventsData.filter((ev: any) => (ev.club_id || DEFAULT_CLUB_ID) === userClubId);
-    regsData = regsData.filter((r: any) => (r.events?.club_id || DEFAULT_CLUB_ID) === userClubId);
+    eventsData = eventsData.filter((ev: any) => (ev.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase());
+    regsData = regsData.filter((r: any) => (r.events?.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase());
+    studentProfiles = studentProfiles.filter((s: any) => (s.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase());
   }
+  const totalStudentCount = studentProfiles.length;
 
   const enrichedEvents = eventsData.map((ev: any) => {
     const clubId = ev.club_id || DEFAULT_CLUB_ID;
@@ -131,7 +134,7 @@ router.get('/overview', async (req: AuthedRequest, res: Response) => {
       ...ev,
       club_id: clubId,
       club: clubsMap.get(clubId) || defaultClub,
-      can_edit: isGlobalAdmin || clubId === userClubId,
+      can_edit: isGlobalAdmin || (ev.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase(),
     };
   });
 
@@ -151,11 +154,13 @@ router.get('/overview', async (req: AuthedRequest, res: Response) => {
 router.get('/analytics', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  // Admin does NOT belong to any club — they have global access
+  const userClubId = isGlobalAdmin ? null : (req.profile?.club_id || DEFAULT_CLUB_ID);
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   const [profilesRes, eventsRes, registrationsRes, allClubs] = await Promise.all([
     supabase.from('profiles').select('id, full_name, email, role, college, branch, year, club_id, created_at').order('created_at', { ascending: false }),
-    supabase.from('events').select('id, title, slug, event_type, mode, date, status, created_at, club_id').order('date', { ascending: false }),
+    supabase.from('events').select('id, title, slug, event_type, mode, date, status, created_at, club_id, college').order('date', { ascending: false }),
     supabase.from('registrations').select('id, full_name, email, college, branch, year, coding_level, preferred_language, attendance_status, registered_at, event_id').order('registered_at', { ascending: false }),
     getAllClubs(),
   ]);
@@ -172,18 +177,20 @@ router.get('/analytics', async (req: AuthedRequest, res: Response) => {
   let registrations = registrationsRes.data || [];
 
   if (!isGlobalAdmin) {
-    events = events.filter((ev: any) => (ev.club_id || DEFAULT_CLUB_ID) === userClubId);
-    const clubEventIds = new Set(events.map((e: any) => e.id));
-    registrations = registrations.filter((r: any) => clubEventIds.has(r.event_id));
-    // Organizers have NO access to see admins! All students are part of all clubs.
-    profiles = profiles.filter((p: any) => p.role !== 'admin');
+    events = events.filter((ev: any) => (ev.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase());
+    const collegeEventIds = new Set(events.map((e: any) => e.id));
+    registrations = registrations.filter((r: any) => collegeEventIds.has(r.event_id));
+    // Organizers have NO access to see admins and can only see students from their college
+    profiles = profiles.filter((p: any) => p.role === 'student' && (p.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase());
   }
 
   const studentProfiles = profiles.filter((p) => p.role === 'student');
   const adminProfiles = isGlobalAdmin ? profiles.filter((p) => p.role === 'admin') : [];
   const organizerProfiles = profiles.filter((p) => {
     if (p.role !== 'organizer') return false;
-    return isGlobalAdmin || p.club_id === userClubId;
+    if (isGlobalAdmin) return true;
+    // Organizers see other organizers from same college
+    return (p.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase();
   });
 
   const totalRegistrations = registrations.length;
@@ -377,7 +384,7 @@ router.get('/analytics', async (req: AuthedRequest, res: Response) => {
     recentRegistrations,
     recentSignups,
     isGlobalAdmin,
-    scopedClub: !isGlobalAdmin ? (clubsMap.get(userClubId) || defaultClub) : null,
+    scopedClub: !isGlobalAdmin && userClubId ? (clubsMap.get(userClubId) || defaultClub) : null,
   });
 });
 
@@ -399,17 +406,20 @@ router.get('/events', async (req: AuthedRequest, res: Response) => {
   const defaultClub = getDefaultClub();
 
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   let rawEvents = data || [];
   if (!isGlobalAdmin) {
-    rawEvents = rawEvents.filter((ev: any) => (ev.club_id || DEFAULT_CLUB_ID) === userClubId);
+    rawEvents = rawEvents.filter((ev: any) => {
+      const matchCollege = (ev.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase();
+      return matchCollege;
+    });
   }
 
   const enrichedEvents = rawEvents.map((ev: any) => {
     const clubId = ev.club_id || DEFAULT_CLUB_ID;
     const club = clubsMap.get(clubId) || defaultClub;
-    const canEdit = isGlobalAdmin || clubId === userClubId;
+    const canEdit = isGlobalAdmin || (ev.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase();
     return {
       ...ev,
       club_id: clubId,
@@ -458,12 +468,13 @@ router.get('/events/:id', async (req: AuthedRequest, res: Response) => {
   const club = clubsMap.get(clubId) || defaultClub;
 
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+  const eventCollege = (event as any).college || DEFAULT_COLLEGE;
 
-  if (!isGlobalAdmin && clubId !== userClubId) {
+  if (!isGlobalAdmin && eventCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
     return res.status(403).json({
       ok: false,
-      error: 'You do not have permission to view or manage events from another community.',
+      error: 'You do not have permission to view or manage events from another college.',
     });
   }
 
@@ -472,7 +483,7 @@ router.get('/events/:id', async (req: AuthedRequest, res: Response) => {
     .select('*')
     .eq('event_id', parsed.data);
 
-  const canEdit = isGlobalAdmin || clubId === userClubId;
+  const canEdit = isGlobalAdmin || eventCollege.trim().toUpperCase() === userCollege.trim().toUpperCase();
 
   return res.json({
     ok: true,
@@ -500,15 +511,25 @@ router.post('/events', async (req: AuthedRequest, res: Response) => {
   const data = validation.data;
   const adminId = req.user?.id;
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  // Admin does NOT belong to any club — they must specify one explicitly
+  const userClubId = isGlobalAdmin ? null : (req.profile?.club_id || DEFAULT_CLUB_ID);
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
-  // Organizers can only create events for their own club; admins can assign any club
-  const clubIdToAssign = isGlobalAdmin ? (data.club_id || userClubId) : userClubId;
+  if (isGlobalAdmin && (!data.college || data.college.trim().toUpperCase() === 'ALL' || data.college.trim().toUpperCase() === 'ALL CAMPUSES')) {
+    return res.status(400).json({ ok: false, error: 'A specific campus is required for workshops. Workshops cannot be created globally without selecting a campus.' });
+  }
+
+  // Organizers can only create events for their own club & college; admins can assign any club & college
+  const clubIdToAssign = isGlobalAdmin ? (data.club_id || DEFAULT_CLUB_ID) : (userClubId || DEFAULT_CLUB_ID);
+  const collegeToAssign = isGlobalAdmin ? data.college : userCollege;
+
+  await ensureCollegeExists(collegeToAssign);
 
   const supabase = createAdminClient();
   const sanitizedEvent = {
     ...data,
     club_id: clubIdToAssign,
+    college: collegeToAssign,
     title: sanitizeText(data.title),
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
@@ -586,7 +607,7 @@ router.put('/events/:id', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
   const { data: existingEvent, error: fetchErr } = await supabase
     .from('events')
-    .select('id, club_id')
+    .select('id, club_id, college')
     .eq('id', parsed.data)
     .single();
 
@@ -595,14 +616,17 @@ router.put('/events/:id', async (req: AuthedRequest, res: Response) => {
   }
 
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  // Admin does NOT belong to any club
+  const userClubId = isGlobalAdmin ? null : (req.profile?.club_id || DEFAULT_CLUB_ID);
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
   const eventClubId = existingEvent.club_id || DEFAULT_CLUB_ID;
+  const eventCollege = existingEvent.college || DEFAULT_COLLEGE;
 
-  // Organizers can only modify events belonging to their own club
-  if (!isGlobalAdmin && eventClubId !== userClubId) {
+  // Organizers can only modify events belonging to their own college
+  if (!isGlobalAdmin && eventCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
     return res.status(403).json({
       ok: false,
-      error: 'You only have permission to edit events belonging to your club.',
+      error: 'You only have permission to edit events belonging to your college.',
     });
   }
 
@@ -618,11 +642,19 @@ router.put('/events/:id', async (req: AuthedRequest, res: Response) => {
 
   const data = validation.data;
 
-  const clubIdToSave = isGlobalAdmin ? (data.club_id || eventClubId) : userClubId;
+  if (isGlobalAdmin && data.college && (data.college.trim().toUpperCase() === 'ALL' || data.college.trim().toUpperCase() === 'ALL CAMPUSES')) {
+    return res.status(400).json({ ok: false, error: 'A specific campus is required for workshops. Workshops cannot be assigned globally.' });
+  }
+
+  const clubIdToSave = isGlobalAdmin ? (data.club_id || eventClubId) : (userClubId || DEFAULT_CLUB_ID);
+  const collegeToSave = isGlobalAdmin ? (data.college || eventCollege) : userCollege;
+
+  await ensureCollegeExists(collegeToSave);
 
   const sanitizedEvent = {
     ...data,
     club_id: clubIdToSave,
+    college: collegeToSave,
     title: sanitizeText(data.title),
     short_description: data.short_description ? sanitizeText(data.short_description) : null,
     full_description: data.full_description ? sanitizeText(data.full_description) : null,
@@ -686,12 +718,13 @@ router.patch('/events/:id/status', async (req: AuthedRequest, res: Response) => 
 
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   if (!isGlobalAdmin) {
-    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
-    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
-      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your club.' });
+    const { data: existing } = await supabase.from('events').select('college').eq('id', parsed.data).single();
+    const eventCollege = existing?.college || DEFAULT_COLLEGE;
+    if (eventCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your college.' });
     }
   }
 
@@ -722,12 +755,13 @@ router.patch('/events/:id/meeting-link', async (req: AuthedRequest, res: Respons
 
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   if (!isGlobalAdmin) {
-    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
-    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
-      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your club.' });
+    const { data: existing } = await supabase.from('events').select('college').eq('id', parsed.data).single();
+    const eventCollege = existing?.college || DEFAULT_COLLEGE;
+    if (eventCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your college.' });
     }
   }
 
@@ -758,12 +792,13 @@ router.patch('/events/:id/archive', async (req: AuthedRequest, res: Response) =>
 
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   if (!isGlobalAdmin) {
-    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
-    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
-      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your club.' });
+    const { data: existing } = await supabase.from('events').select('college').eq('id', parsed.data).single();
+    const eventCollege = existing?.college || DEFAULT_COLLEGE;
+    if (eventCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to modify events belonging to your college.' });
     }
   }
 
@@ -797,12 +832,13 @@ router.delete('/events/:id', async (req: AuthedRequest, res: Response) => {
 
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   if (!isGlobalAdmin) {
-    const { data: existing } = await supabase.from('events').select('club_id').eq('id', parsed.data).single();
-    if (existing && (existing.club_id || DEFAULT_CLUB_ID) !== userClubId) {
-      return res.status(403).json({ ok: false, error: 'You only have permission to delete events belonging to your club.' });
+    const { data: existing } = await supabase.from('events').select('college').eq('id', parsed.data).single();
+    const eventCollege = existing?.college || DEFAULT_COLLEGE;
+    if (eventCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+      return res.status(403).json({ ok: false, error: 'You only have permission to delete events belonging to your college.' });
     }
   }
 
@@ -824,13 +860,13 @@ router.get('/events/:id/registrations', async (req: AuthedRequest, res: Response
 
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   const [eventResult, regsResult] = await Promise.all([
-    supabase.from('events').select('title, club_id').eq('id', parsed.data).single(),
+    supabase.from('events').select('title, club_id, college').eq('id', parsed.data).single(),
     supabase
       .from('registrations')
-      .select('*, events(title, club_id)')
+      .select('*, events(title, club_id, college)')
       .eq('event_id', parsed.data)
       .order('registered_at', { ascending: false }),
   ]);
@@ -840,11 +876,11 @@ router.get('/events/:id/registrations', async (req: AuthedRequest, res: Response
   }
 
   if (!isGlobalAdmin) {
-    const evClubId = eventResult.data?.club_id || DEFAULT_CLUB_ID;
-    if (evClubId !== userClubId) {
+    const evCollege = eventResult.data?.college || DEFAULT_COLLEGE;
+    if (evCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
       return res.status(403).json({
         ok: false,
-        error: "You only have permission to view registrations for your club's events.",
+        error: "You only have permission to view registrations for your college's events.",
       });
     }
   }
@@ -852,15 +888,159 @@ router.get('/events/:id/registrations', async (req: AuthedRequest, res: Response
   return res.json({ ok: true, event: eventResult.data, registrations: regsResult.data });
 });
 
+// ---------- Community & Organizers Console ----------
+
+router.get('/clubs/:idOrSlug/console', async (req: AuthedRequest, res: Response) => {
+  try {
+    const { idOrSlug } = req.params;
+    const allClubs = await getAllClubs();
+    const club = allClubs.find(c => c.id === idOrSlug || c.slug === idOrSlug.toLowerCase());
+
+    if (!club) {
+      return res.status(404).json({ ok: false, error: 'Club not found' });
+    }
+
+    const isGlobalAdmin = req.profile?.role === 'admin';
+    const userCollege = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+    const clubCollege = (club.college || DEFAULT_COLLEGE).trim().toUpperCase();
+
+    // Organizers can only inspect clubs from their college
+    if (!isGlobalAdmin && userCollege !== clubCollege) {
+      return res.status(403).json({ ok: false, error: 'Access denied to clubs outside your college.' });
+    }
+
+    const supabase = createAdminClient();
+
+    // Fetch in parallel:
+    // 1. Organizers for this club
+    // 2. Events for this club
+    // 3. Students in this college
+    const [orgProfilesRes, eventsRes, profilesRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, full_name, email, role, college, branch, year, created_at')
+        .eq('role', 'organizer')
+        .eq('club_id', club.id),
+      supabase
+        .from('events')
+        .select('*')
+        .eq('club_id', club.id)
+        .order('date', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select('id, full_name, email, role, college, branch, year, created_at')
+        .eq('role', 'student')
+        .order('created_at', { ascending: false }),
+    ]);
+
+    const organizers = orgProfilesRes.data || [];
+    const clubEvents = eventsRes.data || [];
+    let students = profilesRes.data || [];
+
+    // Filter students by this club's college
+    students = students.filter(p => ((p as any).college || DEFAULT_COLLEGE).trim().toUpperCase() === clubCollege);
+
+    // Fetch registrations for all events in this club
+    const eventIds = clubEvents.map(e => e.id);
+    let registrations: any[] = [];
+    if (eventIds.length > 0) {
+      const { data: regsData } = await supabase
+        .from('registrations')
+        .select('*')
+        .in('event_id', eventIds)
+        .order('registered_at', { ascending: false });
+
+      const eventsMap = new Map(clubEvents.map(e => [e.id, e]));
+      registrations = (regsData || []).map((r: any) => ({
+        ...r,
+        event: eventsMap.get(r.event_id) || null,
+        events: eventsMap.get(r.event_id) || null,
+      }));
+    }
+
+    // Categorize events by status
+    const today = new Date().toISOString().split('T')[0];
+
+    const upcomingEvents = clubEvents.filter(e => {
+      return e.status === 'published' && e.date > today;
+    });
+
+    const inProgressEvents = clubEvents.filter(e => {
+      return e.date === today && e.status === 'published';
+    });
+
+    const preCompletedEvents = clubEvents.filter(e => {
+      return e.status === 'completed' || e.date < today;
+    });
+
+    // Compute organizer console analytics
+    const totalRegistrations = registrations.length;
+    const attendedCount = registrations.filter(r => r.attendance_status === 'attended').length;
+    const attendanceRate = totalRegistrations > 0 ? Math.round((attendedCount / totalRegistrations) * 100) : 0;
+
+    // Branch breakdown
+    const branchMap = new Map<string, number>();
+    registrations.forEach(r => {
+      const b = r.branch ? r.branch.trim() : 'Other';
+      branchMap.set(b, (branchMap.get(b) || 0) + 1);
+    });
+    const branchDistribution = Array.from(branchMap.entries())
+      .map(([branch, count]) => ({ branch, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Year breakdown
+    const yearMap = new Map<string, number>();
+    registrations.forEach(r => {
+      const y = r.year ? r.year.trim() : 'Unknown';
+      yearMap.set(y, (yearMap.get(y) || 0) + 1);
+    });
+    const yearDistribution = Array.from(yearMap.entries())
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return res.json({
+      ok: true,
+      club,
+      organizers,
+      students,
+      events: {
+        all: clubEvents,
+        upcoming: upcomingEvents,
+        inProgress: inProgressEvents,
+        preCompleted: preCompletedEvents,
+      },
+      registrations,
+      analytics: {
+        totalRegistrations,
+        attendedCount,
+        attendanceRate,
+        totalEvents: clubEvents.length,
+        upcomingCount: upcomingEvents.length,
+        inProgressCount: inProgressEvents.length,
+        completedCount: preCompletedEvents.length,
+        studentsCount: students.length,
+        organizersCount: organizers.length,
+        branchDistribution,
+        yearDistribution,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error in club console route:', err);
+    return res.status(500).json({ ok: false, error: 'Failed to load community console data' });
+  }
+});
+
 // ---------- Registrations ----------
 
 router.get('/registrations', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
   const eventId = req.query.eventId as string | undefined;
+  const clubId = req.query.clubId as string | undefined;
+  const collegeParam = req.query.college as string | undefined;
 
   let query = supabase
     .from('registrations')
-    .select('*, events(title, club_id)')
+    .select('*, events(id, title, club_id, college, date, event_type, status)')
     .order('registered_at', { ascending: false });
 
   if (eventId) {
@@ -874,15 +1054,27 @@ router.get('/registrations', async (req: AuthedRequest, res: Response) => {
   }
 
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
 
   let registrations = data || [];
   if (!isGlobalAdmin) {
-    // Only return registrations for events belonging to the organizer's club
+    // Organizers: filter by college scoping (primary), and optionally by club
     registrations = registrations.filter((r: any) => {
-      const evClub = r.events?.club_id || DEFAULT_CLUB_ID;
-      return evClub === userClubId;
+      const evCollege = ((r.events as any)?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+      return evCollege === userCollege;
     });
+  } else {
+    // Admin optional filters
+    if (clubId) {
+      registrations = registrations.filter((r: any) => (r.events as any)?.club_id === clubId);
+    }
+    if (collegeParam) {
+      const targetCollege = collegeParam.trim().toUpperCase();
+      registrations = registrations.filter((r: any) => {
+        const evCollege = ((r.events as any)?.college || r.college || DEFAULT_COLLEGE).trim().toUpperCase();
+        return evCollege === targetCollege;
+      });
+    }
   }
 
   return res.json({ ok: true, registrations });
@@ -902,19 +1094,19 @@ router.patch('/registrations/:id/attendance', async (req: AuthedRequest, res: Re
 
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
 
   if (!isGlobalAdmin) {
     const { data: reg } = await supabase
       .from('registrations')
-      .select('event_id, events(club_id)')
+      .select('event_id, events(club_id, college)')
       .eq('id', parsed.data)
       .single();
-    const eventClubId = (reg as any)?.events?.club_id || DEFAULT_CLUB_ID;
-    if (eventClubId !== userClubId) {
+    const eventCollege = ((reg as any)?.events?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+    if (eventCollege !== userCollege) {
       return res.status(403).json({
         ok: false,
-        error: "You only have permission to update attendance for your club's events.",
+        error: "You only have permission to update attendance for your college's events.",
       });
     }
   }
@@ -938,19 +1130,19 @@ router.delete('/registrations/:id', async (req: AuthedRequest, res: Response) =>
 
   const supabase = createAdminClient();
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
 
   if (!isGlobalAdmin) {
     const { data: reg } = await supabase
       .from('registrations')
-      .select('event_id, events(club_id)')
+      .select('event_id, events(club_id, college)')
       .eq('id', parsed.data)
       .single();
-    const eventClubId = (reg as any)?.events?.club_id || DEFAULT_CLUB_ID;
-    if (eventClubId !== userClubId) {
+    const eventCollege = ((reg as any)?.events?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+    if (eventCollege !== userCollege) {
       return res.status(403).json({
         ok: false,
-        error: "You only have permission to delete registrations for your club's events.",
+        error: "You only have permission to delete registrations for your college's events.",
       });
     }
   }
@@ -982,7 +1174,7 @@ router.get('/students', async (req: AuthedRequest, res: Response) => {
   const clubsMap = new Map(allClubs.map(c => [c.id, c]));
 
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   let profiles = profilesResult.data || [];
   let registrations = registrationsResult.error ? [] : (registrationsResult.data || []);
@@ -991,13 +1183,20 @@ router.get('/students', async (req: AuthedRequest, res: Response) => {
   profiles = profiles.filter((p: any) => p.role === 'student');
 
   if (!isGlobalAdmin) {
-    // Collect event registrations belonging to the organizer's club
-    const clubRegistrations = registrations.filter((r: any) => {
-      const evClub = r.events?.club_id || DEFAULT_CLUB_ID;
-      return evClub === userClubId;
+    // Organizers can only see students from their own college
+    profiles = profiles.filter((p: any) => {
+      const studentCollege = (p.college || DEFAULT_COLLEGE).trim().toUpperCase();
+      const orgCollege = userCollege.trim().toUpperCase();
+      return studentCollege === orgCollege;
     });
 
-    registrations = clubRegistrations;
+    // Collect event registrations belonging to the organizer's college
+    const collegeRegistrations = registrations.filter((r: any) => {
+      const evCollege = ((r.events as any)?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+      return evCollege === userCollege.trim().toUpperCase();
+    });
+
+    registrations = collegeRegistrations;
   }
 
   // Enrich profiles with club info (only organizers belong to a club) and canEdit permissions
@@ -1024,7 +1223,8 @@ router.get('/students', async (req: AuthedRequest, res: Response) => {
     ok: true,
     profiles: enrichedProfiles,
     registrations,
-    scopedClubId: !isGlobalAdmin ? userClubId : null,
+    scopedClubId: !isGlobalAdmin ? (req.profile?.club_id || DEFAULT_CLUB_ID) : null,
+    scopedCollege: !isGlobalAdmin ? userCollege : null,
   });
 });
 
@@ -1046,8 +1246,6 @@ router.get('/students/:id', async (req: AuthedRequest, res: Response) => {
   }
 
   const isGlobalAdmin = req.profile?.role === 'admin';
-  const userClubId = req.profile?.club_id || DEFAULT_CLUB_ID;
-  const studentClubId = (profile as any).club_id || DEFAULT_CLUB_ID;
 
   const studentEmail = profile.email;
   let studentRegistrations: any[] = [];
@@ -1070,16 +1268,27 @@ router.get('/students/:id', async (req: AuthedRequest, res: Response) => {
       });
     }
 
-    // Filter registrations so organizers only see registrations for their own club's events
+    // Organizers can only view students from their own college
+    const orgCollege = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+    const studentCollege = ((profile as any).college || DEFAULT_COLLEGE).trim().toUpperCase();
+    if (orgCollege !== studentCollege) {
+      return res.status(403).json({
+        ok: false,
+        error: 'You can only view students from your own college.',
+      });
+    }
+
+    // Filter registrations so organizers only see registrations for their own college's events
+    const orgCollege2 = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
     studentRegistrations = studentRegistrations.filter((r: any) => {
-      const evClub = r.events?.club_id || DEFAULT_CLUB_ID;
-      return evClub === userClubId;
+      const evCollege = ((r.events as any)?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+      return evCollege === orgCollege2;
     });
   }
 
   const allClubs = await getAllClubs();
   const clubsMap = new Map(allClubs.map(c => [c.id, c]));
-  const orgClubId = profile.role === 'organizer' ? (studentClubId || null) : null;
+  const orgClubId = profile.role === 'organizer' ? ((profile as any).club_id || null) : null;
 
   const isTargetAdmin = profile.role === 'admin';
   const isTargetSelf = req.user?.id === profile.id;
@@ -1118,7 +1327,7 @@ router.put('/students/:id', async (req: AuthedRequest, res: Response) => {
   // Retrieve the target user's current profile from database
   const { data: targetProfile, error: targetError } = await supabase
     .from('profiles')
-    .select('id, role, club_id, email')
+    .select('id, role, club_id, email, college')
     .eq('id', targetId)
     .single();
 
@@ -1126,12 +1335,21 @@ router.put('/students/:id', async (req: AuthedRequest, res: Response) => {
     return res.status(404).json({ ok: false, error: 'Student profile not found' });
   }
 
-  // 1. Organizers can ONLY edit the profile of students (all students belong to all clubs)
+  // 1. Organizers can ONLY edit the profile of students from their own college
   if (isOrganizer) {
     if (targetProfile.role !== 'student') {
       return res.status(403).json({
         ok: false,
         error: 'Organizers can only edit the profile of students.',
+      });
+    }
+
+    const orgCollege = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+    const studentCollege = ((targetProfile as any).college || DEFAULT_COLLEGE).trim().toUpperCase();
+    if (orgCollege !== studentCollege) {
+      return res.status(403).json({
+        ok: false,
+        error: 'Organizers can only edit students from their own college.',
       });
     }
   } else if (!isGlobalAdmin) {
@@ -1210,6 +1428,7 @@ router.patch('/students/:id', async (req: AuthedRequest, res: Response) => {
   const patchSchema = z.object({
     role: z.enum(['student', 'admin', 'organizer']).optional(),
     club_id: z.string().uuid().nullable().optional(),
+    college: z.string().min(1).optional(),
   });
   const parsedBody = patchSchema.safeParse(req.body);
   if (!parsedBody.success) {
@@ -1252,6 +1471,11 @@ router.patch('/students/:id', async (req: AuthedRequest, res: Response) => {
     if (parsedBody.data.role !== 'organizer') {
       updateData.club_id = null;
     }
+  }
+
+  if (parsedBody.data.college !== undefined) {
+    updateData.college = parsedBody.data.college.trim();
+    await ensureCollegeExists(updateData.college);
   }
 
   if (parsedBody.data.club_id !== undefined) {
@@ -1626,8 +1850,11 @@ router.delete('/community-links/:id', async (req: Request, res: Response) => {
 
 // ---------- Resources ----------
 
-router.get('/resources', async (_req: Request, res: Response) => {
+router.get('/resources', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const { data, error } = await supabase
     .from('resources')
     .select('*, events(title)')
@@ -1640,10 +1867,16 @@ router.get('/resources', async (_req: Request, res: Response) => {
     }
     return res.status(500).json({ ok: false, error: 'Failed to load resources' });
   }
-  return res.json({ ok: true, resources: data || [] });
+
+  let resources = (data || []).map((r: any) => ({ ...r, college: r.college || DEFAULT_COLLEGE }));
+  if (!isGlobalAdmin) {
+    resources = resources.filter((r: any) => (r.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase());
+  }
+
+  return res.json({ ok: true, resources });
 });
 
-router.get('/resources/:id', async (req: Request, res: Response) => {
+router.get('/resources/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid resource id' });
@@ -1659,16 +1892,34 @@ router.get('/resources/:id', async (req: Request, res: Response) => {
   if (error || !data) {
     return res.status(404).json({ ok: false, error: 'Resource not found' });
   }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+  const resCollege = (data as any).college || DEFAULT_COLLEGE;
+
+  if (!isGlobalAdmin && resCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to view resources from your college.' });
+  }
+
   return res.json({ ok: true, resource: data });
 });
 
-router.post('/resources', async (req: Request, res: Response) => {
+router.post('/resources', async (req: AuthedRequest, res: Response) => {
   const validation = resourceSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
   }
 
-  const data = validation.data;
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+  const collegeToAssign = isGlobalAdmin ? (validation.data.college || userCollege) : userCollege;
+
+  await ensureCollegeExists(collegeToAssign);
+
+  const data = {
+    ...validation.data,
+    college: collegeToAssign,
+  };
   const supabase = createAdminClient();
   const { data: resource, error } = await supabase.from('resources').insert({
     ...data,
@@ -1688,10 +1939,29 @@ router.post('/resources', async (req: Request, res: Response) => {
   return res.json({ ok: true, success: true, resource });
 });
 
-router.put('/resources/:id', async (req: Request, res: Response) => {
+router.put('/resources/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid resource id' });
+  }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
+  const supabase = createAdminClient();
+  const { data: existing, error: fetchErr } = await supabase
+    .from('resources')
+    .select('college')
+    .eq('id', parsed.data)
+    .single();
+
+  if (fetchErr || !existing) {
+    return res.status(404).json({ ok: false, error: 'Resource not found' });
+  }
+
+  const resCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && resCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to edit resources from your college.' });
   }
 
   const validation = resourceSchema.safeParse(req.body);
@@ -1699,8 +1969,14 @@ router.put('/resources/:id', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: validation.error.issues[0].message });
   }
 
-  const data = validation.data;
-  const supabase = createAdminClient();
+  const collegeToAssign = isGlobalAdmin ? (validation.data.college || resCollege) : userCollege;
+  await ensureCollegeExists(collegeToAssign);
+
+  const data = {
+    ...validation.data,
+    college: collegeToAssign,
+  };
+
   const { data: resource, error } = await supabase
     .from('resources')
     .update({
@@ -1724,18 +2000,30 @@ router.put('/resources/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.patch('/resources/:id/toggle', async (req: Request, res: Response) => {
+router.patch('/resources/:id/toggle', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid resource id' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
   const { data: current } = await supabase
     .from('resources')
-    .select('is_active')
+    .select('is_active, college')
     .eq('id', parsed.data)
     .single();
+
+  if (!current) {
+    return res.status(404).json({ ok: false, error: 'Resource not found' });
+  }
+
+  const resCollege = current.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && resCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to modify resources from your college.' });
+  }
 
   const { error } = await supabase
     .from('resources')
@@ -1751,13 +2039,31 @@ router.patch('/resources/:id/toggle', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.delete('/resources/:id', async (req: Request, res: Response) => {
+router.delete('/resources/:id', async (req: AuthedRequest, res: Response) => {
   const parsed = idSchema.safeParse(req.params.id);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: 'Invalid resource id' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
+  const { data: existing } = await supabase
+    .from('resources')
+    .select('college')
+    .eq('id', parsed.data)
+    .single();
+
+  if (!existing) {
+    return res.status(404).json({ ok: false, error: 'Resource not found' });
+  }
+
+  const resCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && resCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to delete resources from your college.' });
+  }
+
   const { error } = await supabase.from('resources').delete().eq('id', parsed.data);
 
   if (error) {
@@ -1974,8 +2280,11 @@ router.delete('/showcase/:id', async (req: Request, res: Response) => {
 
 // ---------- Competitions Admin Management ----------
 
-router.get('/competitions', async (_req: Request, res: Response) => {
+router.get('/competitions', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const { data, error } = await supabase
     .from('competitions')
     .select('*')
@@ -1990,10 +2299,29 @@ router.get('/competitions', async (_req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to load competitions' });
   }
 
-  return res.json({ ok: true, competitions: data || [] });
+  let comps = (data || []).map((c: any) => ({ ...c, college: c.college || DEFAULT_COLLEGE }));
+  const filterCollege = (req.query.college as string | undefined)?.trim();
+
+  if (filterCollege && filterCollege.toLowerCase() !== 'all') {
+    comps = comps.filter((c: any) => {
+      const col = (c.college || DEFAULT_COLLEGE).trim().toUpperCase();
+      if (col === 'ALL' || col === 'ALL CAMPUSES') return true;
+      const list = col.split(',').map((x: string) => x.trim().toUpperCase());
+      return list.includes(filterCollege.toUpperCase());
+    });
+  } else if (!isGlobalAdmin) {
+    comps = comps.filter((c: any) => {
+      const col = (c.college || DEFAULT_COLLEGE).trim().toUpperCase();
+      if (col === 'ALL' || col === 'ALL CAMPUSES') return true;
+      const list = col.split(',').map((x: string) => x.trim().toUpperCase());
+      return list.includes(userCollege.trim().toUpperCase());
+    });
+  }
+
+  return res.json({ ok: true, competitions: comps });
 });
 
-router.get('/competitions/:id', async (req: Request, res: Response) => {
+router.get('/competitions/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid competition id' });
@@ -2010,19 +2338,36 @@ router.get('/competitions/:id', async (req: Request, res: Response) => {
     return res.status(404).json({ ok: false, error: 'Competition not found' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+  const compCollege = (data as any).college || DEFAULT_COLLEGE;
+
+  if (!isGlobalAdmin && compCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to view competitions from your college.' });
+  }
+
   return res.json({ ok: true, competition: data });
 });
 
-router.post('/competitions', async (req: Request, res: Response) => {
+router.post('/competitions', async (req: AuthedRequest, res: Response) => {
   const parsed = competitionSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+  const collegeToAssign = isGlobalAdmin ? (parsed.data.college || userCollege) : userCollege;
+
+  await ensureCollegeExists(collegeToAssign);
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('competitions')
-    .insert([parsed.data])
+    .insert([{
+      ...parsed.data,
+      college: collegeToAssign,
+    }])
     .select()
     .single();
 
@@ -2038,10 +2383,29 @@ router.post('/competitions', async (req: Request, res: Response) => {
   return res.status(201).json({ ok: true, competition: data });
 });
 
-router.put('/competitions/:id', async (req: Request, res: Response) => {
+router.put('/competitions/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid competition id' });
+  }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
+  const supabase = createAdminClient();
+  const { data: existing, error: fetchErr } = await supabase
+    .from('competitions')
+    .select('college')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (fetchErr || !existing) {
+    return res.status(404).json({ ok: false, error: 'Competition not found' });
+  }
+
+  const compCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && compCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to edit competitions from your college.' });
   }
 
   const parsed = competitionSchema.safeParse(req.body);
@@ -2049,10 +2413,15 @@ router.put('/competitions/:id', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
   }
 
-  const supabase = createAdminClient();
+  const collegeToAssign = isGlobalAdmin ? (parsed.data.college || compCollege) : userCollege;
+  await ensureCollegeExists(collegeToAssign);
+
   const { data, error } = await supabase
     .from('competitions')
-    .update(parsed.data)
+    .update({
+      ...parsed.data,
+      college: collegeToAssign,
+    })
     .eq('id', parsedId.data)
     .select()
     .single();
@@ -2069,21 +2438,29 @@ router.put('/competitions/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true, competition: data });
 });
 
-router.patch('/competitions/:id/toggle', async (req: Request, res: Response) => {
+router.patch('/competitions/:id/toggle', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid competition id' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
   const { data: current, error: getErr } = await supabase
     .from('competitions')
-    .select('is_active')
+    .select('is_active, college')
     .eq('id', parsedId.data)
     .single();
 
   if (getErr || !current) {
     return res.status(404).json({ ok: false, error: 'Competition not found' });
+  }
+
+  const compCollege = current.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && compCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to modify competitions from your college.' });
   }
 
   const { error: updateErr } = await supabase
@@ -2100,13 +2477,31 @@ router.patch('/competitions/:id/toggle', async (req: Request, res: Response) => 
   return res.json({ ok: true, is_active: !current.is_active });
 });
 
-router.delete('/competitions/:id', async (req: Request, res: Response) => {
+router.delete('/competitions/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid competition id' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
+  const { data: existing } = await supabase
+    .from('competitions')
+    .select('college')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (!existing) {
+    return res.status(404).json({ ok: false, error: 'Competition not found' });
+  }
+
+  const compCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && compCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to delete competitions from your college.' });
+  }
+
   const { error } = await supabase
     .from('competitions')
     .delete()
@@ -2236,9 +2631,11 @@ router.post('/competitions/seed', async (_req: Request, res: Response) => {
 
 // ---------- Notes PDF & Academic Handbooks Admin Management ----------
 
-router.get('/notes/folders', async (req: Request, res: Response) => {
+router.get('/notes/folders', async (req: AuthedRequest, res: Response) => {
   const { subject_code, code } = req.query;
   const targetCode = (subject_code || code) as string | undefined;
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   const supabase = createAdminClient();
   let query = supabase.from('note_folders').select('*').order('created_at', { ascending: true });
@@ -2256,7 +2653,11 @@ router.get('/notes/folders', async (req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to load note folders' });
   }
 
-  const folderList = data || [];
+  let folderList = (data || []).map((f: any) => ({ ...f, college: f.college || DEFAULT_COLLEGE }));
+  if (!isGlobalAdmin) {
+    folderList = folderList.filter((f: any) => (f.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege.trim().toUpperCase());
+  }
+
   if (folderList.length > 0) {
     const folderIds = folderList.map(f => f.id);
     const { data: docCounts } = await supabase
@@ -2282,16 +2683,25 @@ router.get('/notes/folders', async (req: Request, res: Response) => {
   return res.json({ ok: true, folders: folderList });
 });
 
-router.post('/notes/folders', async (req: Request, res: Response) => {
+router.post('/notes/folders', async (req: AuthedRequest, res: Response) => {
   const parsed = noteFolderSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+  const collegeToAssign = isGlobalAdmin ? (parsed.data.college || userCollege) : userCollege;
+
+  await ensureCollegeExists(collegeToAssign);
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('note_folders')
-    .insert([parsed.data])
+    .insert([{
+      ...parsed.data,
+      college: collegeToAssign,
+    }])
     .select()
     .single();
 
@@ -2313,16 +2723,36 @@ router.post('/notes/folders', async (req: Request, res: Response) => {
   return res.status(201).json({ ok: true, folder: data });
 });
 
-router.put('/notes/folders/:id', async (req: Request, res: Response) => {
+router.put('/notes/folders/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid folder id' });
+  }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
+  const supabase = createAdminClient();
+  const { data: existing, error: fetchErr } = await supabase
+    .from('note_folders')
+    .select('college')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (fetchErr || !existing) {
+    return res.status(404).json({ ok: false, error: 'Folder not found' });
+  }
+
+  const folderCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && folderCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to edit note folders from your college.' });
   }
 
   const updateSchema = z.object({
     name: z.string().min(1).max(100).optional(),
     color: z.string().max(30).optional().nullable(),
     parent_id: z.string().uuid().optional().nullable(),
+    college: z.string().optional(),
   });
 
   const parsed = updateSchema.safeParse(req.body);
@@ -2330,10 +2760,16 @@ router.put('/notes/folders/:id', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
   }
 
-  const supabase = createAdminClient();
+  const updateData = { ...parsed.data };
+  if (!isGlobalAdmin) {
+    delete updateData.college;
+  } else if (updateData.college) {
+    await ensureCollegeExists(updateData.college);
+  }
+
   const { data, error } = await supabase
     .from('note_folders')
-    .update(parsed.data)
+    .update(updateData)
     .eq('id', parsedId.data)
     .select()
     .single();
@@ -2350,13 +2786,31 @@ router.put('/notes/folders/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true, folder: data });
 });
 
-router.delete('/notes/folders/:id', async (req: Request, res: Response) => {
+router.delete('/notes/folders/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid folder id' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
+  const { data: existing } = await supabase
+    .from('note_folders')
+    .select('college')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (!existing) {
+    return res.status(404).json({ ok: false, error: 'Folder not found' });
+  }
+
+  const folderCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && folderCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to delete note folders from your college.' });
+  }
+
   const { error } = await supabase
     .from('note_folders')
     .delete()
@@ -2372,11 +2826,22 @@ router.delete('/notes/folders/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.post('/notes/batch', async (req: Request, res: Response) => {
+router.post('/notes/batch', async (req: AuthedRequest, res: Response) => {
   const parsed = batchNotesSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
   }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
+  if (isGlobalAdmin && (!parsed.data.college || parsed.data.college.trim().toUpperCase() === 'ALL' || parsed.data.college.trim().toUpperCase() === 'ALL CAMPUSES')) {
+    return res.status(400).json({ ok: false, error: 'A specific campus is required for uploading semester notes.' });
+  }
+
+  const collegeToSave = isGlobalAdmin ? parsed.data.college : userCollege;
+
+  await ensureCollegeExists(collegeToSave);
 
   const { code, subject, year, semester, branch, folder_id, folder_name, files } = parsed.data;
   const rows = files.map(file => ({
@@ -2395,6 +2860,7 @@ router.post('/notes/batch', async (req: Request, res: Response) => {
     tags: [],
     topics: [],
     highlights: [],
+    college: collegeToSave,
     is_active: true,
   }));
 
@@ -2419,8 +2885,11 @@ router.post('/notes/batch', async (req: Request, res: Response) => {
   return res.status(201).json({ ok: true, notes: data || [] });
 });
 
-router.get('/notes', async (_req: Request, res: Response) => {
+router.get('/notes', async (req: AuthedRequest, res: Response) => {
   const supabase = createAdminClient();
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const { data, error } = await supabase
     .from('notes')
     .select('*')
@@ -2435,10 +2904,18 @@ router.get('/notes', async (_req: Request, res: Response) => {
     return res.status(500).json({ ok: false, error: 'Failed to load notes' });
   }
 
-  return res.json({ ok: true, notes: data || [] });
+  let notes = (data || []).map((n: any) => ({ ...n, college: n.college || DEFAULT_COLLEGE }));
+  const targetCollege = (req.query.college as string | undefined)?.trim();
+  if (targetCollege && targetCollege.toLowerCase() !== 'all') {
+    notes = notes.filter((n: any) => (n.college || DEFAULT_COLLEGE).toUpperCase() === targetCollege.toUpperCase());
+  } else if (!isGlobalAdmin) {
+    notes = notes.filter((n: any) => (n.college || DEFAULT_COLLEGE).toUpperCase() === userCollege.toUpperCase());
+  }
+
+  return res.json({ ok: true, notes });
 });
 
-router.get('/notes/:id', async (req: Request, res: Response) => {
+router.get('/notes/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid note id' });
@@ -2455,19 +2932,43 @@ router.get('/notes/:id', async (req: Request, res: Response) => {
     return res.status(404).json({ ok: false, error: 'Note not found' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+  const noteCollege = (data as any).college || DEFAULT_COLLEGE;
+
+  if (!isGlobalAdmin && noteCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to view notes from your college.' });
+  }
+
   return res.json({ ok: true, note: data });
 });
 
-router.post('/notes', async (req: Request, res: Response) => {
+router.post('/notes', async (req: AuthedRequest, res: Response) => {
   const parsed = noteSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
+  if (isGlobalAdmin && (!parsed.data.college || parsed.data.college.trim().toUpperCase() === 'ALL' || parsed.data.college.trim().toUpperCase() === 'ALL CAMPUSES')) {
+    return res.status(400).json({ ok: false, error: 'A specific campus is required for semester notes. Notes must be associated with a particular campus.' });
+  }
+
+  const collegeToSave = isGlobalAdmin ? parsed.data.college : userCollege;
+
+  await ensureCollegeExists(collegeToSave);
+
   const supabase = createAdminClient();
+  const notePayload = {
+    ...parsed.data,
+    college: collegeToSave,
+  };
+
   let { data, error } = await supabase
     .from('notes')
-    .insert([parsed.data])
+    .insert([notePayload])
     .select()
     .single();
 
@@ -2495,10 +2996,29 @@ router.post('/notes', async (req: Request, res: Response) => {
   return res.status(201).json({ ok: true, note: data });
 });
 
-router.put('/notes/:id', async (req: Request, res: Response) => {
+router.put('/notes/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid note id' });
+  }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
+  const supabase = createAdminClient();
+  const { data: existing, error: fetchErr } = await supabase
+    .from('notes')
+    .select('college')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (fetchErr || !existing) {
+    return res.status(404).json({ ok: false, error: 'Note not found' });
+  }
+
+  const noteCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && noteCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to edit notes from your college.' });
   }
 
   const parsed = noteSchema.safeParse(req.body);
@@ -2506,17 +3026,28 @@ router.put('/notes/:id', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
   }
 
-  const supabase = createAdminClient();
+  if (isGlobalAdmin && parsed.data.college && (parsed.data.college.trim().toUpperCase() === 'ALL' || parsed.data.college.trim().toUpperCase() === 'ALL CAMPUSES')) {
+    return res.status(400).json({ ok: false, error: 'A specific campus is required for semester notes. Notes cannot be assigned to an unassigned or global campus.' });
+  }
+
+  const collegeToSave = isGlobalAdmin ? (parsed.data.college || noteCollege) : userCollege;
+  await ensureCollegeExists(collegeToSave);
+
+  const notePayload = {
+    ...parsed.data,
+    college: collegeToSave,
+  };
+
   let { data, error } = await supabase
     .from('notes')
-    .update(parsed.data)
+    .update(notePayload)
     .eq('id', parsedId.data)
     .select()
     .single();
 
   if (error && (error.code === 'PGRST204' || error.message?.includes('folder_id') || error.message?.includes('schema cache'))) {
     console.warn('[Supabase] folder_id column not yet in Supabase schema cache. Retrying update without folder fields.');
-    const { folder_id: _f, folder_name: _fn, ...rest } = parsed.data;
+    const { folder_id: _f, folder_name: _fn, ...rest } = notePayload;
     const fallbackResult = await supabase
       .from('notes')
       .update(rest)
@@ -2539,21 +3070,29 @@ router.put('/notes/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true, note: data });
 });
 
-router.patch('/notes/:id/toggle', async (req: Request, res: Response) => {
+router.patch('/notes/:id/toggle', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid note id' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
   const { data: current, error: getErr } = await supabase
     .from('notes')
-    .select('is_active')
+    .select('is_active, college')
     .eq('id', parsedId.data)
     .single();
 
   if (getErr || !current) {
     return res.status(404).json({ ok: false, error: 'Note not found' });
+  }
+
+  const noteCollege = current.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && noteCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to modify notes from your college.' });
   }
 
   const { error: updateErr } = await supabase
@@ -2570,13 +3109,31 @@ router.patch('/notes/:id/toggle', async (req: Request, res: Response) => {
   return res.json({ ok: true, is_active: !current.is_active });
 });
 
-router.delete('/notes/:id', async (req: Request, res: Response) => {
+router.delete('/notes/:id', async (req: AuthedRequest, res: Response) => {
   const parsedId = idSchema.safeParse(req.params.id);
   if (!parsedId.success) {
     return res.status(400).json({ ok: false, error: 'Invalid note id' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
+  const { data: existing } = await supabase
+    .from('notes')
+    .select('college')
+    .eq('id', parsedId.data)
+    .single();
+
+  if (!existing) {
+    return res.status(404).json({ ok: false, error: 'Note not found' });
+  }
+
+  const noteCollege = existing.college || DEFAULT_COLLEGE;
+  if (!isGlobalAdmin && noteCollege.trim().toUpperCase() !== userCollege.trim().toUpperCase()) {
+    return res.status(403).json({ ok: false, error: 'You only have permission to delete notes from your college.' });
+  }
+
   const { error } = await supabase
     .from('notes')
     .delete()
@@ -2592,11 +3149,14 @@ router.delete('/notes/:id', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.put('/notes/subject/:code', async (req: Request, res: Response) => {
+router.put('/notes/subject/:code', async (req: AuthedRequest, res: Response) => {
   const code = req.params.code;
   if (!code) {
     return res.status(400).json({ ok: false, error: 'Subject code is required' });
   }
+
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
 
   const updateSubjectSchema = z.object({
     newCode: z.string().min(1).max(20).optional(),
@@ -2622,10 +3182,11 @@ router.put('/notes/subject/:code', async (req: Request, res: Response) => {
   const supabase = createAdminClient();
 
   if (Object.keys(updates).length > 0) {
-    const { error: notesErr } = await supabase
-      .from('notes')
-      .update(updates)
-      .eq('code', code);
+    let query = supabase.from('notes').update(updates).eq('code', code);
+    if (!isGlobalAdmin) {
+      query = query.eq('college', userCollege);
+    }
+    const { error: notesErr } = await query;
 
     if (notesErr) {
       console.error('Error updating subject notes:', notesErr);
@@ -2634,10 +3195,14 @@ router.put('/notes/subject/:code', async (req: Request, res: Response) => {
   }
 
   if (newCode && newCode.toUpperCase() !== code.toUpperCase()) {
-    const { error: foldersErr } = await supabase
+    let folderQuery = supabase
       .from('note_folders')
       .update({ subject_code: newCode.toUpperCase() })
       .eq('subject_code', code);
+    if (!isGlobalAdmin) {
+      folderQuery = folderQuery.eq('college', userCollege);
+    }
+    const { error: foldersErr } = await folderQuery;
 
     if (foldersErr && foldersErr.code !== 'PGRST205') {
       console.warn('[Admin] Warning updating note_folders subject code:', foldersErr.message);
@@ -2648,28 +3213,32 @@ router.put('/notes/subject/:code', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
-router.delete('/notes/subject/:code', async (req: Request, res: Response) => {
+router.delete('/notes/subject/:code', async (req: AuthedRequest, res: Response) => {
   const code = req.params.code;
   if (!code) {
     return res.status(400).json({ ok: false, error: 'Subject code is required' });
   }
 
+  const isGlobalAdmin = req.profile?.role === 'admin';
+  const userCollege = req.profile?.college || DEFAULT_COLLEGE;
+
   const supabase = createAdminClient();
 
-  const { error: notesErr } = await supabase
-    .from('notes')
-    .delete()
-    .eq('code', code);
+  let notesQuery = supabase.from('notes').delete().eq('code', code);
+  let foldersQuery = supabase.from('note_folders').delete().eq('subject_code', code);
+  if (!isGlobalAdmin) {
+    notesQuery = notesQuery.eq('college', userCollege);
+    foldersQuery = foldersQuery.eq('college', userCollege);
+  }
+
+  const { error: notesErr } = await notesQuery;
 
   if (notesErr) {
     console.error('Error deleting subject notes:', notesErr);
     return res.status(500).json({ ok: false, error: 'Failed to delete subject notes: ' + notesErr.message });
   }
 
-  const { error: foldersErr } = await supabase
-    .from('note_folders')
-    .delete()
-    .eq('subject_code', code);
+  const { error: foldersErr } = await foldersQuery;
 
   if (foldersErr && foldersErr.code !== 'PGRST205') {
     console.warn('[Admin] Warning deleting note_folders for subject:', foldersErr.message);

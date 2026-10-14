@@ -13,6 +13,7 @@ import { authRateLimiter } from '../middleware/rateLimit';
 const router = Router();
 
 import { getClubByIdOrSlug } from '../lib/clubsHelper';
+import { ensureCollegeExists } from '../lib/collegesHelper';
 
 const loginSchema = z.object({
   email: z
@@ -215,6 +216,9 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
     console.log(`   OTP Code:  ${otp}`);
     console.log(`======================================================\n`);
 
+    // Persist college name in colleges registry so it appears for all future students
+    await ensureCollegeExists(college);
+
     // Store OTP and pending registration payload
     await storeOtp(email, otp, 'signup', {
       email,
@@ -278,6 +282,7 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
     }
 
     const { password, fullName, college, branch, year } = verification.payload;
+    await ensureCollegeExists(college);
     const admin = createAdminClient();
 
     // Create confirmed user in Supabase Auth via Admin Client (bypasses Supabase SMTP rate limits)
@@ -438,6 +443,7 @@ router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
 
   try {
     const { email, password, fullName, college, branch, year } = parsed.data;
+    await ensureCollegeExists(college);
     const admin = createAdminClient();
 
     // Check if active profile exists

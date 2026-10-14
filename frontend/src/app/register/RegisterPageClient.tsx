@@ -14,6 +14,7 @@ import { EVENT_DATE_LABEL, EVENT_TIME_LABEL } from '@/lib/eventSchedule';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
 import { CampusCoderLoader } from '@/components/ui/CampusCoderLoader';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 
 type EventOption = {
   id: string;
@@ -25,7 +26,6 @@ type EventOption = {
 
 const codingLevels = ['Beginner', 'Intermediate', 'Advanced'];
 const programmingLanguages = ['JavaScript/TypeScript', 'Python', 'C/C++', 'Java', 'Go/Rust'];
-const COLLEGES = ['MIET Jammu'];
 const BRANCHES = [
   'CSC',
   'AIML',
@@ -59,7 +59,7 @@ function RegisterForm() {
     fullName: '',
     email: '',
     phone: '',
-    college: COLLEGES[0],
+    college: 'MIET',
     branch: BRANCHES[0],
     year: '2027',
     eventId: initialEventId || '',
@@ -265,21 +265,15 @@ function RegisterForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* College Name */}
-            <div>
-              <label htmlFor="page-college-institute-name" className="block text-xs font-mono font-medium uppercase tracking-wider text-slate-400 mb-2">
-                College/Institute Name <span className="text-emerald-500">*</span>
-              </label>
-              <select id="page-college-institute-name"
-                required
-                value={formData.college}
-                onChange={(e) => setFormData({ ...formData, college: e.target.value })}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
-              >
-                {COLLEGES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
+            <CollegeSelect
+              id="page-college-institute-name"
+              showLabel
+              label="College/Institute Name"
+              required
+              value={formData.college}
+              onChange={(val) => setFormData({ ...formData, college: val })}
+              selectClassName="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none"
+            />
 
             {/* Branch/Stream */}
             <div>

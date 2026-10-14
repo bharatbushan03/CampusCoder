@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { 
   Calendar, CheckCircle2, AlertTriangle, Search, 
   Filter, Download, Eye, Trash2, X, ArrowLeft, Mail, Phone, 
-  School, GraduationCap, Code2, MessageSquare, Clock, Shield
+  School, GraduationCap, Code2, MessageSquare, Clock, Shield,
+  Building2, ChevronRight
 } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
@@ -63,12 +64,18 @@ export default function AdminRegistrationsPage() {
   // Selected registration for details modal
   const [selectedReg, setSelectedReg] = useState<RegistrationType | null>(null);
 
+  const [campusesList, setCampusesList] = useState<string[]>([]);
+  const [allClubsList, setAllClubsList] = useState<Array<{ id: string; name: string; slug: string; college: string | null; category: string }>>([]);
+  const [selectedCampus, setSelectedCampus] = useState<string>('');
+  const [selectedClub, setSelectedClub] = useState<{ id: string; name: string; slug: string; college: string | null; category: string } | null>(null);
+
   // Fetch registrations & events from backend
-  const loadRegistrationsData = async () => {
+  const loadRegistrationsData = async (targetClubId?: string) => {
     try {
+      const url = targetClubId ? `/admin/registrations?clubId=${targetClubId}` : '/admin/registrations';
       const [eventsData, regsData] = await Promise.all([
         api<{ ok: boolean; events: EventFilterOption[] }>('/admin/events/options'),
-        api<{ ok: boolean; registrations: RegistrationType[] }>('/admin/registrations'),
+        api<{ ok: boolean; registrations: RegistrationType[] }>(url),
       ]);
 
       if (eventsData.events) setEvents(eventsData.events);
@@ -140,9 +147,31 @@ export default function AdminRegistrationsPage() {
   };
 
   useEffect(() => {
-     
-    void loadRegistrationsData();
-  }, []);
+    if (isGlobalAdmin) {
+      void Promise.all([
+        api<{ ok: boolean; colleges: string[] }>('/colleges').catch(() => null),
+        api<{ ok: boolean; clubs: any[] }>('/clubs/admin/all').catch(() => null),
+      ]).then(([colRes, clubsRes]) => {
+        if (colRes?.colleges) setCampusesList(colRes.colleges);
+        if (clubsRes?.clubs) setAllClubsList(clubsRes.clubs);
+      });
+      setLoading(false);
+    } else {
+      void loadRegistrationsData();
+    }
+  }, [isGlobalAdmin]);
+
+  const campusClubs = useMemo(() => {
+    if (!selectedCampus) return [];
+    const norm = selectedCampus.trim().toUpperCase();
+    return allClubsList.filter((c) => (c.college || 'MIET').trim().toUpperCase() === norm);
+  }, [allClubsList, selectedCampus]);
+
+  const handleSelectClub = (club: { id: string; name: string; slug: string; college: string | null; category: string }) => {
+    setSelectedClub(club);
+    setLoading(true);
+    void loadRegistrationsData(club.id);
+  };
 
   // Update attendance status
   const handleUpdateAttendance = async (regId: string, newStatus: AttendanceStatus) => {
@@ -285,17 +314,23 @@ export default function AdminRegistrationsPage() {
             <ArrowLeft className="size-3 group-hover:-translate-x-0.5 transition-transform" /> Back to Console
           </Link>
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-mono">Registrations Ledger</h1>
-          <p className="text-sm text-slate-400">Track RSVPs, audit attendance log, and export database files.</p>
+          <p className="text-sm text-slate-400">
+            {isGlobalAdmin
+              ? 'Track RSVPs across all colleges and clubs, audit attendance log, and export database files.'
+              : `Track RSVPs for ${profile?.college || userClubName}, audit attendance log, and export database files.`}
+          </p>
         </div>
-        <div>
-          <Button 
-            variant="primary" 
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 w-full sm:w-auto"
-          >
-            <Download className="size-4" /> Export CSV
-          </Button>
-        </div>
+        {(!isGlobalAdmin || selectedClub) && (
+          <div>
+            <Button 
+              variant="primary" 
+              onClick={handleExportCSV}
+              className="flex items-center gap-1.5 w-full sm:w-auto"
+            >
+              <Download className="size-4" /> Export CSV
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Database Warning */}
@@ -306,6 +341,126 @@ export default function AdminRegistrationsPage() {
         </div>
       )}
 
+      {/* Step-by-Step Campus -> Community Selector for Global Admin */}
+      {isGlobalAdmin && !selectedClub && (
+        <div className="space-y-6 p-6 rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl">
+          <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
+            <School className="size-4" />
+            <span>Select a Campus & Community to Inspect Event Registrations</span>
+          </div>
+
+          {!selectedCampus ? (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-base font-bold text-white">Step 1: Choose a University Campus</h3>
+                <p className="text-xs text-slate-400">Pick a campus to view community registrations.</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
+                {campusesList.map((campus) => {
+                  const clubCount = allClubsList.filter(
+                    (c) => (c.college || 'MIET').toUpperCase() === campus.toUpperCase()
+                  ).length;
+                  return (
+                    <button
+                      key={campus}
+                      type="button"
+                      onClick={() => setSelectedCampus(campus)}
+                      className="p-4 rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-800/80 text-left transition-colors flex items-center justify-between group"
+                    >
+                      <div>
+                        <p className="font-bold text-white text-xs group-hover:text-emerald-400 transition-colors">
+                          {campus}
+                        </p>
+                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          {clubCount} {clubCount === 1 ? 'Community' : 'Communities'}
+                        </p>
+                      </div>
+                      <ChevronRight className="size-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Step 2: Choose Community in <span className="text-emerald-400">{selectedCampus}</span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Click a community to view all student RSVPs and attendees.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCampus('')}
+                  className="text-xs font-mono text-slate-400 hover:text-white underline"
+                >
+                  ← Change Campus
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+                {campusClubs.map((club) => (
+                  <button
+                    key={club.id}
+                    type="button"
+                    onClick={() => handleSelectClub(club)}
+                    className="p-4 rounded-xl border border-slate-800 bg-slate-900 hover:border-emerald-500/50 hover:bg-slate-800/80 text-left transition-colors flex items-center justify-between group"
+                  >
+                    <div>
+                      <p className="font-bold text-white text-xs group-hover:text-emerald-400 transition-colors">
+                        {club.name}
+                      </p>
+                      <p className="text-[10px] text-sky-400 font-mono mt-0.5">{club.category}</p>
+                    </div>
+                    <ChevronRight className="size-4 text-slate-600 group-hover:text-emerald-400 transition-colors" />
+                  </button>
+                ))}
+              </div>
+
+              {campusClubs.length === 0 && (
+                <div className="py-8 text-center text-xs text-slate-500 font-mono">
+                  No communities registered for {selectedCampus} yet.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Scoped Community Banner when selected */}
+      {isGlobalAdmin && selectedClub && (
+        <div className="flex items-center justify-between p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] text-xs font-mono flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <Building2 className="size-4 text-emerald-400 shrink-0" />
+            <span className="text-slate-300">
+              Registrations scoped to: <strong className="text-white">{selectedClub.name}</strong> ({selectedCampus})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/admin/campuses?campus=${encodeURIComponent(selectedCampus)}&club=${encodeURIComponent(selectedClub.slug)}&tab=registrations`}
+              className="text-emerald-400 hover:text-emerald-300 underline font-semibold"
+            >
+              Open Full Community Console →
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedClub(null);
+                setSelectedCampus('');
+              }}
+              className="px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 text-slate-300 hover:text-white"
+            >
+              Switch Campus / Community
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* === Data sections: only visible once a community is selected (or non-admin) === */}
+      {(!isGlobalAdmin || selectedClub) && (<>
       {/* Metrics Panel */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total registrations matching filters */}
@@ -463,6 +618,7 @@ export default function AdminRegistrationsPage() {
           <p className="text-sm font-mono text-slate-500">No registrations found in the records.</p>
         </div>
       )}
+      </>)}
 
       {/* ------------------------------------------------------------- */}
       {/* DETAILS VIEW MODAL */}

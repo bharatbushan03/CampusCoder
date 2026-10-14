@@ -1,10 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { createAnonClient } from '../middleware/auth';
+import { createAnonClient, getOptionalSession, type AuthedRequest } from '../middleware/auth';
 import { registrationSchema } from '../lib/validation';
 import { sendRegistrationEmails } from '../lib/registrationEmails';
 import { cacheRoute } from '../lib/cache';
 import { registrationRateLimiter } from '../middleware/rateLimit';
+import { ensureCollegeExists, DEFAULT_COLLEGE } from '../lib/collegesHelper';
 
 const router = Router();
 
@@ -20,8 +21,19 @@ function sanitizeText(text: string) {
 import { getAllClubs, getDefaultClub } from '../lib/clubsHelper';
 import { DEFAULT_CLUB_ID } from '../constants/clubs';
 
+function matchesCollege(evCollege: string | null | undefined, targetCollege: string | null | undefined): boolean {
+  if (!targetCollege || targetCollege === 'all') return true;
+  const evCol = (evCollege || DEFAULT_COLLEGE).trim().toUpperCase();
+  const targetCol = targetCollege.trim().toUpperCase();
+  return evCol === targetCol;
+}
+
 router.get('/', cacheRoute(60, ['events'], 30), async (req: Request, res: Response) => {
   const supabase = createAnonClient();
+  const { profile } = await getOptionalSession(req as AuthedRequest, res);
+  const _isSuperadmin = profile?.role === 'admin';
+  const collegeParam = (req.query.college as string | undefined)?.trim();
+
   const { data, error } = await supabase
     .from('events')
     .select('*')
@@ -40,10 +52,23 @@ router.get('/', cacheRoute(60, ['events'], 30), async (req: Request, res: Respon
     const clubId = ev.club_id || DEFAULT_CLUB_ID;
     return {
       ...ev,
+      college: ev.college || DEFAULT_COLLEGE,
       club_id: clubId,
       club: clubsMap.get(clubId) || defaultClub,
     };
   });
+
+  // College-based scoping:
+  // - Students see ONLY events for their college
+  // - Organizers see events for their college
+  // - Superadmins see all events, with optional ?college= filter
+  // - Anonymous visitors see events filtered by ?college= if given
+  if (profile?.role === 'student' || profile?.role === 'organizer') {
+    const userCollege = profile.college || DEFAULT_COLLEGE;
+    events = events.filter((ev: any) => matchesCollege(ev.college, userCollege));
+  } else if (collegeParam && collegeParam !== 'all') {
+    events = events.filter((ev: any) => matchesCollege(ev.college, collegeParam));
+  }
 
   const clubParam = req.query.club as string | undefined;
   if (clubParam) {
@@ -55,9 +80,15 @@ router.get('/', cacheRoute(60, ['events'], 30), async (req: Request, res: Respon
   return res.json({ ok: true, events });
 });
 
-router.get('/featured', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
+router.get('/featured', cacheRoute(60, ['events'], 30), async (req: Request, res: Response) => {
   const supabase = createAnonClient();
+  const { profile } = await getOptionalSession(req as AuthedRequest, res);
+  const collegeParam = (req.query.college as string | undefined)?.trim();
   const today = new Date().toISOString().split('T')[0];
+
+  const targetCollege = (profile?.role === 'student' || profile?.role === 'organizer')
+    ? (profile.college || DEFAULT_COLLEGE)
+    : (collegeParam && collegeParam !== 'all' ? collegeParam : null);
 
   const [featuredResult, pastResult] = await Promise.all([
     supabase
@@ -65,28 +96,38 @@ router.get('/featured', cacheRoute(60, ['events'], 30), async (_req: Request, re
       .select('*')
       .eq('status', 'published')
       .gte('date', today)
-      .order('date', { ascending: true })
-      .limit(1),
+      .order('date', { ascending: true }),
     supabase
       .from('events')
       .select('*')
       .eq('status', 'completed')
-      .order('date', { ascending: false })
-      .limit(3),
+      .order('date', { ascending: false }),
   ]);
 
   if (featuredResult.error || pastResult.error) {
     return res.status(500).json({ ok: false, error: 'Failed to load events' });
   }
+
+  let featured = (featuredResult.data || []).map((ev: any) => ({ ...ev, college: ev.college || DEFAULT_COLLEGE }));
+  let past = (pastResult.data || []).map((ev: any) => ({ ...ev, college: ev.college || DEFAULT_COLLEGE }));
+
+  if (targetCollege) {
+    featured = featured.filter((ev: any) => matchesCollege(ev.college, targetCollege));
+    past = past.filter((ev: any) => matchesCollege(ev.college, targetCollege));
+  }
+
   return res.json({
     ok: true,
-    featured: featuredResult.data,
-    pastEvents: pastResult.data,
+    featured: featured.slice(0, 1),
+    pastEvents: past.slice(0, 3),
   });
 });
 
-router.get('/archive', cacheRoute(120, ['events'], 60), async (_req: Request, res: Response) => {
+router.get('/archive', cacheRoute(120, ['events'], 60), async (req: Request, res: Response) => {
   const supabase = createAnonClient();
+  const { profile } = await getOptionalSession(req as AuthedRequest, res);
+  const collegeParam = (req.query.college as string | undefined)?.trim();
+
   const { data, error } = await supabase
     .from('events')
     .select('*, registrations (id)')
@@ -96,11 +137,28 @@ router.get('/archive', cacheRoute(120, ['events'], 60), async (_req: Request, re
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to load archive' });
   }
-  return res.json({ ok: true, events: data });
+
+  let events = (data || []).map((ev: any) => ({
+    ...ev,
+    college: ev.college || DEFAULT_COLLEGE,
+  }));
+
+  const targetCollege = (profile?.role === 'student' || profile?.role === 'organizer')
+    ? (profile.college || DEFAULT_COLLEGE)
+    : (collegeParam && collegeParam !== 'all' ? collegeParam : null);
+
+  if (targetCollege) {
+    events = events.filter((ev: any) => matchesCollege(ev.college, targetCollege));
+  }
+
+  return res.json({ ok: true, events });
 });
 
-router.get('/workshops', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
+router.get('/workshops', cacheRoute(60, ['events'], 30), async (req: Request, res: Response) => {
   const supabase = createAnonClient();
+  const { profile } = await getOptionalSession(req as AuthedRequest, res);
+  const collegeParam = (req.query.college as string | undefined)?.trim();
+
   const { data, error } = await supabase
     .from('events')
     .select('*')
@@ -111,7 +169,20 @@ router.get('/workshops', cacheRoute(60, ['events'], 30), async (_req: Request, r
   if (error) {
     return res.status(500).json({ ok: false, error: 'Failed to load workshops' });
   }
-  return res.json({ ok: true, events: data });
+
+  let events = (data || []).map((ev: any) => ({
+    ...ev,
+    college: ev.college || DEFAULT_COLLEGE,
+  }));
+
+  if (profile?.role === 'student' || profile?.role === 'organizer') {
+    const userCollege = profile.college || DEFAULT_COLLEGE;
+    events = events.filter((ev: any) => matchesCollege(ev.college, userCollege));
+  } else if (collegeParam && collegeParam !== 'all') {
+    events = events.filter((ev: any) => matchesCollege(ev.college, collegeParam));
+  }
+
+  return res.json({ ok: true, events });
 });
 
 router.get('/options', cacheRoute(60, ['events'], 30), async (_req: Request, res: Response) => {
@@ -258,6 +329,9 @@ router.post('/registrations', registrationRateLimiter, async (req: Request, res:
     event_id: validatedEventId,
     attendance_status: 'registered' as const,
   };
+
+  // Persist college in central colleges directory
+  await ensureCollegeExists(sanitizedData.college);
 
   const { data: duplicateCheck } = await supabase
     .from('registrations')
