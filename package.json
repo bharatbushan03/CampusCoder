@@ -29,13 +29,15 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "jsdom": "^29.1.1",
-    "lighthouse": "^12.6.1",
     "react-doctor": "^0.2.14",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.8"
   },
   "dependencies": {
-    "next": "15.5.23"
+    "next": "^16.4.0"
+  },
+  "overrides": {
+    "braces": "^3.0.3"
   }
 }
