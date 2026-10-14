@@ -8,7 +8,7 @@ function isAuthRoute(pathname: string) {
   return AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   if (isAuthRoute(pathname)) {
@@ -28,6 +28,9 @@ export function middleware(request: NextRequest) {
 
   return NextResponse.redirect(loginUrl);
 }
+
+// Backwards-compatibility alias for tooling expecting middleware export
+export const middleware = proxy;
 
 export const config = {
   matcher: [
