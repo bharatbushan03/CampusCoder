@@ -7,6 +7,7 @@ import { requireAuth, type AuthedRequest } from '../middleware/auth';
 import { createUserClient, getUserAccessToken } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import { isAzureStorageConfigured, uploadToAzureBlob } from '../lib/azureStorage';
+import { ensureCollegeExists } from '../lib/collegesHelper';
 
 const router = Router();
 
@@ -58,6 +59,10 @@ router.put('/', async (req: Request, res: Response) => {
   }
 
   const supabase = createUserClient(getUserAccessToken(authedReq) || '');
+
+  if (parsed.data.college) {
+    await ensureCollegeExists(parsed.data.college);
+  }
 
   // Build update object — only include avatar_url if it was explicitly provided
   const updateData: Record<string, any> = { ...parsed.data };

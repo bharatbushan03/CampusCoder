@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { api } from '@/lib/api';
 import { updateCompetition } from '@/app/actions/adminActions';
 import { toast } from 'sonner';
+import { CampusScopeSelector } from '@/components/ui/CampusScopeSelector';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -41,6 +42,7 @@ export default function EditCompetitionPage({ params }: PageProps) {
     eligibility: '',
     perks: '',
     checklist: '',
+    college: 'ALL',
     is_active: true,
   });
 
@@ -70,6 +72,7 @@ export default function EditCompetitionPage({ params }: PageProps) {
             eligibility: comp.eligibility || '',
             perks: Array.isArray(comp.perks) ? comp.perks.join('\n') : '',
             checklist: Array.isArray(comp.checklist) ? comp.checklist.join('\n') : '',
+            college: comp.college || 'ALL',
             is_active: comp.is_active ?? true,
           });
         }
@@ -123,6 +126,7 @@ export default function EditCompetitionPage({ params }: PageProps) {
         perks: form.perks.split('\n').map(p => p.trim()).filter(Boolean),
         checklist: form.checklist.split('\n').map(c => c.trim()).filter(Boolean),
         eligibility: form.eligibility.trim() || undefined,
+        college: form.college || 'ALL',
         is_active: form.is_active,
         timeline: [],
         prep_kit: [],
@@ -403,6 +407,12 @@ export default function EditCompetitionPage({ params }: PageProps) {
               />
             </div>
           </div>
+
+          {/* Campus Target Audience Scope */}
+          <CampusScopeSelector
+            value={form.college}
+            onChange={(val) => setForm((prev) => ({ ...prev, college: val }))}
+          />
 
           {/* Visibility Checkbox */}
           <div className="flex items-center gap-2 pt-2">

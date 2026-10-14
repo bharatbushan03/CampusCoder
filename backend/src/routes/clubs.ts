@@ -4,6 +4,7 @@ import { requireAuth, requireRole, getOptionalSession, type AuthedRequest } from
 import { createAdminClient } from '../utils/supabase/admin';
 import { getAllClubs, getClubByIdOrSlug } from '../lib/clubsHelper';
 import { appCache, cacheRoute } from '../lib/cache';
+import { DEFAULT_COLLEGE } from '../lib/collegesHelper';
 
 const router = Router();
 
@@ -12,16 +13,28 @@ const clubValidationSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens'),
   description: z.string().max(1000).nullable().optional(),
   category: z.string().max(50).default('Technical'),
+  college: z.string().max(100).nullable().optional(),
   logo_url: z.string().url().or(z.literal('')).nullable().optional(),
   banner_url: z.string().url().or(z.literal('')).nullable().optional(),
   is_active: z.boolean().default(true),
 });
 
-// GET /api/clubs - List public active clubs
-router.get('/', cacheRoute(60, ['clubs'], 30), async (_req: Request, res: Response) => {
+// GET /api/clubs - List public active clubs (optionally filtered by college)
+router.get('/', cacheRoute(60, ['clubs'], 30), async (req: Request, res: Response) => {
   try {
     const clubs = await getAllClubs();
-    return res.json({ ok: true, clubs: clubs.filter(c => c.is_active) });
+    let activeClubs = clubs.filter(c => c.is_active);
+
+    // If college query param is specified, filter clubs by that college
+    const collegeParam = (req.query.college as string | undefined)?.trim();
+    if (collegeParam && collegeParam !== 'all') {
+      activeClubs = activeClubs.filter(c => {
+        const clubCollege = (c.college || DEFAULT_COLLEGE).trim().toUpperCase();
+        return clubCollege === collegeParam.trim().toUpperCase();
+      });
+    }
+
+    return res.json({ ok: true, clubs: activeClubs });
   } catch (_error: any) {
     return res.status(500).json({ ok: false, error: 'Failed to fetch clubs' });
   }
@@ -33,6 +46,14 @@ router.get('/admin/all', requireAuth, requireRole('admin', 'organizer'), async (
     const clubs = await getAllClubs();
     const supabase = createAdminClient();
 
+    const isGlobalAdmin = req.profile?.role === 'admin';
+    const userCollege = (req.profile?.college || DEFAULT_COLLEGE).trim().toUpperCase();
+
+    let targetClubs = clubs;
+    if (!isGlobalAdmin) {
+      targetClubs = clubs.filter(c => (c.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege);
+    }
+
     // Fetch profiles with organizer info and events
     const [profilesRes, eventsRes] = await Promise.all([
       supabase
@@ -41,12 +62,15 @@ router.get('/admin/all', requireAuth, requireRole('admin', 'organizer'), async (
       supabase.from('events').select('id, club_id')
     ]);
 
-    const profiles = profilesRes.data || [];
+    let profiles = profilesRes.data || [];
+    if (!isGlobalAdmin) {
+      profiles = profiles.filter(p => (p.college || DEFAULT_COLLEGE).trim().toUpperCase() === userCollege);
+    }
     const events = eventsRes.data || [];
 
     const statsMap: Record<string, { membersCount: number; organizers: any[]; eventsCount: number }> = {};
 
-    clubs.forEach(c => {
+    targetClubs.forEach(c => {
       statsMap[c.id] = { membersCount: 0, organizers: [], eventsCount: 0 };
     });
 
@@ -72,7 +96,7 @@ router.get('/admin/all', requireAuth, requireRole('admin', 'organizer'), async (
       }
     });
 
-    const enrichedClubs = clubs.map(c => ({
+    const enrichedClubs = targetClubs.map(c => ({
       ...c,
       membersCount: statsMap[c.id]?.membersCount || 0,
       organizersCount: statsMap[c.id]?.organizers.length || 0,
@@ -242,6 +266,7 @@ router.post('/admin', requireAuth, requireRole('admin'), async (req: AuthedReque
         slug: parsed.data.slug.toLowerCase(),
         description: parsed.data.description || null,
         category: parsed.data.category,
+        college: parsed.data.college || DEFAULT_COLLEGE,
         logo_url: parsed.data.logo_url || null,
         banner_url: parsed.data.banner_url || null,
         is_active: parsed.data.is_active ?? true,

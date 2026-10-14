@@ -8,9 +8,15 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { createCompetition } from '@/app/actions/adminActions';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth';
+import { CampusScopeSelector } from '@/components/ui/CampusScopeSelector';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 
 export default function NewCompetitionPage() {
   const router = useRouter();
+  const { profile } = useAuth();
+  const isGlobalAdmin = profile?.role === 'admin';
+  const userCollege = profile?.college || 'MIET';
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
@@ -34,6 +40,7 @@ export default function NewCompetitionPage() {
     perks: 'Cash prizes\nCertificates\nRecruiter visibility\nMentorship',
     checklist: 'Form a team\nReview problem statement\nSubmit project prototype before deadline',
     is_active: true,
+    college: isGlobalAdmin ? 'ALL' : userCollege,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,6 +85,7 @@ export default function NewCompetitionPage() {
         checklist: form.checklist.split('\n').map(c => c.trim()).filter(Boolean),
         eligibility: form.eligibility.trim() || undefined,
         is_active: form.is_active,
+        college: isGlobalAdmin ? (form.college || userCollege) : userCollege,
         timeline: [],
         prep_kit: [],
       };
@@ -138,6 +146,34 @@ export default function NewCompetitionPage() {
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/50"
               />
             </div>
+          </div>
+
+          {/* College / Campus */}
+          <div>
+            {isGlobalAdmin ? (
+              <CollegeSelect
+                id="competition-college"
+                showLabel
+                label="Target College / Campus"
+                value={form.college}
+                onChange={(val) => setForm({ ...form, college: val })}
+                placeholder="e.g. MIET, IIT..."
+                helperText="Competition will be visible to students enrolled in this college"
+                selectClassName="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50 appearance-none"
+                inputClassName="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500/50"
+              />
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-medium text-slate-300">Target College / Campus</label>
+                <input
+                  type="text"
+                  disabled
+                  value={userCollege}
+                  className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-emerald-400 font-mono opacity-80 cursor-not-allowed"
+                />
+                <p className="text-[10px] text-slate-500 font-mono">Scoped to your assigned college ({userCollege})</p>
+              </div>
+            )}
           </div>
 
           {/* Row 2: Platform & URL */}
@@ -359,6 +395,12 @@ export default function NewCompetitionPage() {
               />
             </div>
           </div>
+
+          {/* Campus Target Audience Scope */}
+          <CampusScopeSelector
+            value={form.college}
+            onChange={(val) => setForm((prev) => ({ ...prev, college: val }))}
+          />
 
           {/* Visibility Checkbox */}
           <div className="flex items-center gap-2 pt-2">

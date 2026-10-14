@@ -13,6 +13,7 @@ import JSZip from 'jszip';
 import { eventSchema } from '@/lib/validation';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 
 interface Speaker {
   id?: string;
@@ -95,7 +96,9 @@ export default function EventForm({
   const { profile } = useAuth();
   const isGlobalAdmin = profile?.role === 'admin';
   const userClubId = profile?.club_id || '00000000-0000-0000-0000-000000000001';
+  const userCollege = profile?.college || 'MIET';
   const [clubId, setClubId] = useState(initialData?.club_id || userClubId);
+  const [college, setCollege] = useState(initialData?.college || userCollege);
   const [clubs, setClubs] = useState<Array<{ id: string; name: string; category?: string }>>([
     { id: '00000000-0000-0000-0000-000000000001', name: 'CampusCoder Central' },
     { id: '00000000-0000-0000-0000-000000000002', name: 'Google Developer Group (GDG)' },
@@ -586,7 +589,13 @@ export default function EventForm({
       photos_zip_url: photosZipUrl?.trim() || null,
       status,
       club_id: isGlobalAdmin ? (clubId || userClubId) : userClubId,
+      college: isGlobalAdmin ? (college || userCollege) : userCollege,
     };
+
+    if (isGlobalAdmin && (!college || !college.trim() || college.trim().toUpperCase() === 'ALL' || college.trim().toUpperCase() === 'ALL CAMPUSES')) {
+      toast.error('A specific target campus is required for workshops. Please select a particular campus.');
+      return;
+    }
 
     const validation = eventSchema.safeParse(eventData);
     if (!validation.success) {
@@ -709,6 +718,33 @@ export default function EventForm({
               ))}
             </select>
             <HelpText text={isGlobalAdmin ? 'Select community hosting this sprint' : 'Automatically scoped to your club'} />
+          </div>
+
+          <div>
+            {isGlobalAdmin ? (
+              <CollegeSelect
+                id="eventform-college"
+                showLabel
+                required
+                label="Target Campus *"
+                value={college}
+                onChange={setCollege}
+                placeholder="Select or enter target campus..."
+                helperText="Workshops must be assigned to a specific campus"
+              />
+            ) : (
+              <div>
+                <label htmlFor="eventform-college" className={labelClass}>Target College</label>
+                <input
+                  id="eventform-college"
+                  type="text"
+                  disabled
+                  value={userCollege}
+                  className={inputClass + ' opacity-80 cursor-not-allowed bg-slate-900/60 font-mono text-emerald-400'}
+                />
+                <HelpText text="Automatically scoped to your assigned college" />
+              </div>
+            )}
           </div>
           <div>
             <label htmlFor="eventform-type" className={labelClass}>Event Type</label>

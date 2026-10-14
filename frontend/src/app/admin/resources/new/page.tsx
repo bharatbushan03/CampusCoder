@@ -10,11 +10,16 @@ import { toast } from 'sonner';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 
 type EventOption = { id: string; title: string };
 
 export default function NewResourcePage() {
   const router = useRouter();
+  const { profile } = useAuth();
+  const isGlobalAdmin = profile?.role === 'admin';
+  const userCollege = profile?.college || 'MIET';
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [events, setEvents] = useState<EventOption[]>([]);
 
@@ -24,6 +29,7 @@ export default function NewResourcePage() {
     link: '',
     category: 'dsa',
     event_id: '',
+    college: userCollege,
     is_active: true
   });
 
@@ -48,7 +54,8 @@ export default function NewResourcePage() {
       title: form.title.trim(),
       description: form.description.trim(),
       link: form.link.trim(),
-      event_id: form.event_id || null
+      event_id: form.event_id || null,
+      college: isGlobalAdmin ? (form.college || userCollege) : userCollege,
     };
 
     const validation = resourceSchema.safeParse(payload);
@@ -151,6 +158,31 @@ export default function NewResourcePage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            {isGlobalAdmin ? (
+              <CollegeSelect
+                id="resource-college"
+                showLabel
+                label="Target College / Campus"
+                value={form.college}
+                onChange={(val) => setForm({ ...form, college: val })}
+                placeholder="e.g. MIET, IIT..."
+                helperText="Resource will be visible to students enrolled in this college"
+              />
+            ) : (
+              <div>
+                <label className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-widest block mb-1">Target College / Campus</label>
+                <input
+                  type="text"
+                  disabled
+                  value={userCollege}
+                  className="w-full bg-slate-900/60 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-emerald-400 font-mono opacity-80 cursor-not-allowed"
+                />
+                <p className="text-[10px] text-slate-500 font-mono mt-1">Automatically scoped to your assigned college ({userCollege})</p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">

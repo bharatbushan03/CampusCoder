@@ -37,6 +37,7 @@ export const eventSchema = z.object({
   videos: z.array(z.string()).optional().default([]),
   photos_zip_url: z.string().url().or(z.literal('')).nullable().optional(),
   club_id: uuidSchema.nullable().optional(),
+  college: z.string().optional().default('MIET'),
   status: z.enum(['draft', 'published', 'completed', 'cancelled']),
 }).refine((data) => data.end_time > data.start_time, {
   message: 'End time must be after start time',
@@ -72,6 +73,7 @@ export const resourceSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   link: z.url('Invalid URL format'),
   category: z.string().min(2, 'Category is required').max(50),
+  college: z.string().optional().default('MIET'),
   event_id: uuidSchema.nullable().optional(),
   is_active: z.boolean().default(true),
 });
@@ -87,6 +89,7 @@ export const competitionSchema = z.object({
   team_size: z.string().max(100).optional().nullable(),
   mode: z.string().max(50).default('Online'),
   status: z.string().max(50).default('Upcoming'),
+  college: z.string().optional().default('MIET'),
   start_date: z.string().optional().nullable(),
   deadline_date: z.string().min(2, 'Deadline display date is required').max(100),
   target_date: z.string().min(5, 'Target date is required'),
@@ -107,6 +110,7 @@ export const noteFolderSchema = z.object({
   name: z.string().min(1, 'Folder name is required').max(100),
   subject_code: z.string().min(2, 'Subject code is required').max(50),
   parent_id: uuidSchema.optional().nullable(),
+  college: z.string().optional().default('MIET'),
   color: z.string().max(30).default('blue').optional().nullable(),
 });
 
@@ -122,6 +126,7 @@ export const noteSchema = z.object({
   file_size: z.string().max(50).optional().nullable(),
   page_count: z.number().int().min(1).optional().nullable(),
   author: z.string().max(100).optional().nullable(),
+  college: z.string().optional().default('MIET'),
   tags: z.array(z.string()).default([]),
   highlights: z.array(z.string()).default([]),
   folder_id: uuidSchema.optional().nullable(),
@@ -143,6 +148,7 @@ export const batchNotesSchema = z.object({
   year: z.enum(['1st-year', '2nd-year', '3rd-year', '4th-year']).default('1st-year'),
   semester: z.string().min(2).max(50).default('sem-1'),
   branch: z.string().max(100).default('All Branches'),
+  college: z.string().optional().default('MIET'),
   folder_id: uuidSchema.optional().nullable(),
   folder_name: z.string().max(100).optional().nullable(),
   files: z.array(

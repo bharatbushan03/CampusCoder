@@ -33,6 +33,9 @@ import {
   deleteSubjectNotes
 } from '@/app/actions/adminActions';
 import { toast } from 'sonner';
+import Link from 'next/link';
+import { useAuth } from '@/lib/auth';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 import { PdfViewerModal, type PdfViewerData } from '@/components/resources/PdfViewerModal';
 import { DriveExplorer, type NoteFolder, type SubjectMetadata } from '@/components/notes/DriveExplorer';
 
@@ -52,13 +55,19 @@ export type AdminNoteRow = {
   folder_id?: string | null;
   folder_name?: string | null;
   tags: string[];
+  college?: string;
   is_active: boolean;
   created_at: string;
 };
 
 export default function AdminNotesPage() {
+  const { profile } = useAuth();
+  const isGlobalAdmin = profile?.role === 'admin';
+  const userCollege = profile?.college || 'MIET';
+
   const [notes, setNotes] = useState<AdminNoteRow[]>([]);
   const [folders, setFolders] = useState<NoteFolder[]>([]);
+  const [colleges, setColleges] = useState<string[]>(['MIET']);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'drive' | 'table'>('drive');
   const [selectedSubjectCode, setSelectedSubjectCode] = useState<string | null>(null);
@@ -67,6 +76,7 @@ export default function AdminNotesPage() {
   const [search, setSearch] = useState('');
   const [yearFilter, setYearFilter] = useState('all');
   const [semesterFilter, setSemesterFilter] = useState('all');
+  const [campusFilter, setCampusFilter] = useState('all');
   const [isSeeding, setIsSeeding] = useState(false);
   const [activePdfNote, setActivePdfNote] = useState<PdfViewerData | null>(null);
 
@@ -78,6 +88,7 @@ export default function AdminNotesPage() {
     year: '1st-year',
     semester: 'sem-1',
     branch: 'All Branches',
+    college: isGlobalAdmin ? '' : userCollege,
   });
 
   // Edit Subject Modal State
@@ -93,11 +104,23 @@ export default function AdminNotesPage() {
   });
   const [isSavingSubject, setIsSavingSubject] = useState(false);
 
+  useEffect(() => {
+    fetch('/api/colleges')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.ok && Array.isArray(data.colleges)) {
+          setColleges(data.colleges);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const notesUrl = campusFilter !== 'all' ? `/admin/notes?college=${encodeURIComponent(campusFilter)}` : '/admin/notes';
       const [notesRes, foldersRes] = await Promise.all([
-        api<{ ok: boolean; notes: AdminNoteRow[] }>('/admin/notes'),
+        api<{ ok: boolean; notes: AdminNoteRow[] }>(notesUrl),
         api<{ ok: boolean; folders: NoteFolder[] }>('/admin/notes/folders'),
       ]);
 
@@ -112,7 +135,7 @@ export default function AdminNotesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [campusFilter]);
 
   useEffect(() => {
     void fetchData();
@@ -222,12 +245,17 @@ export default function AdminNotesPage() {
     folderName: string | null
   ) => {
     if (!activeSubject) return false;
+    const targetCampus = isGlobalAdmin 
+      ? (campusFilter !== 'all' ? campusFilter : (newSubjectData.college || userCollege)) 
+      : userCollege;
+
     const res = await batchCreateNotes({
       code: activeSubject.code,
       subject: activeSubject.subject,
       year: (activeSubject.year as any) || '1st-year',
       semester: activeSubject.semester || 'sem-1',
       branch: activeSubject.branch || 'All Branches',
+      college: targetCampus,
       folder_id: folderId,
       folder_name: folderName,
       files,
@@ -240,6 +268,11 @@ export default function AdminNotesPage() {
     e.preventDefault();
     if (!newSubjectData.code.trim()) {
       toast.error('Subject code is required');
+      return;
+    }
+
+    if (isGlobalAdmin && (!newSubjectData.college || !newSubjectData.college.trim() || newSubjectData.college.trim().toUpperCase() === 'ALL')) {
+      toast.error('A specific target campus is required for new subjects.');
       return;
     }
 
@@ -380,7 +413,28 @@ export default function AdminNotesPage() {
         </div>
 
         {/* View mode toggle: Google Drive Explorer vs All Files Table */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {isGlobalAdmin && (
+            <select
+              value={campusFilter}
+              onChange={(e) => setCampusFilter(e.target.value)}
+              className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-500/50 cursor-pointer"
+            >
+              <option value="all">Campus: All Campuses</option>
+              {colleges.map((c) => (
+                <option key={c} value={c}>
+                  Campus: {c}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <Link href={`/admin/notes/new${campusFilter !== 'all' ? `?campus=${encodeURIComponent(campusFilter)}` : ''}`}>
+            <Button size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs flex items-center gap-1.5">
+              <Plus className="size-3.5" /> Upload Handbook / Notes
+            </Button>
+          </Link>
+
           <div className="flex items-center p-1 bg-slate-900 border border-slate-800 rounded-xl">
             <button
               type="button"
@@ -820,6 +874,17 @@ export default function AdminNotesPage() {
                     </select>
                   </div>
                 </div>
+
+                {isGlobalAdmin && (
+                  <div className="space-y-1.5">
+                    <CollegeSelect
+                      value={newSubjectData.college}
+                      onChange={(val) => setNewSubjectData((prev) => ({ ...prev, college: val }))}
+                      label="Target Campus *"
+                      required
+                    />
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-2.5 pt-2">
                   <Button

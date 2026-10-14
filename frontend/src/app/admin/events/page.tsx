@@ -41,6 +41,7 @@ type EventRow = {
     slug: string;
     category?: string;
   };
+  college?: string;
   can_edit?: boolean;
 };
 type EventStatus = 'draft' | 'published' | 'completed' | 'cancelled';
@@ -232,9 +233,16 @@ export default function AdminEventsListingPage() {
                       <div className="text-xs text-slate-500 font-mono mt-0.5">slug: {ev.slug}</div>
                     </td>
                     <td className="py-4 px-6">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                        {ev.club?.name || 'CampusCoder Central'}
-                      </span>
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                          {ev.club?.name || 'CampusCoder Central'}
+                        </span>
+                        {ev.college && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            {ev.college}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-6">
                       <div className="font-mono text-xs text-slate-200">{ev.date} @ {ev.start_time}</div>

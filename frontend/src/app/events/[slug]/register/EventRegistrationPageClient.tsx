@@ -28,6 +28,7 @@ import { EVENT_DATE_LABEL, EVENT_DEADLINE_LABEL, EVENT_TIME_LABEL } from '@/lib/
 import { toast } from 'sonner';
 import type { CodingEvent } from '@/types';
 import { AnimatedSection } from '@/components/animations/ScrollAnimations';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 import { RegistrationSuccessVisual } from '@/components/animations/RegistrationSuccessVisual';
 
 type EventData = {
@@ -49,7 +50,6 @@ type CommunityLinkItem = { id?: string; platform: string; url: string; is_active
 
 const codingLevels = ['Beginner', 'Intermediate', 'Advanced', 'Not started yet'];
 const languages = ['C', 'C++', 'Java', 'Python', 'JavaScript', 'Not sure yet', 'Other'];
-const COLLEGES = ['MIET Jammu'];
 const BRANCHES = [
   'CSC',
   'AIML',
@@ -86,7 +86,7 @@ export default function EventRegistrationPage() {
     fullName: '',
     email: '',
     phone: '',
-    college: COLLEGES[0],
+    college: 'MIET',
     branch: BRANCHES[0],
     year: '2nd Year (Sem 3-4)',
     codingLevel: 'Intermediate',
@@ -539,28 +539,22 @@ export default function EventRegistrationPage() {
 
                 {/* College + Branch */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="college" className="block text-xs font-medium text-slate-400 mb-1.5">
-                      College Name <span className="text-emerald-500">*</span>
-                    </label>
-                    <select
-                      id="college"
-                      required
-                      value={formData.college}
-                      onChange={(e) => updateField('college', e.target.value)}
-                      onBlur={(e) => validateField('college', e.target.value)}
-                      className={`w-full bg-slate-900 border ${
-                        fieldErrors.college ? 'border-red-500/50 shake' : 'border-slate-800'
-                      } rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none`}
-                    >
-                      {COLLEGES.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    {fieldErrors.college && (
-                      <p className="text-xs text-red-400 mt-1">{fieldErrors.college}</p>
-                    )}
-                  </div>
+                  <CollegeSelect
+                    id="college"
+                    showLabel
+                    label="College Name"
+                    required
+                    value={formData.college}
+                    onChange={(val) => {
+                      updateField('college', val);
+                      validateField('college', val);
+                    }}
+                    error={fieldErrors.college}
+                    selectClassName={`w-full bg-slate-900 border ${
+                      fieldErrors.college ? 'border-red-500/50 shake' : 'border-slate-800'
+                    } rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none`}
+                    inputClassName="w-full bg-slate-900 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                  />
                   <div>
                     <label htmlFor="branch" className="block text-xs font-medium text-slate-400 mb-1.5">
                       Branch / Department <span className="text-emerald-500">*</span>

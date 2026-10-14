@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Loader2, Save, User, Mail, School, GraduationCap, Shield, Info } from 'lucide-react';
 import { studentUpdateSchema } from '@/lib/validation';
 import { toast } from 'sonner';
+import { CollegeSelect } from '@/components/ui/CollegeSelect';
 
-const COLLEGES = ['MIET Jammu'];
 const BRANCHES = [
   'CSC',
   'AIML',
@@ -144,17 +144,13 @@ export default function StudentForm({
             <label htmlFor="studentform-college" className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
               <School className="size-3 text-emerald-400" /> College
             </label>
-            <select
+            <CollegeSelect
               id="studentform-college"
               value={college}
-              onChange={(e) => setCollege(e.target.value)}
+              onChange={setCollege}
               disabled={!canEdit}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {COLLEGES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              selectClassName="w-full bg-slate-950 border border-slate-800 rounded-lg pl-10 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500/50 transition-colors appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
