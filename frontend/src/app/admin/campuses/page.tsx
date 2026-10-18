@@ -186,6 +186,15 @@ function AdminCampusesPageContent() {
   const [clubCategoryFilter, setClubCategoryFilter] = useState('ALL');
   const [clubSearchQuery, setClubSearchQuery] = useState('');
 
+  // Deletion state
+  const [deletingCampus, setDeletingCampus] = useState<string | null>(null);
+  const [isDeletingCampus, setIsDeletingCampus] = useState(false);
+  const [deleteCampusError, setDeleteCampusError] = useState('');
+
+  const [deletingClub, setDeletingClub] = useState<ClubItem | null>(null);
+  const [isDeletingClub, setIsDeletingClub] = useState(false);
+  const [deleteClubError, setDeleteClubError] = useState('');
+
   // Load campuses and clubs
   const loadData = async () => {
     try {
@@ -691,6 +700,70 @@ function AdminCampusesPageContent() {
     }
   };
 
+  const handleDeleteCampusSubmit = async () => {
+    if (!deletingCampus) return;
+    setIsDeletingCampus(true);
+    setDeleteCampusError('');
+    try {
+      const res = await api<{ ok: boolean; message: string; stats?: any }>(
+        `/colleges/admin/${encodeURIComponent(deletingCampus)}`,
+        { method: 'DELETE' }
+      );
+      setActionFeedback({
+        type: 'success',
+        text: res.message || `Campus "${deletingCampus}" deleted. All students and organizers redirected to MIET.`,
+      });
+      setTimeout(() => setActionFeedback(null), 5000);
+
+      if (selectedCampus && selectedCampus.trim().toUpperCase() === deletingCampus.trim().toUpperCase()) {
+        setSelectedCampus(null);
+        setSelectedClub(null);
+        setConsoleData(null);
+      }
+
+      setDeletingCampus(null);
+      await loadData();
+    } catch (err: any) {
+      setDeleteCampusError(err.message || 'Failed to delete campus');
+    } finally {
+      setIsDeletingCampus(false);
+    }
+  };
+
+  const handleDeleteClubSubmit = async () => {
+    if (!deletingClub) return;
+    setIsDeletingClub(true);
+    setDeleteClubError('');
+    try {
+      const res = await api<{ ok: boolean; message: string }>(
+        `/clubs/admin/${deletingClub.id}`,
+        { method: 'DELETE' }
+      );
+      setActionFeedback({
+        type: 'success',
+        text: res.message || `Club "${deletingClub.name}" deleted. Any organizers have been reverted to student.`,
+      });
+      setTimeout(() => setActionFeedback(null), 5000);
+
+      if (selectedClub && selectedClub.id === deletingClub.id) {
+        setSelectedClub(null);
+        setConsoleData(null);
+      }
+
+      if (editingClub && editingClub.id === deletingClub.id) {
+        setShowClubModal(false);
+        setEditingClub(null);
+      }
+
+      setDeletingClub(null);
+      await loadData();
+    } catch (err: any) {
+      setDeleteClubError(err.message || 'Failed to delete club');
+    } finally {
+      setIsDeletingClub(false);
+    }
+  };
+
   if (loading) {
     return <CampusCoderLoader text="Loading Campuses & Communities..." />;
   }
@@ -870,9 +943,29 @@ function AdminCampusesPageContent() {
                         </div>
                       </div>
 
-                      <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700/60 text-slate-300">
-                        {clubCount} {clubCount === 1 ? 'Club' : 'Clubs'}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {campus.name.toUpperCase() === 'MIET' ? (
+                          <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                            Default HQ
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingCampus(campus.name);
+                              setDeleteCampusError('');
+                            }}
+                            className="size-8 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-red-500/10 hover:border-red-500/30 text-slate-400 hover:text-red-400 flex items-center justify-center transition-colors"
+                            title={`Delete campus ${campus.name} (Students will be redirected to MIET)`}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        )}
+                        <span className="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700/60 text-slate-300">
+                          {clubCount} {clubCount === 1 ? 'Club' : 'Clubs'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Quick Stats Grid */}
@@ -984,6 +1077,18 @@ function AdminCampusesPageContent() {
               >
                 <ArrowLeft className="size-3.5" /> All Campuses
               </Button>
+              {selectedCampus.toUpperCase() !== 'MIET' && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDeletingCampus(selectedCampus);
+                    setDeleteCampusError('');
+                  }}
+                  className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 hover:border-red-500/40 hover:bg-red-500/10"
+                >
+                  <Trash2 className="size-3.5" /> Delete Campus
+                </Button>
+              )}
               <Button
                 variant="primary"
                 onClick={() => openCreateClubModal(selectedCampus)}
@@ -1115,6 +1220,18 @@ function AdminCampusesPageContent() {
                     >
                       <Edit className="size-3.5" />
                     </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setDeletingClub(club);
+                        setDeleteClubError('');
+                      }}
+                      className="flex items-center justify-center gap-1.5 text-xs font-mono hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 text-slate-400"
+                      title="Delete Club"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -1216,6 +1333,17 @@ function AdminCampusesPageContent() {
                   className="flex items-center gap-1.5 text-xs font-mono"
                 >
                   <Edit className="size-3.5" /> Edit Info
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setDeletingClub(selectedClub);
+                    setDeleteClubError('');
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-mono text-red-400 hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/10"
+                >
+                  <Trash2 className="size-3.5" /> Delete Club
                 </Button>
                 <Button
                   variant="secondary"
@@ -2124,25 +2252,41 @@ function AdminCampusesPageContent() {
                 </label>
               </div>
 
-              <div className="pt-2 flex items-center justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowClubModal(false)}
-                  disabled={clubSubmitting}
-                  className="text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={clubSubmitting}
-                  className="text-xs flex items-center gap-2"
-                >
-                  {clubSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                  {editingClub ? 'Update Club' : 'Create Club'}
-                </Button>
+              <div className="pt-2 flex items-center justify-between gap-3">
+                {editingClub ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setDeletingClub(editingClub);
+                      setDeleteClubError('');
+                    }}
+                    disabled={clubSubmitting}
+                    className="text-xs text-red-400 hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="size-3.5 mr-1" /> Delete Club
+                  </Button>
+                ) : <div />}
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setShowClubModal(false)}
+                    disabled={clubSubmitting}
+                    className="text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={clubSubmitting}
+                    className="text-xs flex items-center gap-2"
+                  >
+                    {clubSubmitting && <Loader2 className="size-3.5 animate-spin" />}
+                    {editingClub ? 'Update Club' : 'Create Club'}
+                  </Button>
+                </div>
               </div>
             </form>
           </div>
@@ -2226,6 +2370,144 @@ function AdminCampusesPageContent() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Campus Confirmation Modal */}
+      {deletingCampus && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-slate-900 p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5 text-red-400">
+                <div className="size-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                  <Trash2 className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Delete Campus</h3>
+                  <span className="text-[11px] font-mono text-slate-400">Reassigning to MIET</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeletingCampus(null)}
+                disabled={isDeletingCampus}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Are you sure you want to delete <span className="font-bold text-white font-mono bg-slate-800 px-2 py-0.5 rounded">{deletingCampus}</span>?
+              </p>
+
+              <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl space-y-2 text-xs text-red-200">
+                <p className="font-semibold text-red-300">Cascading Automatic Actions:</p>
+                <ul className="list-disc pl-4 space-y-1 text-slate-300">
+                  <li><strong className="text-white">Students</strong> of this campus will be redirected to <strong className="text-emerald-400">MIET</strong>.</li>
+                  <li><strong className="text-white">Organizers</strong> will have their privileges revoked and become <strong className="text-emerald-400">students of MIET</strong>.</li>
+                  <li><strong className="text-white">Clubs</strong> under this campus will be removed.</li>
+                </ul>
+              </div>
+
+              {deleteCampusError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl">
+                  {deleteCampusError}
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setDeletingCampus(null)}
+                  disabled={isDeletingCampus}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleDeleteCampusSubmit}
+                  disabled={isDeletingCampus}
+                  className="text-xs bg-red-600 hover:bg-red-500 text-white font-semibold flex items-center gap-2 border border-red-500/30"
+                >
+                  {isDeletingCampus && <Loader2 className="size-3.5 animate-spin" />}
+                  Delete Campus & Reassign All
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Club Confirmation Modal */}
+      {deletingClub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-slate-900 p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5 text-red-400">
+                <div className="size-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                  <Trash2 className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Delete Club / Community</h3>
+                  <span className="text-[11px] font-mono text-slate-400">Reverting Organizers</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeletingClub(null)}
+                disabled={isDeletingClub}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Are you sure you want to delete club <span className="font-bold text-white font-mono bg-slate-800 px-2 py-0.5 rounded">{deletingClub.name}</span>?
+              </p>
+
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-2 text-xs text-amber-200">
+                <p className="font-semibold text-amber-300">Organizer & Event Impact:</p>
+                <ul className="list-disc pl-4 space-y-1 text-slate-300">
+                  <li><strong className="text-white">All organizers</strong> of this club will have their organizer status removed and will revert to <strong className="text-emerald-400">students</strong>.</li>
+                  <li>No organizers will be left holding orphaned roles.</li>
+                  <li>Club events will be unlinked.</li>
+                </ul>
+              </div>
+
+              {deleteClubError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl">
+                  {deleteClubError}
+                </div>
+              )}
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setDeletingClub(null)}
+                  disabled={isDeletingClub}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleDeleteClubSubmit}
+                  disabled={isDeletingClub}
+                  className="text-xs bg-red-600 hover:bg-red-500 text-white font-semibold flex items-center gap-2 border border-red-500/30"
+                >
+                  {isDeletingClub && <Loader2 className="size-3.5 animate-spin" />}
+                  Delete Club & Revert Organizers
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

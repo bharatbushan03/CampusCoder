@@ -5,6 +5,19 @@ export const DEFAULT_COLLEGE = 'MIET';
 
 // In-memory cache to guarantee immediate persistence across requests even prior to migration
 const inMemoryColleges = new Set<string>();
+const deletedColleges = new Set<string>();
+
+export function removeCollegeFromMemory(rawName: string): void {
+  if (!rawName) return;
+  const norm = rawName.trim().toUpperCase();
+  deletedColleges.add(norm);
+
+  for (const c of inMemoryColleges) {
+    if (c.trim().toUpperCase() === norm) {
+      inMemoryColleges.delete(c);
+    }
+  }
+}
 
 export async function getAllColleges(): Promise<string[]> {
   const collegesSet = new Set<string>();
@@ -12,7 +25,11 @@ export async function getAllColleges(): Promise<string[]> {
   collegesSet.add(DEFAULT_COLLEGE);
 
   // Add all cached in-memory colleges
-  inMemoryColleges.forEach((c) => collegesSet.add(c));
+  inMemoryColleges.forEach((c) => {
+    if (!deletedColleges.has(c.trim().toUpperCase())) {
+      collegesSet.add(c);
+    }
+  });
 
   try {
     const supabase = createAdminClient();
@@ -25,7 +42,7 @@ export async function getAllColleges(): Promise<string[]> {
 
     if (!collegesErr && collegesData) {
       collegesData.forEach((c: { name: string }) => {
-        if (c.name && c.name.trim()) {
+        if (c.name && c.name.trim() && !deletedColleges.has(c.name.trim().toUpperCase())) {
           collegesSet.add(c.name.trim());
           inMemoryColleges.add(c.name.trim());
         }
@@ -39,7 +56,7 @@ export async function getAllColleges(): Promise<string[]> {
 
     if (!profileErr && profileColleges) {
       profileColleges.forEach((p: { college: string | null }) => {
-        if (p.college && p.college.trim()) {
+        if (p.college && p.college.trim() && !deletedColleges.has(p.college.trim().toUpperCase())) {
           collegesSet.add(p.college.trim());
           inMemoryColleges.add(p.college.trim());
         }
@@ -53,7 +70,7 @@ export async function getAllColleges(): Promise<string[]> {
 
     if (!clubErr && clubColleges) {
       clubColleges.forEach((c: { college: string | null }) => {
-        if (c.college && c.college.trim()) {
+        if (c.college && c.college.trim() && !deletedColleges.has(c.college.trim().toUpperCase())) {
           collegesSet.add(c.college.trim());
           inMemoryColleges.add(c.college.trim());
         }
@@ -66,7 +83,7 @@ export async function getAllColleges(): Promise<string[]> {
   // Convert to array with MIET always first
   const list = Array.from(collegesSet);
   const otherColleges = list
-    .filter((c) => c.toUpperCase() !== DEFAULT_COLLEGE.toUpperCase())
+    .filter((c) => c.toUpperCase() !== DEFAULT_COLLEGE.toUpperCase() && !deletedColleges.has(c.toUpperCase()))
     .sort((a, b) => a.localeCompare(b));
 
   return [DEFAULT_COLLEGE, ...otherColleges];
@@ -97,6 +114,7 @@ export async function ensureCollegeExists(rawName: string): Promise<string> {
   }
 
   // Cache in-memory immediately for real-time reactivity
+  deletedColleges.delete(trimmed.toUpperCase());
   inMemoryColleges.add(trimmed);
 
   try {

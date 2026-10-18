@@ -256,6 +256,35 @@ export default function AdminClubsPage() {
     }
   };
 
+  const handleDeleteClub = async (club: ClubItem) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete club "${club.name}"?\n\nAll organizers of this club will have their roles reverted to students and will no longer be organizers.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await api(`/clubs/admin/${club.id}`, { method: 'DELETE' });
+      setActionFeedback({
+        type: 'success',
+        text: `Club "${club.name}" deleted successfully. Any organizers have been reverted to students.`,
+      });
+      setTimeout(() => setActionFeedback(null), 4000);
+      loadClubs();
+      if (selectedClubDetails?.club.id === club.id) {
+        setSelectedClubDetails(null);
+      }
+      setShowModal(false);
+    } catch (err: any) {
+      setActionFeedback({
+        type: 'error',
+        text: err.message || 'Failed to delete club',
+      });
+    }
+  };
+
   useEffect(() => {
     if (isGlobalAdmin) {
       router.replace('/admin/campuses');
@@ -530,13 +559,22 @@ export default function AdminClubsPage() {
                     </Link>
 
                     {isGlobalAdmin && (
-                      <button
-                        onClick={() => openEditModal(club)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                        title="Edit Club Details"
-                      >
-                        <Edit className="size-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEditModal(club)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                          title="Edit Club Details"
+                        >
+                          <Edit className="size-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClub(club)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          title="Delete Club & Demote Organizers"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -639,26 +677,40 @@ export default function AdminClubsPage() {
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowModal(false)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <span className="flex items-center gap-1.5">
-                      <Loader2 className="size-4 animate-spin" /> Saving...
-                    </span>
-                  ) : editingClub ? (
-                    'Save Changes'
-                  ) : (
-                    'Create Club'
-                  )}
-                </Button>
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-800">
+                {isGlobalAdmin && editingClub ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleDeleteClub(editingClub)}
+                    disabled={isSubmitting}
+                    className="text-xs text-red-400 hover:text-red-300 hover:border-red-500/40 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="size-3.5 mr-1" /> Delete Club
+                  </Button>
+                ) : <div />}
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowModal(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="size-4 animate-spin" /> Saving...
+                      </span>
+                    ) : editingClub ? (
+                      'Save Changes'
+                    ) : (
+                      'Create Club'
+                    )}
+                  </Button>
+                </div>
               </div>
             </form>
           </div>

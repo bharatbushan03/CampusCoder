@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { createAnonClient, getOptionalSession, type AuthedRequest } from '../middleware/auth';
+import { createAdminClient } from '../utils/supabase/admin';
 import { registrationSchema } from '../lib/validation';
 import { sendRegistrationEmails } from '../lib/registrationEmails';
 import { cacheRoute } from '../lib/cache';
@@ -244,17 +245,23 @@ router.get('/slug/:slug/related', cacheRoute(60, ['events'], 30), async (req: Re
 });
 
 router.get('/community-links', cacheRoute(180, ['community_links'], 60), async (_req: Request, res: Response) => {
-  const supabase = createAnonClient();
-  const { data, error } = await supabase
-    .from('community_links')
-    .select('*')
-    .eq('is_active', true)
-    .order('platform', { ascending: true });
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('community_links')
+      .select('*')
+      .eq('is_active', true)
+      .order('platform', { ascending: true });
 
-  if (error) {
-    return res.status(500).json({ ok: false, error: 'Failed to load community links' });
+    if (error) {
+      console.warn('[Events] Supabase community_links notice:', error.message);
+      return res.json({ ok: true, links: [] });
+    }
+    return res.json({ ok: true, links: data || [] });
+  } catch (err: any) {
+    console.warn('[Events] Error loading community links:', err?.message || err);
+    return res.json({ ok: true, links: [] });
   }
-  return res.json({ ok: true, links: data });
 });
 
 router.get('/announcements/latest', cacheRoute(60, ['announcements'], 30), async (_req: Request, res: Response) => {

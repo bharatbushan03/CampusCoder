@@ -33,16 +33,21 @@ export const Footer: React.FC = React.memo(function Footer() {
   const [links, setLinks] = useState<CommunityLink[]>(fallbackLinks);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchLinks = async () => {
       try {
         const data = await api<{ ok: boolean; links: CommunityLink[] }>('/events/community-links');
-        setLinks(data.links && data.links.length > 0 ? data.links : fallbackLinks);
-      } catch (err) {
-        console.warn('Footer links fetch failed:', err);
-        setLinks(fallbackLinks);
+        if (isMounted && data?.links && Array.isArray(data.links) && data.links.length > 0) {
+          setLinks(data.links);
+        }
+      } catch {
+        // Fallback links are already in initial state
       }
     };
     fetchLinks();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

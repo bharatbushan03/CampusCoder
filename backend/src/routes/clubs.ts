@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, requireRole, getOptionalSession, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
-import { getAllClubs, getClubByIdOrSlug } from '../lib/clubsHelper';
+import { getAllClubs, getClubByIdOrSlug, removeClubFromMemory } from '../lib/clubsHelper';
 import { appCache, cacheRoute } from '../lib/cache';
 import { DEFAULT_COLLEGE } from '../lib/collegesHelper';
 
@@ -404,25 +404,103 @@ router.put('/admin/:id', requireAuth, requireRole('admin', 'organizer'), async (
   }
 });
 
-// DELETE /api/clubs/admin/:id - Delete / deactivate club (Admin only)
+// DELETE /api/clubs/admin/:id - Delete club and revert all its organizers to students (Admin only)
 router.delete('/admin/:id', requireAuth, requireRole('admin'), async (req: AuthedRequest, res: Response) => {
   const { id } = req.params;
 
   try {
-    const supabase = createAdminClient();
-    const { error } = await supabase
-      .from('clubs')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      // Fallback: deactivate if deletion violates FK constraints
-      await supabase.from('clubs').update({ is_active: false }).eq('id', id);
+    const club = await getClubByIdOrSlug(id);
+    if (!club) {
+      return res.status(404).json({ ok: false, error: 'Club not found' });
     }
 
-    await appCache.invalidateTags(['clubs']);
-    return res.json({ ok: true, message: 'Club deleted successfully' });
+    const supabase = createAdminClient();
+
+    // 1. Fetch all profiles associated with this club (especially organizers)
+    const { data: affiliatedProfiles } = await supabase
+      .from('profiles')
+      .select('id, role, full_name, email, club_id')
+      .eq('club_id', club.id);
+
+    const organizerIds: string[] = [];
+    const nonOrgIds: string[] = [];
+
+    (affiliatedProfiles || []).forEach((p) => {
+      if (p.role === 'organizer') {
+        organizerIds.push(p.id);
+      } else {
+        nonOrgIds.push(p.id);
+      }
+    });
+
+    // 2. Revert ALL organizers of this club to student and clear their club_id
+    if (organizerIds.length > 0) {
+      await supabase
+        .from('profiles')
+        .update({ role: 'student', club_id: null })
+        .in('id', organizerIds);
+
+      // Synchronize Supabase Auth metadata
+      await Promise.all(
+        organizerIds.map(async (uid) => {
+          try {
+            await supabase.auth.admin.updateUserById(uid, {
+              user_metadata: { role: 'student', club_id: null },
+            });
+          } catch (e) {
+            console.warn(`[Club Delete] Auth metadata update failed for user ${uid}:`, e);
+          }
+        })
+      );
+    }
+
+    // 3. Clear club_id for any other students/members associated with this club
+    if (nonOrgIds.length > 0) {
+      await supabase
+        .from('profiles')
+        .update({ club_id: null })
+        .in('id', nonOrgIds);
+    }
+
+    // Direct safeguard: ensure no profile remains with this club_id
+    await supabase
+      .from('profiles')
+      .update({ role: 'student', club_id: null })
+      .eq('club_id', club.id);
+
+    // 4. Unlink club_id on any events referencing this club
+    await supabase
+      .from('events')
+      .update({ club_id: null })
+      .eq('club_id', club.id);
+
+    // 5. Delete the club from database
+    const { error: deleteErr } = await supabase
+      .from('clubs')
+      .delete()
+      .eq('id', club.id);
+
+    if (deleteErr) {
+      console.warn('[Club Delete] Supabase delete error, deactivating instead:', deleteErr.message);
+      await supabase.from('clubs').update({ is_active: false }).eq('id', club.id);
+    }
+
+    // 6. Purge from in-memory cache
+    removeClubFromMemory(club.id);
+    removeClubFromMemory(club.slug);
+
+    // 7. Invalidate caches
+    await Promise.all([
+      appCache.invalidateTags(['clubs', 'auth_sessions', 'admin_analytics', 'colleges', 'events']),
+    ]);
+
+    return res.json({
+      ok: true,
+      message: `Club "${club.name}" was deleted successfully. ${organizerIds.length} organizer(s) reverted to student.`,
+      demotedOrganizersCount: organizerIds.length,
+    });
   } catch (err: any) {
+    console.error('[Club Delete] Unexpected error:', err);
     return res.status(500).json({ ok: false, error: err.message || 'Error deleting club' });
   }
 });

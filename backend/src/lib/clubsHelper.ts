@@ -9,6 +9,34 @@ const DEFAULT_COLLEGE = 'MIET';
 
 // In-memory cache to guarantee immediate reactivity across requests even prior to migration or during caching
 const inMemoryClubs: Club[] = [];
+const deletedClubIds = new Set<string>();
+
+export function removeClubFromMemory(idOrSlug: string): void {
+  if (!idOrSlug) return;
+  const trimmed = idOrSlug.trim();
+  const lower = trimmed.toLowerCase();
+  deletedClubIds.add(trimmed);
+  deletedClubIds.add(lower);
+
+  for (let i = inMemoryClubs.length - 1; i >= 0; i--) {
+    if (inMemoryClubs[i].id === trimmed || inMemoryClubs[i].slug.toLowerCase() === lower) {
+      inMemoryClubs.splice(i, 1);
+    }
+  }
+}
+
+export function removeClubsByCollegeFromMemory(collegeName: string): void {
+  if (!collegeName) return;
+  const norm = collegeName.trim().toUpperCase();
+  for (let i = inMemoryClubs.length - 1; i >= 0; i--) {
+    const clubCollege = (inMemoryClubs[i].college || DEFAULT_COLLEGE).trim().toUpperCase();
+    if (clubCollege === norm) {
+      deletedClubIds.add(inMemoryClubs[i].id);
+      deletedClubIds.add(inMemoryClubs[i].slug.toLowerCase());
+      inMemoryClubs.splice(i, 1);
+    }
+  }
+}
 
 export function generateHackerRankCrewSlug(collegeName: string): string {
   const norm = collegeName.trim().toLowerCase();
@@ -23,10 +51,18 @@ export async function getAllClubs(): Promise<Club[]> {
   const clubsMap = new Map<string, Club>();
 
   // 1. Add default static clubs first
-  DEFAULT_CLUBS.forEach((c) => clubsMap.set(c.id, c));
+  DEFAULT_CLUBS.forEach((c) => {
+    if (!deletedClubIds.has(c.id) && !deletedClubIds.has(c.slug.toLowerCase())) {
+      clubsMap.set(c.id, c);
+    }
+  });
 
   // 2. Add in-memory dynamic clubs
-  inMemoryClubs.forEach((c) => clubsMap.set(c.id, c));
+  inMemoryClubs.forEach((c) => {
+    if (!deletedClubIds.has(c.id) && !deletedClubIds.has(c.slug.toLowerCase())) {
+      clubsMap.set(c.id, c);
+    }
+  });
 
   try {
     const supabase = createAdminClient();
@@ -37,25 +73,33 @@ export async function getAllClubs(): Promise<Club[]> {
 
     if (!error && data && data.length > 0) {
       data.forEach((c: any) => {
-        clubsMap.set(c.id, c as Club);
+        if (!deletedClubIds.has(c.id) && !deletedClubIds.has((c.slug || '').toLowerCase())) {
+          clubsMap.set(c.id, c as Club);
+        }
       });
     }
   } catch (err) {
     console.warn('[ClubsHelper] Supabase getAllClubs notice:', err);
   }
 
-  return Array.from(clubsMap.values());
+  return Array.from(clubsMap.values()).filter(
+    (c) => !deletedClubIds.has(c.id) && !deletedClubIds.has(c.slug.toLowerCase())
+  );
 }
 
 export async function getClubByIdOrSlug(idOrSlug: string): Promise<Club | null> {
   const trimmed = idOrSlug.trim();
   const lower = trimmed.toLowerCase();
 
+  if (deletedClubIds.has(trimmed) || deletedClubIds.has(lower)) {
+    return null;
+  }
+
   // 1. Check in-memory clubs first for immediate resolution
   const memMatch = inMemoryClubs.find(
     (c) => c.id === trimmed || c.slug.toLowerCase() === lower
   );
-  if (memMatch) return memMatch;
+  if (memMatch && !deletedClubIds.has(memMatch.id)) return memMatch;
 
   try {
     const supabase = createAdminClient();
@@ -70,6 +114,9 @@ export async function getClubByIdOrSlug(idOrSlug: string): Promise<Club | null> 
 
     const { data, error } = await query.maybeSingle();
     if (!error && data) {
+      if (deletedClubIds.has(data.id) || deletedClubIds.has((data.slug || '').toLowerCase())) {
+        return null;
+      }
       return data as Club;
     }
   } catch {
@@ -77,9 +124,11 @@ export async function getClubByIdOrSlug(idOrSlug: string): Promise<Club | null> 
   }
 
   // 2. Fallback to static list
-  return (
-    DEFAULT_CLUBS.find((c) => c.id === trimmed || c.slug.toLowerCase() === lower) || null
-  );
+  const staticMatch = DEFAULT_CLUBS.find((c) => c.id === trimmed || c.slug.toLowerCase() === lower);
+  if (staticMatch && (deletedClubIds.has(staticMatch.id) || deletedClubIds.has(staticMatch.slug.toLowerCase()))) {
+    return null;
+  }
+  return staticMatch || null;
 }
 
 export function getDefaultClub(): Club {
