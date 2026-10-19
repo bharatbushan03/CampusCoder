@@ -5,53 +5,104 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ecf8e?logo=supabase)](https://supabase.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Express.js](https://img.shields.io/badge/Express.js-4.21-000000?logo=express)](https://expressjs.com/)
+[![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen.svg)](#-contributing-guidelines)
+[![License: Source-Available](https://img.shields.io/badge/License-Source--Available-amber.svg)](LICENSE)
 
-**CampusCoder** is an end-to-end, student-led developer community platform built for engineering universities and tech clubs. It powers event discovery and RSVPs, real-time photo memories with one-click bulk ZIP downloads, curated engineering notes and handbooks, student project showcases, automated transactional emails, and a comprehensive admin management console.
+**CampusCoder** is an end-to-end, production-ready developer community platform built for engineering colleges, universities, and student tech societies. It unifies event management, RSVPs with automatic transactional confirmations, browser-native bulk photo downloads, verified engineering study resources, student project showcases, and an administrative control panel with role-based access control.
+
+---
+
+## 📑 Table of Contents
+
+- [🌟 Key Features](#-key-features)
+  - [1. Student Portal](#1-student-portal)
+  - [2. Admin Management Console](#2-admin-management-console)
+  - [3. Backend & Email Pipeline](#3-backend--email-pipeline)
+- [🏗️ System Architecture & Data Flow](#️-system-architecture--data-flow)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📁 Repository Structure](#-repository-structure)
+- [🚀 Quick Start Guide](#-quick-start-guide)
+  - [Prerequisites](#prerequisites)
+  - [Step 1: Clone the Repository](#step-1-clone-the-repository)
+  - [Step 2: Environment Variables](#step-2-environment-variables)
+  - [Step 3: Database & Storage Setup (Supabase)](#step-3-database--storage-setup-supabase)
+  - [Step 4: Install Dependencies & Run Development Servers](#step-4-install-dependencies--run-development-servers)
+- [🧪 Testing & Quality Assurance](#-testing--quality-assurance)
+- [🚢 Production Check & Deployment](#-production-check--deployment)
+- [🤝 Contributing Guidelines](#-contributing-guidelines)
+- [📜 License & Permitted Use](#-license--permitted-use)
+- [👤 Author & Contact](#-author--contact)
 
 ---
 
 ## 🌟 Key Features
 
-### 🎓 1. Student Portal
-- **Events & Sprints Directory**: Filter upcoming and completed workshops, hackathons, coding challenges, orientations, and webinars.
-- **Interactive Event RSVP**: One-click event registration with instant database validation, duplicate prevention, and seat tracking.
+### 1. Student Portal
+- **Events & Sprints Directory**: Filter and explore upcoming workshops, hackathons, coding challenges, orientations, and webinars.
+- **Interactive Event RSVP**: One-click RSVP with duplicate prevention, capacity limits, and instant status reflection.
 - **Event Photo Memories & Lightbox**:
-  - Full-screen high-resolution photo slideshow with zoom and keyboard navigation (`Left`, `Right`, `Escape`).
-  - **Single Photo Download**: Download any individual image with automatic naming.
-  - **One-Click Bulk ZIP Download**: Download an entire event's photo album bundled into a `.zip` file generated directly in the browser via `JSZip`.
-- **Engineering Notes & Resources Library**: Verified course notes, interview prep materials, syllabus handbooks, and developer cheat sheets.
-- **Project Showcase**: Student portfolio showcase to submit and view peer projects, live demos, and GitHub repositories.
-- **Competitions & Coding Challenges**: Live and upcoming coding challenges with guidelines and registration links.
-- **Authentication & Security**: Email OTP verification, secure password reset, protected student dashboard, and customizable profile settings.
+  - Full-screen high-resolution photo gallery with keyboard navigation (`Left`, `Right`, `Escape`).
+  - **Single Photo Download**: Instant download with event-specific file naming.
+  - **Zero-Server Bulk ZIP Download**: Uses `JSZip` client-side to bundle high-res photo albums directly in the browser—saving server CPU and egress bandwidth.
+- **Engineering Notes & Resources**: Curated course notes, interview preparation guides, university syllabus references, and cheat sheets.
+- **Student Project Showcase**: Peer portfolio hub to showcase repositories, live demos, and technical writeups.
+- **Authentication & Dashboard**: Supabase-powered authentication, email OTP verification, password recovery, and student profiles.
 
-### 🛡️ 2. Admin Management Console
-- **Sprint & Event Management**: Create, edit, and publish events with rich markdown descriptions, banner uploads, and multi-speaker assignments.
-- **Event Photo Gallery Uploads**: Upload multiple event photos in batch to Supabase Storage or paste remote image URLs with instant preview and deletion.
-- **Meeting Link Broadcasts**: Send automated Google Meet / Zoom meeting links with dynamic dates and times to all registered attendees with a single click.
-- **Project Submissions Approval**: Review, approve, or reject student project submissions with automated email receipts.
-- **Community Socials & Announcements**: Broadcast campus announcements and manage active Discord, WhatsApp, GitHub, and LinkedIn links.
-- **Role-Based Access Control (RBAC)**: Secure access control for `student`, `organizer`, and `admin` roles via Supabase Auth and JWT session middleware.
+### 2. Admin Management Console
+- **Event Lifecycle Management**: Create, edit, publish, or archive events with markdown support, banner images, and multi-speaker assignments.
+- **Photo Gallery Management**: Batch upload high-resolution event photos to Supabase Storage or add direct URLs with immediate previews.
+- **Meeting Link Broadcasts**: One-click broadcast of Google Meet / Zoom links with dynamically localized dates and times to all RSVP'd attendees.
+- **Project Submission Review**: Triage student project submissions (Approve/Reject) with automated email feedback receipts.
+- **Community Socials & Announcements**: Update campus announcements and manage links (Discord, WhatsApp, GitHub, LinkedIn).
+- **Role-Based Access Control (RBAC)**: Enforces distinct authorization tiers (`student`, `organizer`, `admin`) via JWT session tokens and Row Level Security.
 
-### ⚡ 3. Backend & Email Pipeline
-- **RESTful API**: Clean Express.js backend with TypeScript, input sanitization, and Zod schema validation.
-- **Dual-Provider Email System**: Automated transactional emails powered by **Resend** and **Azure Communication Services**.
-- **Dynamic Registration Confirmations**: Emails sent immediately to students containing full event details (title, formatted date, 12-hour AM/PM time, venue/mode instructions, attendee summary, and community join links).
-- **Background Queue Worker**: Concurrency-controlled, non-blocking queue for email delivery and batch notifications with automatic retry safeguards.
-- **High-Performance Caching**: Redis integration with automatic in-memory fallback for ultra-fast query responses.
+### 3. Backend & Email Pipeline
+- **Type-Safe REST API**: Express.js with TypeScript and `Zod` schema validation on every endpoint.
+- **Resilient Dual-Provider Email**: Primary transactional emails via **Resend** with automatic fallback to **Azure Communication Services**.
+- **Asynchronous Queue Worker**: Concurrency-controlled, non-blocking queue (`backend/src/lib/queue.ts`) handling email dispatch with retry safeguards.
+- **Fast Caching**: Redis-backed caching with automatic, transparent in-memory fallback when Redis is absent.
+- **Secure Architecture**: Supabase secret keys remain strictly on the backend. The Next.js frontend proxies `/api/*` requests internally without leaking database credentials to browsers.
 
 ---
 
-## 🛠 Tech Stack
+## 🏗️ System Architecture & Data Flow
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | [Next.js 15](https://nextjs.org/) (App Router), [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/), [Tailwind CSS v4](https://tailwindcss.com/), [Lucide React](https://lucide.dev/), [JSZip](https://stuk.github.io/jszip/), [Sonner](https://sonner.emilkowal.ski/) |
-| **Backend** | [Node.js](https://nodejs.org/), [Express.js](https://expressjs.com/), [TypeScript](https://www.typescriptlang.org/), [Zod](https://zod.dev/), [Multer](https://github.com/expressjs/multer) |
-| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL with Row Level Security, Supabase Auth, Storage Buckets) |
-| **Caching** | [Redis](https://redis.io/) (`ioredis`) with memory fallback |
-| **Email Services** | [Resend](https://resend.com/) & [Azure Communication Services](https://azure.microsoft.com/en-us/products/communication-services) with React Server markup templates |
-| **Testing** | [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/) (E2E), [ESLint](https://eslint.org/) |
+```mermaid
+flowchart TD
+    User([Student / Organizer / Admin Browser]) -->|HTTPS / Next.js Pages| FE[Next.js 15 Frontend<br/>App Router - Port 3000]
+    FE -->|Client-Side JSZip| PhotoZip[In-Browser Photo ZIP Bundling]
+    FE -->|Rewrite Proxy /api/*| BE[Express.js REST API<br/>TypeScript - Port 4000]
+    
+    subgraph Backend Subsystems
+        BE -->|Zod Validation & RBAC| Middleware[Auth & Rate Limit Middleware]
+        Middleware --> Controllers[Domain Routes: Events, Notes, Showcase, Admin]
+        Controllers -->|Supabase Client| DB[(Supabase PostgreSQL<br/>Row Level Security)]
+        Controllers -->|ioredis / fallback| Cache[(Redis / Memory Cache)]
+        Controllers -->|Async Jobs| Queue[In-Memory Task Queue]
+        Queue -->|Primary| Resend[Resend API]
+        Queue -->|Fallback| AzureMail[Azure Communication Services]
+        Controllers -->|Blob Storage| AzureOrSupabase[(Storage Buckets)]
+    end
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Category | Technology | Purpose |
+|---|---|---|
+| **Frontend Framework** | [Next.js 15](https://nextjs.org/) (App Router) | Server Components, SEO, Client UI, API rewrites |
+| **UI Library & Styling** | [React 19](https://react.dev/) & [Tailwind CSS v4](https://tailwindcss.com/) | Modern responsive design & rapid styling |
+| **Icons & Feedback** | [Lucide React](https://lucide.dev/) & [Sonner](https://sonner.emilkowal.ski/) | Clean iconography & toast notifications |
+| **Client Bundling** | [JSZip](https://stuk.github.io/jszip/) | Client-side photo archive ZIP generation |
+| **Backend Framework** | [Node.js](https://nodejs.org/) & [Express.js](https://expressjs.com/) | High-throughput REST API with TypeScript |
+| **Validation** | [Zod](https://zod.dev/) | Strict runtime request schema validation |
+| **Database & Auth** | [Supabase](https://supabase.com/) (PostgreSQL) | Managed PostgreSQL with RLS, Auth & Storage |
+| **Large Object Storage** | Supabase Storage & Azure Blob Storage | Event galleries, banners, showcase artifacts |
+| **Email Delivery** | [Resend](https://resend.com/) + Azure Communication Services | Transactional emails with React server templates |
+| **Cache** | [Redis](https://redis.io/) (`ioredis`) | High-read caching with automatic in-memory fallback |
+| **Testing** | [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/) | Unit tests, component tests, end-to-end testing |
 
 ---
 
@@ -59,50 +110,52 @@
 
 ```text
 CampusCoder/
-├── backend/                       # Node.js Express REST API
+├── backend/                       # Node.js Express REST API (Port 4000)
 │   ├── src/
-│   │   ├── components/emails/     # React email templates (Registration, Admin, OTP, etc.)
-│   │   ├── lib/                   # Email clients, queue worker, cache, formatters
-│   │   ├── middleware/            # Auth, RBAC, and rate limiting middleware
-│   │   ├── routes/                # API routes (events, notes, showcase, admin, auth, upload)
+│   │   ├── components/emails/     # React email templates (RSVP receipts, broadcasts, OTP)
+│   │   ├── lib/                   # Email dispatchers, queue worker, cache, formatters
+│   │   ├── middleware/            # Supabase JWT auth, RBAC guards, rate limiting
+│   │   ├── routes/                # API controllers (events, notes, showcase, admin, auth, upload)
 │   │   ├── types/                 # Database types and interfaces
-│   │   └── server.ts              # Express application entry point
-│   ├── supabase/migrations/       # 18 PostgreSQL migrations (RLS, schema, triggers, photos)
+│   │   └── server.ts              # Express application entrypoint
+│   ├── supabase/migrations/       # Numbered SQL migrations (RLS, schema, triggers, storage)
 │   └── package.json
 │
-├── frontend/                      # Next.js App Router Web Application
+├── frontend/                      # Next.js 15 App Router Frontend (Port 3000)
 │   ├── src/
 │   │   ├── app/                   # App Router pages (events, notes, admin, dashboard, auth)
-│   │   ├── components/            # UI components, layout, animations, event photo gallery
+│   │   ├── components/            # UI components, layout, navbar, event photo gallery
 │   │   │   └── events/            # EventPhotoGallery, EventPhotoLightbox
-│   │   ├── data/                  # Static definitions & tests
 │   │   ├── lib/                   # API client, downloadZip, eventPhotos, validation
-│   │   └── types/                 # Shared frontend TypeScript interfaces
+│   │   └── types/                 # Shared TypeScript interfaces
 │   └── package.json
 │
-├── docs/                          # Detailed Guides & System Architecture
-│   ├── api_reference.md           # Full REST API endpoint reference
-│   ├── architecture.md            # System architecture & data flow diagrams
-│   ├── aws-deployment.md          # Free-tier AWS EC2 deployment guide
-│   ├── email_setup.md             # Resend & Azure email configuration
-│   ├── security_audit.md          # Security & RLS audit documentation
-│   └── supabase_setup.md          # Step-by-step database setup & migration guide
-└── README.md
+├── docs/                          # In-depth architectural & deployment guides
+│   ├── api_reference.md           # REST API endpoint catalog and schemas
+│   ├── architecture.md            # Subsystem workflows and design decisions
+│   ├── aws-deployment.md          # Production AWS EC2 deployment walkthrough
+│   ├── email_setup.md             # Resend & Azure Communication setup guide
+│   ├── security_audit.md          # Security assessment & RLS audit report
+│   └── supabase_setup.md          # Database initialization & migration guide
+│
+├── package.json                   # Root monorepo workspace scripts
+├── LICENSE                        # CampusCoder Community & Source-Available License
+└── README.md                      # Platform documentation
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start Guide
 
 ### Prerequisites
-- **Node.js**: v18.18.0 or later (v20+ recommended)
+- **Node.js**: `v20.0.0` or higher recommended (minimum `v18.18.0`)
 - **npm** or **pnpm**
-- **Supabase Account**: [supabase.com](https://supabase.com) (Free Tier)
-- **Resend Account**: [resend.com](https://resend.com) (Free Tier)
+- **Supabase Account**: [supabase.com](https://supabase.com) (Free tier works great)
+- **Resend Account**: [resend.com](https://resend.com) (Free tier)
 
 ---
 
-### 1. Clone the Repository
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/bharatbushan03/CampusCoder.git
@@ -111,113 +164,201 @@ cd CampusCoder
 
 ---
 
-### 2. Configure Environment Variables
+### Step 2: Environment Variables
 
-#### Backend Configuration (`backend/.env`):
-Create `backend/.env` (see `backend/.env.example`):
+#### Backend (`backend/.env`):
+Create `backend/.env` (refer to `backend/.env.example` or root `.env.example`):
+
 ```env
+# Server
 PORT=4000
 NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
 
-# Supabase Credentials
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+# Supabase Credentials (Backend only — never expose to frontend)
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_or_anon_key
+SUPABASE_SECRET_KEY=your_supabase_secret_or_service_role_key
 
-# Email Dispatch
+# Email Dispatcher (Resend primary)
 RESEND_API_KEY=re_your_resend_api_key
 FROM_EMAIL=CampusCoder <onboarding@resend.dev>
 ADMIN_EMAIL=admin@yourcollege.edu
 
-# Optional Redis Cache (falls back to memory if omitted)
-REDIS_URL=redis://localhost:6379
+# Azure (Optional: fallback email & storage)
+# AZURE_COMMUNICATION_CONNECTION_STRING=endpoint=https://...
+# AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;...
 
-# Client URL (for CORS)
-CLIENT_URL=http://localhost:3000
+# Redis Cache (Optional: falls back to in-memory if omitted)
+# REDIS_URL=redis://localhost:6379
 ```
 
-#### Frontend Configuration (`frontend/.env.local`):
-Create `frontend/.env.local` (see `frontend/.env.example`):
+#### Frontend (`frontend/.env.local`):
+Create `frontend/.env.local`:
+
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:4000/api
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+# Backend Internal URL (Used by Next.js server rewrites to proxy /api/* requests)
+BACKEND_INTERNAL_URL=http://localhost:4000
+
+# Public Site URL
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Public Backend URL (For direct large file uploads if needed)
+NEXT_PUBLIC_BACKEND_URL=http://localhost:4000
 ```
+
+> [!NOTE]
+> The frontend does **not** consume Supabase keys directly. All database access and authentication validation are handled securely through the backend Express layer and Next.js proxying.
 
 ---
 
-### 3. Database Setup (Supabase)
+### Step 3: Database & Storage Setup (Supabase)
 
-1. Navigate to your **Supabase Dashboard** -> **SQL Editor**.
-2. Run the database migration files in `backend/supabase/migrations/` in numerical order starting with `20260529000000_init_schema.sql`.
-3. Create public Storage Buckets:
+1. Open your **Supabase Dashboard** -> **SQL Editor**.
+2. Run the SQL migration scripts in [backend/supabase/migrations/](backend/supabase/migrations/) in numerical sequence, starting with:
+   ```text
+   20260529000000_init_schema.sql
+   ...
+   ```
+3. In **Storage**, create public storage buckets:
    - `event-banners`
    - `event-photos`
    - `project-submissions`
-4. For detailed database instructions, refer to [docs/supabase_setup.md](./docs/supabase_setup.md).
+4. For step-by-step guidance, refer to [docs/supabase_setup.md](docs/supabase_setup.md).
 
 ---
 
-### 4. Install Dependencies & Start Servers
+### Step 4: Install Dependencies & Run Development Servers
 
-#### Start Backend (Terminal 1):
+From the root directory:
+
+#### Option A: Running from Root (Recommended)
+```bash
+# Install root & frontend dependencies
+npm install
+
+# Install backend dependencies
+cd backend && npm install && cd ..
+
+# Start frontend dev server (runs on http://localhost:3000)
+npm run dev
+```
+
+In a second terminal, start the backend dev server:
 ```bash
 cd backend
-npm install
 npm run dev
+# Backend runs on http://localhost:4000
 ```
-*Backend runs on `http://localhost:4000`*
 
-#### Start Frontend (Terminal 2):
-```bash
-cd frontend
-npm install
-npm run dev
-```
-*Frontend runs on `http://localhost:3000`*
+#### Option B: Independent Terminals
+- **Terminal 1 (Backend)**: `cd backend && npm run dev`
+- **Terminal 2 (Frontend)**: `cd frontend && npm run dev`
+
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
 
 ---
 
-## 🧪 Testing & Code Quality
+## 🧪 Testing & Quality Assurance
 
-### Frontend:
+Maintain code health by running tests and linters in order: `lint` -> `type-check` -> `test`.
+
 ```bash
-cd frontend
+# 1. Run frontend linter
+npm run lint
 
-# Run Vitest unit tests
+# 2. Run frontend TypeScript type checking
+npm run type-check
+
+# 3. Run frontend Vitest unit & component tests
 npm run test:unit
 
-# Run TypeScript type verification
-npm run type-check
+# 4. Run End-to-End Playwright tests (requires frontend & backend running)
+npm run test:e2e
 
-# Run ESLint validation
-npm run lint
-```
-
-### Backend:
-```bash
+# 5. Backend verification (from backend directory)
 cd backend
-
-# Run TypeScript type check
-npm run type-check
-
-# Run linter
 npm run lint
+npm run type-check
 ```
 
 ---
 
-## 📚 Documentation & Guides
+## 🚢 Production Check & Deployment
 
-- [System Architecture & Data Flows](./docs/architecture.md)
-- [REST API Reference & Schemas](./docs/api_reference.md)
-- [Supabase Database & Migrations Setup](./docs/supabase_setup.md)
-- [Email System Setup (Resend & Azure)](./docs/email_setup.md)
-- [Free-Tier AWS EC2 Deployment Guide](./docs/aws-deployment.md)
-- [Security & RLS Audit](./docs/security_audit.md)
+Before committing or deploying to production, run the comprehensive verification check:
+
+```bash
+npm run production-check
+```
+
+This script validates:
+1. Frontend ESLint checks
+2. Frontend TypeScript compilation
+3. Frontend Next.js production build (`output: standalone`)
+4. Backend ESLint checks
+5. Backend TypeScript type checking
+6. Backend build (`tsc`)
+
+For production deployment instructions on AWS EC2, Docker, or self-hosted environments, refer to [docs/aws-deployment.md](docs/aws-deployment.md).
 
 ---
 
-## 📄 License
+## 🤝 Contributing Guidelines
 
-This project is open-source software licensed under the [MIT License](LICENSE).
+We actively welcome contributions to make CampusCoder even better! Whether it is fixing a bug, adding new features, improving documentation, or refining UI components:
+
+### How to Contribute
+
+1. **Fork the Repository**: Create a personal fork on GitHub.
+2. **Clone your Fork**:
+   ```bash
+   git clone https://github.com/<your-username>/CampusCoder.git
+   cd CampusCoder
+   ```
+3. **Create a Feature Branch**:
+   ```bash
+   git checkout -b feature/amazing-feature
+   # or
+   git checkout -b fix/issue-description
+   ```
+4. **Make Your Changes**: Write clean, maintainable, and well-commented code following existing project patterns.
+5. **Run Verification**: Ensure all linters and tests pass:
+   ```bash
+   npm run lint
+   npm run type-check
+   npm run test:unit
+   ```
+6. **Commit with Clear Messages**:
+   ```bash
+   git commit -m "feat: add filter for upcoming sprint workshops"
+   ```
+7. **Push to Your Fork & Open a Pull Request**: Submit your PR against the `main` branch of `bharatbushan03/CampusCoder` with a clear description of the problem solved.
+
+---
+
+## 📜 License & Permitted Use
+
+This project is governed by the **CampusCoder Source-Available & Community Contribution License**.
+
+### Summary of Terms:
+
+- ✅ **Contributions Welcomed**: Anyone is welcome to fork, study, test, and contribute pull requests, bug fixes, features, and documentation to the official upstream CampusCoder repository.
+- ✅ **Educational & Local Study**: You may clone, inspect, and run this project locally for personal learning and technical evaluation.
+- ✅ **Contributor Attribution**: You may highlight your merged contributions to CampusCoder on your resume and portfolio.
+- ❌ **NO Personal Project Claim / Plagiarism**: You **may NOT** copy, fork, or rebrand this codebase (in whole or in substantial part) to submit, display, or claim it as your own personal project, academic degree/capstone project, or personal portfolio creation.
+- ❌ **NO Unauthorized Deployment**: You **may NOT** deploy, host, or run public or private production instances of this project for any institution, club, or organization under a different brand without prior written permission from the copyright holder.
+- ❌ **NO Commercial Exploitation**: You **may NOT** sell, monetize, or charge fees for this software, its derivatives, or hosted versions.
+
+For the full legal terms, please read the complete [LICENSE](LICENSE) file.
+
+---
+
+## 👤 Author & Contact
+
+- **Created & Maintained by**: **Bharat Bushan**
+- **Email**: [bharatbushan5320@gmail.com](mailto:bharatbushan5320@gmail.com)
+- **GitHub**: [@bharatbushan03](https://github.com/bharatbushan03)
+- **Official Repository**: [https://github.com/bharatbushan03/CampusCoder](https://github.com/bharatbushan03/CampusCoder)
+
+If you find this project helpful, feel free to give it a ⭐️ on GitHub!

@@ -1,0 +1,97 @@
+CampusCoder Source-Available & Community Contribution License
+Version 1.0, October 2026
+
+Copyright (c) 2025-2026 Bharat Lashotra (bharatbushan5320@gmail.com). All rights reserved.
+Official Repository: https://github.com/bharatbushan03/CampusCoder
+
+================================================================================
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND CONTRIBUTION
+================================================================================
+
+1. PREAMBLE & INTENT
+-------------------
+The purpose of this license is to foster an open, collaborative, and educational
+developer community around CampusCoder while safeguarding the original author's
+intellectual property and creative work.
+
+Under this license, ANYONE is welcome to read, study, run locally, test, and
+actively contribute improvements to the official upstream CampusCoder repository.
+However, NO ONE is permitted to copy, fork, rebrand, or repurpose this codebase
+to present, submit, or distribute it as their own personal project, academic
+assignment, portfolio showcase, or commercial/hosted service.
+
+2. GRANT OF PERMITTED RIGHTS
+----------------------------
+Subject to the restrictions in Section 3, the Copyright Holder hereby grants to
+any person obtaining a copy of this software and associated documentation files
+(the "Software") a royalty-free, non-exclusive license to:
+
+  a. EDUCATIONAL & LOCAL USE: Inspect, read, compile, and run the Software locally
+     in a private environment for personal learning, educational study, code review,
+     and feature evaluation.
+
+  b. COMMUNITY CONTRIBUTIONS: Fork, branch, and modify the Software SOLELY for
+     the purpose of preparing, submitting, and collaborating on pull requests,
+     bug fixes, feature enhancements, or documentation to the official upstream
+     repository (https://github.com/bharatbushan03/CampusCoder).
+
+  c. CONTRIBUTOR ATTRIBUTION: Legally and factually state on a resume, curriculum
+     vitae, or developer portfolio that you have contributed to the official
+     CampusCoder project (e.g., "Open-Source Contributor to CampusCoder"),
+     provided such statements accurately reference your upstream merged pull requests
+     or accepted contributions.
+
+3. RESTRICTIONS & PROHIBITED USES
+---------------------------------
+You are strictly prohibited from exercising any of the following rights without
+prior express written authorization from the Copyright Holder:
+
+  a. NO PERSONAL PROJECT CLAIM / ACADEMIC PLAGIARISM:
+     You may NOT claim, present, display, describe, or submit this Software, or
+     any modification, fork, or derivative work thereof, as your own personal
+     project, capstone project, final-year degree project, coursework submission,
+     portfolio project, or personal creation. Representing this work or any
+     substantial portion thereof as your personal creation is a violation of
+     this license and will be subject to takedown and infringement notices.
+
+  b. NO INDEPENDENT DEPLOYMENT OR REBRANDING:
+     You may NOT deploy, host, run, or operate public or private production
+     instances of this Software for any university, college, student society,
+     club, or commercial entity under a different name, rebrand, white-label,
+     or fork, without explicit prior written consent from the Copyright Holder.
+
+  c. NO COMMERCIAL EXPLOITATION:
+     You may NOT sell, license, sublicense, rent, lease, monetize, or charge
+     fees for access to the Software, its hosted instances, features, derivatives,
+     or related services.
+
+  d. NO REMOVAL OF NOTICES:
+     You may NOT delete, obscure, or alter any copyright notices, author
+     attributions, watermarks, license text, or repository links present in the
+     Software or its documentation.
+
+4. INBOUND CONTRIBUTIONS
+------------------------
+By submitting any contribution (including pull requests, code patches, bug fixes,
+enhancements, tests, or documentation) to the official CampusCoder repository,
+you agree that:
+  a. Your contribution is your own original work or you have the legal right to
+     submit it;
+  b. You grant Bharat Bushan and successors an irrevocable, perpetual, worldwide,
+     royalty-free, assignable right to use, modify, distribute, sublicense, and
+     relicense the contribution as part of the CampusCoder project.
+
+5. TERMINATION
+--------------
+Any violation of the terms of this License automatically and immediately
+terminates your rights hereunder. Upon termination, you must cease all use of the
+Software and delete all copies and forks in your possession or control.
+
+6. DISCLAIMER OF WARRANTY
+-------------------------
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
