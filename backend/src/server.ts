@@ -64,15 +64,18 @@ app.use(cookieParser());
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
+import { recordRequestLog } from './lib/systemMonitor';
+
 // Global Rate Limiting
 app.use(globalRateLimiter);
 
-// High-precision Request Latency Logger
+// High-precision Request Latency Logger & System Monitor Recorder
 app.use((req, res, next) => {
   const startHr = process.hrtime();
   res.on('finish', () => {
     const [seconds, nanoseconds] = process.hrtime(startHr);
-    const durationMs = (seconds * 1000 + nanoseconds / 1e6).toFixed(2);
+    const durationMs = Number((seconds * 1000 + nanoseconds / 1e6).toFixed(2));
+    recordRequestLog(req.method, req.originalUrl || req.path, res.statusCode, durationMs);
     if (process.env.NODE_ENV !== 'test') {
       console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl || req.path} ${res.statusCode} - ${durationMs}ms`);
     }

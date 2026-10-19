@@ -22,6 +22,7 @@ import { deleteAzure, upsertAzure, upsertManyAzure } from '../lib/azureDb';
 import { getAllClubs, getDefaultClub } from '../lib/clubsHelper';
 import { DEFAULT_CLUB_ID } from '../constants/clubs';
 import { ensureCollegeExists, DEFAULT_COLLEGE } from '../lib/collegesHelper';
+import { getSystemTelemetry } from '../lib/systemMonitor';
 
 const router = Router();
 
@@ -3357,6 +3358,17 @@ router.post('/notes/seed', async (_req: Request, res: Response) => {
   await upsertManyAzure('notes', data || []);
   appCache.invalidateTags(['notes']);
   return res.json({ ok: true, message: `Successfully seeded ${seedNotes.length} engineering subject handbooks!` });
+});
+
+// GET /api/admin/system/telemetry - Live infrastructure health, metrics, and logs
+router.get('/system/telemetry', async (_req: Request, res: Response) => {
+  try {
+    const telemetry = await getSystemTelemetry();
+    return res.json({ ok: true, ...telemetry });
+  } catch (err: any) {
+    console.error('[Admin System Telemetry] Error:', err);
+    return res.status(500).json({ ok: false, error: err.message || 'Failed to fetch telemetry' });
+  }
 });
 
 export { router as adminRouter };
