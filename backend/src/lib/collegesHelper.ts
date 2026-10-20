@@ -107,9 +107,6 @@ export async function ensureCollegeExists(rawName: string): Promise<string> {
 
   // Normalize MIET
   if (trimmed.toUpperCase() === 'MIET') {
-    try {
-      await autoSetupHackerRankCrewForCollege(DEFAULT_COLLEGE);
-    } catch {}
     return DEFAULT_COLLEGE;
   }
 

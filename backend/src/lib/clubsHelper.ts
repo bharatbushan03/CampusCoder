@@ -40,9 +40,6 @@ export function removeClubsByCollegeFromMemory(collegeName: string): void {
 
 export function generateHackerRankCrewSlug(collegeName: string): string {
   const norm = collegeName.trim().toLowerCase();
-  if (norm === 'miet') {
-    return 'hackerrankcampuscrew';
-  }
   const cleanCollege = norm.replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
   return `hackerrankcampuscrew-${cleanCollege || 'campus'}`;
 }
@@ -83,7 +80,14 @@ export async function getAllClubs(): Promise<Club[]> {
   }
 
   return Array.from(clubsMap.values()).filter(
-    (c) => !deletedClubIds.has(c.id) && !deletedClubIds.has(c.slug.toLowerCase())
+    (c) =>
+      !deletedClubIds.has(c.id) &&
+      !deletedClubIds.has(c.slug.toLowerCase()) &&
+      !(
+        ((c.slug || '').toLowerCase() === 'hackerrankcampuscrew' ||
+          (c.name || '').toLowerCase() === HACKERRANK_CREW_NAME.toLowerCase()) &&
+        (c.college || DEFAULT_COLLEGE).trim().toUpperCase() === 'MIET'
+      )
   );
 }
 
@@ -95,11 +99,22 @@ export async function getClubByIdOrSlug(idOrSlug: string): Promise<Club | null> 
     return null;
   }
 
+  const isMietHackerrank = (c: { slug?: string | null; name?: string | null; college?: string | null }) => {
+    return (
+      ((c.slug || '').toLowerCase() === 'hackerrankcampuscrew' ||
+        (c.name || '').toLowerCase() === HACKERRANK_CREW_NAME.toLowerCase()) &&
+      (c.college || DEFAULT_COLLEGE).trim().toUpperCase() === 'MIET'
+    );
+  };
+
   // 1. Check in-memory clubs first for immediate resolution
   const memMatch = inMemoryClubs.find(
     (c) => c.id === trimmed || c.slug.toLowerCase() === lower
   );
-  if (memMatch && !deletedClubIds.has(memMatch.id)) return memMatch;
+  if (memMatch && !deletedClubIds.has(memMatch.id)) {
+    if (isMietHackerrank(memMatch)) return null;
+    return memMatch;
+  }
 
   try {
     const supabase = createAdminClient();
@@ -117,6 +132,7 @@ export async function getClubByIdOrSlug(idOrSlug: string): Promise<Club | null> 
       if (deletedClubIds.has(data.id) || deletedClubIds.has((data.slug || '').toLowerCase())) {
         return null;
       }
+      if (isMietHackerrank(data)) return null;
       return data as Club;
     }
   } catch {
@@ -126,6 +142,9 @@ export async function getClubByIdOrSlug(idOrSlug: string): Promise<Club | null> 
   // 2. Fallback to static list
   const staticMatch = DEFAULT_CLUBS.find((c) => c.id === trimmed || c.slug.toLowerCase() === lower);
   if (staticMatch && (deletedClubIds.has(staticMatch.id) || deletedClubIds.has(staticMatch.slug.toLowerCase()))) {
+    return null;
+  }
+  if (staticMatch && isMietHackerrank(staticMatch)) {
     return null;
   }
   return staticMatch || null;
@@ -147,7 +166,13 @@ export async function autoSetupHackerRankCrewForCollege(
   const normalizedCollege = collegeName.trim();
   const upper = normalizedCollege.toUpperCase();
 
-  if (!normalizedCollege || upper === 'ALL' || upper === 'ALL CAMPUSES' || upper === 'ALL_CAMPUSES') {
+  if (
+    !normalizedCollege ||
+    upper === 'ALL' ||
+    upper === 'ALL CAMPUSES' ||
+    upper === 'ALL_CAMPUSES' ||
+    upper === 'MIET'
+  ) {
     return { club: null, organizerAssigned: false };
   }
 
