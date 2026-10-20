@@ -22,10 +22,11 @@ export function createRateLimiter(options: RateLimitOptions) {
     prefix = 'rl',
     message = 'Too many requests, please try again later.',
     keyGenerator = (req: Request) => {
-      const forwarded = req.headers['x-forwarded-for'];
-      if (typeof forwarded === 'string') {
-        return forwarded.split(',')[0].trim();
+      const authedUserId = (req as any).user?.id;
+      if (authedUserId) {
+        return `usr_${authedUserId}`;
       }
+      // Express req.ip correctly resolves client IP when trust proxy is configured
       return req.ip || req.socket.remoteAddress || 'unknown';
     },
     skip = () => false,
@@ -112,7 +113,7 @@ export const globalRateLimiter = createRateLimiter({
   max: 300, // 300 requests per minute per IP
   prefix: 'global',
   message: 'Too many requests from this IP. Please wait a minute before making more requests.',
-  skip: (req: Request) => req.path === '/health' || req.path === '/',
+  skip: (req: Request) => req.path === '/health' || req.path === '/api/health' || req.path === '/',
 });
 
 export const authRateLimiter = createRateLimiter({

@@ -141,7 +141,7 @@ export function getDefaultClub(): Club {
  */
 export async function autoSetupHackerRankCrewForCollege(
   collegeName: string,
-  candidateUserId?: string
+  _candidateUserId?: string
 ): Promise<{ club: Club | null; organizerAssigned: boolean }> {
   if (!collegeName) return { club: null, organizerAssigned: false };
   const normalizedCollege = collegeName.trim();
@@ -270,100 +270,20 @@ export async function autoSetupHackerRankCrewForCollege(
     } catch {}
   }
 
-  // 3. Assign the first member as organizer
-  const organizerAssigned = await assignFirstMemberAsOrganizer(targetClub, normalizedCollege, candidateUserId);
-
-  return { club: targetClub, organizerAssigned };
+  // Automatic self-promotion to organizer is removed for security (SEC-02).
+  // Organizers must be granted explicitly by administrators.
+  return { club: targetClub, organizerAssigned: false };
 }
 
 /**
- * Assigns the first registered member of the college as the organizer of the club.
- * If candidateUserId is specified, uses that user (if the club has no organizer yet).
- * Otherwise finds the earliest registered member in profiles.
+ * Assigns organizer role to a user.
+ * Deprecated for automatic signup flows; retained strictly as an explicit admin utility.
  */
 export async function assignFirstMemberAsOrganizer(
-  club: Club,
-  collegeName: string,
-  candidateUserId?: string
+  _club: Club,
+  _collegeName: string,
+  _candidateUserId?: string
 ): Promise<boolean> {
-  const supabase = createAdminClient();
-  const normCollegeUpper = collegeName.trim().toUpperCase();
-
-  try {
-    // 1. Check if an organizer is already assigned to this club
-    const { data: existingOrgs, error: orgErr } = await supabase
-      .from('profiles')
-      .select('id, role, club_id')
-      .eq('club_id', club.id)
-      .eq('role', 'organizer');
-
-    if (!orgErr && Array.isArray(existingOrgs) && existingOrgs.length > 0) {
-      // Club already has an assigned organizer
-      return false;
-    }
-
-    let targetUserId: string | null = null;
-
-    if (candidateUserId) {
-      targetUserId = candidateUserId;
-    } else {
-      // Find the first member registered in this college (non-admin)
-      const { data: members, error: memErr } = await supabase
-        .from('profiles')
-        .select('id, role, college, created_at')
-        .neq('role', 'admin')
-        .order('created_at', { ascending: true });
-
-      if (!memErr && Array.isArray(members)) {
-        const collegeMember = members.find(
-          (m) => ((m as any).college || DEFAULT_COLLEGE).trim().toUpperCase() === normCollegeUpper
-        );
-        if (collegeMember) {
-          targetUserId = collegeMember.id;
-        }
-      }
-    }
-
-    if (!targetUserId) {
-      return false;
-    }
-
-    // Assign as organizer of this club
-    const { error: updateErr } = await supabase
-      .from('profiles')
-      .update({
-        role: 'organizer',
-        club_id: club.id,
-      })
-      .eq('id', targetUserId);
-
-    if (updateErr) {
-      console.warn('[ClubsHelper] Error updating profile to organizer:', updateErr.message);
-      return false;
-    }
-
-    // Update Supabase Auth user_metadata so JWT / session reflect organizer role
-    try {
-      await supabase.auth.admin.updateUserById(targetUserId, {
-        user_metadata: {
-          role: 'organizer',
-          club_id: club.id,
-        },
-      });
-    } catch (authMetaErr) {
-      console.warn('[ClubsHelper] Supabase auth metadata update notice:', authMetaErr);
-    }
-
-    try {
-      await appCache.invalidateTags(['auth_sessions']);
-    } catch {}
-
-    console.log(
-      `[ClubsHelper] Successfully assigned first member ${targetUserId} as organizer for club ${club.name} (${collegeName})`
-    );
-    return true;
-  } catch (err) {
-    console.warn('[ClubsHelper] Error assigning first member as organizer:', err);
-    return false;
-  }
+  // Permanently disabled in signup flow to close SEC-02 privilege escalation vulnerability.
+  return false;
 }

@@ -31,38 +31,66 @@ import { pingRedis } from './lib/redis';
 import { checkAzureDb, initAzureTables, isAzureDbConfigured } from './lib/azureDb';
 import { isAzureStorageConfigured } from './lib/azureStorage';
 
+import { requireAuth, requireRole } from './middleware/auth';
+import { verifyCsrf } from './middleware/csrf';
+
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
 const startTime = Date.now();
-const allowedOrigins = (process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000')
-  .split(',')
-  .map(url => url.trim())
-  .filter(Boolean);
 
-// Always ensure localhost is allowed for local dev/testing
-if (!allowedOrigins.includes('http://localhost:3000')) {
-  allowedOrigins.push('http://localhost:3000');
-}
+const rawAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const allowedOriginsSet = new Set(
+  rawAllowedOrigins
+    .split(',')
+    .map((url) => url.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+);
+// Ensure localhost is allowed for local development
+allowedOriginsSet.add('http://localhost:3000');
 
 const app = express();
+
+// Trust reverse proxy hops (1 = Next.js / AWS ALB / Cloudflare)
+app.set('trust proxy', 1);
+
+// Standard HTTP Security Headers
+app.use((_req: Request, res: Response, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  }
+  next();
+});
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, server-to-server or same-origin)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      // Reject literal 'null' origin (sandboxed iframes, file://, data: URIs)
+      if (origin === 'null') {
+        return callback(null, false);
+      }
+      // Allow non-browser requests without Origin header (e.g. server-to-server, curl)
+      if (!origin) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive callback for API endpoints while keeping credentials support
+      const normalized = origin.trim().replace(/\/$/, '');
+      if (allowedOriginsSet.has(normalized)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'X-Internal-Secret'],
+    exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'Retry-After'],
+    maxAge: 86400,
   })
 );
 app.use(cookieParser());
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ extended: true, limit: '500mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 import { recordRequestLog } from './lib/systemMonitor';
 
@@ -83,16 +111,29 @@ app.use((req, res, next) => {
   next();
 });
 
+// CSRF Origin verification on all mutating requests under /api
+app.use('/api', verifyCsrf);
+
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     ok: true,
     service: 'campuscoder-backend',
     version: '0.1.0',
-    docs: '/health',
   });
 });
 
-app.use('/health', async (_req: Request, res: Response) => {
+// Public liveness probe: Sanitized, no infrastructure or memory metrics exposed
+app.get(['/health', '/api/health'], (_req: Request, res: Response) => {
+  res.json({
+    ok: true,
+    service: 'campuscoder-backend',
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Authenticated Administrator-only detailed telemetry endpoint
+app.get('/api/admin/system/health', requireAuth, requireRole('admin'), async (_req: Request, res: Response) => {
   const mem = process.memoryUsage();
   const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
   const redisHealth = await pingRedis();
@@ -136,10 +177,11 @@ app.use((_req: Request, res: Response) => {
 });
 
 app.use((err: any, _req: Request, res: Response, _next: any) => {
+  const isProduction = process.env.NODE_ENV === 'production';
   console.error('Unhandled error:', err);
   res.status(err.status || 500).json({
     ok: false,
-    error: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
+    error: isProduction ? 'Internal Server Error' : (err.message || 'Internal Server Error'),
   });
 });
 

@@ -13,7 +13,7 @@ import { appCache } from '../lib/cache';
 
 const router = Router();
 
-import { getClubByIdOrSlug, autoSetupHackerRankCrewForCollege } from '../lib/clubsHelper';
+import { getClubByIdOrSlug } from '../lib/clubsHelper';
 import { ensureCollegeExists, DEFAULT_COLLEGE } from '../lib/collegesHelper';
 
 const loginSchema = z.object({
@@ -214,11 +214,9 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
     // Generate 6-digit OTP
     const otp = generateOtpCode();
 
-    console.log(`\n======================================================`);
-    console.log(`🔑 [SIGNUP OTP DISPATCH]`);
-    console.log(`   Recipient: ${email}`);
-    console.log(`   OTP Code:  ${otp}`);
-    console.log(`======================================================\n`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[SIGNUP OTP] Code dispatched to ${email.substring(0, 3)}***`);
+    }
 
     // Persist college name in colleges registry so it appears for all future students
     await ensureCollegeExists(college);
@@ -254,9 +252,7 @@ router.post('/signup/send-otp', authRateLimiter, async (req: Request, res: Respo
       ok: true,
       message: emailResult.success 
         ? 'Verification code sent to your email' 
-        : (process.env.NODE_ENV !== 'production' 
-            ? `Code generated: ${otp} (Email warning: ${emailResult.error?.message || 'Check terminal console'})`
-            : 'Verification code sent to your email'),
+        : 'Verification code sent. If email delivery failed, check server logs for troubleshooting.',
       email,
     });
   } catch (err: any) {
@@ -289,15 +285,6 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
     const cleanCollege = (college || DEFAULT_COLLEGE).trim();
     await ensureCollegeExists(cleanCollege);
     const admin = createAdminClient();
-
-    // Check if this user will be the first registered member for this college
-    const { data: existingMembers } = await admin
-      .from('profiles')
-      .select('id')
-      .eq('college', cleanCollege)
-      .neq('role', 'admin');
-
-    const isFirstMember = !existingMembers || existingMembers.length === 0;
 
     // Create confirmed user in Supabase Auth via Admin Client (bypasses Supabase SMTP rate limits)
     let { data: createdUser, error: createError } = await admin.auth.admin.createUser({
@@ -347,15 +334,11 @@ router.post('/signup/verify-otp', authRateLimiter, async (req: Request, res: Res
       return res.status(400).json({ ok: false, error: 'Failed to create user account' });
     }
 
-    // Auto-setup hackerrankcampuscrew club for this college and assign first member as organizer
-    if (isFirstMember) {
-      await autoSetupHackerRankCrewForCollege(cleanCollege, createdUser.user.id);
-    } else {
-      try {
-        await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
-      } catch {
-        // Continue if column not ready
-      }
+    // Enforce student role strictly for all new registrations. Auto-promotions are eliminated.
+    try {
+      await admin.from('profiles').update({ role: 'student', club_id: null }).eq('id', createdUser.user.id);
+    } catch {
+      // Continue if database trigger already enforced student role
     }
 
     // Authenticate and issue 48-hour session cookies
@@ -419,11 +402,9 @@ router.post('/resend-otp', authRateLimiter, async (req: Request, res: Response) 
     // Generate new OTP
     const otp = generateOtpCode();
 
-    console.log(`\n======================================================`);
-    console.log(`🔑 [RESEND OTP DISPATCH]`);
-    console.log(`   Recipient: ${email}`);
-    console.log(`   New OTP:   ${otp}`);
-    console.log(`======================================================\n`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[RESEND OTP] New code dispatched to ${email.substring(0, 3)}***`);
+    }
 
     // Store new OTP (this automatically deletes any old OTP from memory and Supabase DB)
     await storeOtp(email, otp, purpose, existingPayload);
@@ -457,124 +438,12 @@ router.post('/resend-otp', authRateLimiter, async (req: Request, res: Response) 
   }
 });
 
-// Fallback direct signup (auto-confirmed via admin client)
-router.post('/signup', authRateLimiter, async (req: Request, res: Response) => {
-  const parsed = signupSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ ok: false, error: parsed.error.issues[0].message });
-  }
-
-  try {
-    const { email, password, fullName, college, branch, year } = parsed.data;
-    const cleanCollege = (college || DEFAULT_COLLEGE).trim();
-    await ensureCollegeExists(cleanCollege);
-    const admin = createAdminClient();
-
-    // Check if active profile exists
-    const { data: existingUser } = await admin
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (existingUser) {
-      return res.status(409).json({ ok: false, error: 'An account with this email already exists' });
-    }
-
-    // Check if this user will be the first registered member for this college
-    const { data: existingMembers } = await admin
-      .from('profiles')
-      .select('id')
-      .eq('college', cleanCollege)
-      .neq('role', 'admin');
-
-    const isFirstMember = !existingMembers || existingMembers.length === 0;
-
-    let { data: createdUser, error: createError } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        college: cleanCollege,
-        branch,
-        year,
-        role: 'student',
-        club_id: null,
-      },
-    });
-
-    if (createError && (createError.message.toLowerCase().includes('already') || createError.message.toLowerCase().includes('unique'))) {
-      const cleaned = await cleanupOrphanAuthUser(email);
-      if (cleaned) {
-        const retryResult = await admin.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: {
-            full_name: fullName,
-            college: cleanCollege,
-            branch,
-            year,
-            role: 'student',
-            club_id: null,
-          },
-        });
-        createdUser = retryResult.data;
-        createError = retryResult.error;
-      }
-    }
-
-    if (createError) {
-      if (createError.message.toLowerCase().includes('already') || createError.message.toLowerCase().includes('unique')) {
-        return res.status(409).json({ ok: false, error: 'An account with this email already exists' });
-      }
-      return res.status(400).json({ ok: false, error: createError.message });
-    }
-
-    if (!createdUser?.user) {
-      return res.status(400).json({ ok: false, error: 'Signup failed' });
-    }
-
-    // Auto-setup hackerrankcampuscrew club for this college and assign first member as organizer
-    if (isFirstMember) {
-      await autoSetupHackerRankCrewForCollege(cleanCollege, createdUser.user.id);
-    } else {
-      try {
-        await admin.from('profiles').update({ club_id: null }).eq('id', createdUser.user.id);
-      } catch {
-        // Continue if column not ready
-      }
-    }
-
-    const anon = createAnonClient();
-    const { data: sessionData } = await anon.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (sessionData?.session) {
-      setSessionCookies(res, sessionData.session.access_token, sessionData.session.refresh_token);
-    }
-
-    const profile = await loadProfile(createdUser.user.id);
-
-    return res.json({
-      ok: true,
-      user: { id: createdUser.user.id, email: createdUser.user.email },
-      profile: profile || {
-        id: createdUser.user.id,
-        email: createdUser.user.email,
-        role: 'student',
-        full_name: fullName,
-        club_id: null,
-      },
-      requiresEmailConfirmation: false,
-    });
-  } catch (err: any) {
-    console.error('Signup error:', err);
-    return res.status(500).json({ ok: false, error: 'Signup failed' });
-  }
+// Raw direct signup permanently decommissioned to enforce OTP email verification
+router.post('/signup', (_req: Request, res: Response) => {
+  return res.status(410).json({
+    ok: false,
+    error: 'Direct unverified signup is decommissioned. Please use /api/auth/signup/send-otp to verify your email address.',
+  });
 });
 
 router.post('/logout', (req: Request, res: Response) => {
@@ -647,12 +516,9 @@ router.post('/forgot-password', authRateLimiter, async (req: Request, res: Respo
 
     const resetDirectUrl = `${siteUrl}/reset-password?email=${encodeURIComponent(email)}`;
 
-    console.log(`\n======================================================`);
-    console.log(`🔑 [PASSWORD RESET OTP DISPATCH]`);
-    console.log(`   Recipient:  ${email}`);
-    console.log(`   Reset Code: ${otp}`);
-    console.log(`   Reset URL:  ${resetDirectUrl}`);
-    console.log(`======================================================\n`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[PASSWORD RESET] Code dispatched to ${email.substring(0, 3)}***`);
+    }
 
     // 4. Dispatch branded email via Resend
     const emailResult = await sendAppEmail({

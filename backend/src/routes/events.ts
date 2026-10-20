@@ -340,27 +340,54 @@ router.post('/registrations', registrationRateLimiter, async (req: Request, res:
   // Persist college in central colleges directory
   await ensureCollegeExists(sanitizedData.college);
 
-  const { data: duplicateCheck } = await supabase
-    .from('registrations')
-    .select('id')
-    .eq('event_id', validatedEventId)
-    .eq('email', email)
-    .limit(1);
+  // Attempt atomic database registration with row locks and capacity enforcement
+  const { error: rpcError } = await (supabase.rpc as any)('register_student_atomic', {
+    p_event_id: validatedEventId,
+    p_full_name: sanitizedData.full_name,
+    p_email: email,
+    p_phone: sanitizedData.phone,
+    p_college: sanitizedData.college,
+    p_branch: sanitizedData.branch,
+    p_year: sanitizedData.year,
+    p_coding_level: sanitizedData.coding_level,
+    p_preferred_language: sanitizedData.preferred_language,
+    p_reason_to_join: sanitizedData.reason_to_join,
+  });
 
-  if (duplicateCheck && duplicateCheck.length > 0) {
-    return res.status(409).json({ ok: false, error: 'This email is already registered for this event.' });
-  }
-
-  const { error: insertError } = await supabase
-    .from('registrations')
-    .insert(sanitizedData);
-
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return res.status(409).json({ ok: false, error: 'Duplicate registration detected.' });
+  if (rpcError) {
+    if (rpcError.message?.includes('DUPLICATE_REGISTRATION') || rpcError.code === '23505') {
+      return res.status(409).json({ ok: false, error: 'This email is already registered for this event.' });
     }
-    console.error('Database insertion error:', insertError);
-    return res.status(500).json({ ok: false, error: 'A system error occurred during registration. Please try again.' });
+    if (rpcError.message?.includes('CAPACITY_EXCEEDED')) {
+      return res.status(409).json({ ok: false, error: 'Registration closed: Event capacity limit has been reached.' });
+    }
+    if (rpcError.message?.includes('EVENT_CLOSED')) {
+      return res.status(400).json({ ok: false, error: 'Registration for this event is closed or deadline has passed.' });
+    }
+
+    // Fallback direct insert if RPC not yet migrated in database
+    const { data: duplicateCheck } = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('event_id', validatedEventId)
+      .eq('email', email)
+      .limit(1);
+
+    if (duplicateCheck && duplicateCheck.length > 0) {
+      return res.status(409).json({ ok: false, error: 'This email is already registered for this event.' });
+    }
+
+    const { error: insertError } = await supabase
+      .from('registrations')
+      .insert(sanitizedData);
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        return res.status(409).json({ ok: false, error: 'Duplicate registration detected.' });
+      }
+      console.error('Database insertion error:', insertError);
+      return res.status(500).json({ ok: false, error: 'A system error occurred during registration. Please try again.' });
+    }
   }
 
   // Non-blocking background email dispatch via background queue

@@ -9,15 +9,18 @@ export interface StoredOtpRecord {
   payload?: any;
   expiresAt: number; // timestamp in ms
   createdAt: number; // timestamp in ms
+  attempts: number;  // failed verification attempts
 }
 
 // In-memory fallback map: key = `${purpose}:${email}`
 const memoryOtpMap = new Map<string, StoredOtpRecord>();
+const memoryCooldownMap = new Map<string, number>();
 
 const OTP_TTL_SECONDS = 10 * 60; // 10 minutes
 const OTP_TTL_MS = OTP_TTL_SECONDS * 1000;
 const RESEND_COOLDOWN_SECONDS = 60; // 60 seconds
 const RESEND_COOLDOWN_MS = RESEND_COOLDOWN_SECONDS * 1000;
+const OTP_MAX_ATTEMPTS = 5; // Lock out after 5 failed attempts
 
 export function generateOtpCode(): string {
   // 6-digit cryptographically secure numeric OTP
@@ -34,10 +37,10 @@ function getCooldownKey(email: string, purpose: string): string {
 
 export function checkResendCooldown(email: string, purpose: string): { allowed: boolean; waitSeconds: number } {
   const key = getCacheKey(email, purpose);
-  const existing = memoryOtpMap.get(key);
+  const createdAt = memoryCooldownMap.get(key) || memoryOtpMap.get(key)?.createdAt;
 
-  if (existing) {
-    const elapsed = Date.now() - existing.createdAt;
+  if (createdAt) {
+    const elapsed = Date.now() - createdAt;
     if (elapsed < RESEND_COOLDOWN_MS) {
       const waitSeconds = Math.ceil((RESEND_COOLDOWN_MS - elapsed) / 1000);
       return { allowed: false, waitSeconds };
@@ -145,6 +148,7 @@ export async function storeOtp(
     payload: finalPayload,
     expiresAt,
     createdAt: now,
+    attempts: 0,
   };
 
   // 1. Store in Redis with TTL
@@ -160,6 +164,7 @@ export async function storeOtp(
 
   // 2. Set new OTP record in local memory
   memoryOtpMap.set(key, record);
+  memoryCooldownMap.set(key, now);
 
   // 3. Persist to Supabase DB as backup
   try {
@@ -199,25 +204,31 @@ export async function verifyAndConsumeOtp(
       const raw = await redis.get(key);
       if (raw) {
         const record = JSON.parse(raw) as StoredOtpRecord;
+
+        // Enforce brute-force lockout
+        if ((record.attempts || 0) >= OTP_MAX_ATTEMPTS) {
+          await clearExistingOtp(normalizedEmail, purpose);
+          return { ok: false, error: 'Too many failed attempts. This code has been invalidated. Please request a new one.' };
+        }
+
         if (record.otpCode === cleanOtp) {
           // Success: consume and delete OTP from Redis & Memory & DB
-          await redis.del(key);
-          memoryOtpMap.delete(key);
-
-          try {
-            const supabase = createAdminClient();
-            await supabase
-              .from('email_otps' as any)
-              .delete()
-              .eq('email', normalizedEmail)
-              .eq('purpose', purpose);
-          } catch {
-            // ignore
-          }
-
+          await clearExistingOtp(normalizedEmail, purpose);
           return { ok: true, payload: record.payload };
         } else {
-          return { ok: false, error: 'Invalid verification code. Please check and try again.' };
+          // Increment failed attempt counter
+          record.attempts = (record.attempts || 0) + 1;
+          const remainingTtl = Math.max(1, Math.ceil((record.expiresAt - now) / 1000));
+          await redis.set(key, JSON.stringify(record), 'EX', remainingTtl);
+          // Also update memory
+          const memRecord = memoryOtpMap.get(key);
+          if (memRecord) memRecord.attempts = record.attempts;
+          const attemptsLeft = OTP_MAX_ATTEMPTS - record.attempts;
+          if (attemptsLeft <= 0) {
+            await clearExistingOtp(normalizedEmail, purpose);
+            return { ok: false, error: 'Too many failed attempts. This code has been invalidated. Please request a new one.' };
+          }
+          return { ok: false, error: `Invalid verification code. ${attemptsLeft} attempt(s) remaining.` };
         }
       }
     } catch (err) {
@@ -229,28 +240,28 @@ export async function verifyAndConsumeOtp(
   const memoryRecord = memoryOtpMap.get(key);
   if (memoryRecord) {
     if (now > memoryRecord.expiresAt) {
-      memoryOtpMap.delete(key);
+      await clearExistingOtp(normalizedEmail, purpose);
       return { ok: false, error: 'Verification code has expired. Please request a new one.' };
     }
 
+    // Enforce brute-force lockout
+    if ((memoryRecord.attempts || 0) >= OTP_MAX_ATTEMPTS) {
+      await clearExistingOtp(normalizedEmail, purpose);
+      return { ok: false, error: 'Too many failed attempts. This code has been invalidated. Please request a new one.' };
+    }
+
     if (memoryRecord.otpCode !== cleanOtp) {
-      return { ok: false, error: 'Invalid verification code. Please check and try again.' };
+      memoryRecord.attempts = (memoryRecord.attempts || 0) + 1;
+      const attemptsLeft = OTP_MAX_ATTEMPTS - memoryRecord.attempts;
+      if (attemptsLeft <= 0) {
+        await clearExistingOtp(normalizedEmail, purpose);
+        return { ok: false, error: 'Too many failed attempts. This code has been invalidated. Please request a new one.' };
+      }
+      return { ok: false, error: `Invalid verification code. ${attemptsLeft} attempt(s) remaining.` };
     }
 
     // Success: consume and delete OTP
-    memoryOtpMap.delete(key);
-
-    try {
-      const supabase = createAdminClient();
-      await supabase
-        .from('email_otps' as any)
-        .delete()
-        .eq('email', normalizedEmail)
-        .eq('purpose', purpose);
-    } catch {
-      // ignore
-    }
-
+    await clearExistingOtp(normalizedEmail, purpose);
     return { ok: true, payload: memoryRecord.payload };
   }
 

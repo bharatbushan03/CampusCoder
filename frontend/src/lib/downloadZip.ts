@@ -89,10 +89,14 @@ export async function downloadEventPhotosZip(
     return;
   }
 
-  const toastId = toast.loading(`Preparing ZIP archive for ${photos.length} photos...`);
+  // Cap download batch size to prevent client-side browser memory exhaustion
+  const MAX_ZIP_PHOTOS = 50;
+  const targetPhotos = photos.slice(0, MAX_ZIP_PHOTOS);
+
+  const toastId = toast.loading(`Preparing ZIP archive for ${targetPhotos.length} photos...`);
   const safeSlug = eventTitle
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/(^-|-$)/g, '') || 'event';
   const zipFilename = `${safeSlug}-photos.zip`;
 
@@ -103,12 +107,17 @@ export async function downloadEventPhotosZip(
 
     let successfulDownloads = 0;
 
-    for (let i = 0; i < photos.length; i++) {
-      const photoUrl = photos[i];
+    for (let i = 0; i < targetPhotos.length; i++) {
+      const photoUrl = targetPhotos[i];
       try {
         const res = await fetch(photoUrl, { mode: 'cors' });
         if (res.ok) {
           const blob = await res.blob();
+          // Reject abnormally large payloads that could crash client memory
+          if (blob.size > 15 * 1024 * 1024) {
+            console.warn(`Photo ${i + 1} skipped: size exceeds 15MB limit.`);
+            continue;
+          }
           const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
           const paddedIndex = String(i + 1).padStart(2, '0');
           const photoName = `photo-${paddedIndex}.${ext}`;
@@ -119,9 +128,9 @@ export async function downloadEventPhotosZip(
         console.warn(`Could not include photo ${i + 1} in zip:`, fetchErr);
       }
 
-      const percent = Math.round(((i + 1) / photos.length) * 80);
+      const percent = Math.round(((i + 1) / targetPhotos.length) * 80);
       onProgress?.(percent);
-      toast.loading(`Gathering photos: ${i + 1}/${photos.length}...`, { id: toastId });
+      toast.loading(`Gathering photos: ${i + 1}/${targetPhotos.length}...`, { id: toastId });
     }
 
     if (successfulDownloads === 0) {
@@ -160,13 +169,19 @@ export async function downloadEventMediaZip(
   videos: string[],
   eventTitle: string,
 ): Promise<void> {
-  const media = [...photos.map((url) => ({ url, folder: 'photos' })), ...videos.map((url) => ({ url, folder: 'videos' }))];
+  const media = [
+    ...photos.slice(0, 30).map((url) => ({ url, folder: 'photos' })),
+    ...videos.slice(0, 5).map((url) => ({ url, folder: 'videos' }))
+  ];
   if (media.length === 0) {
     toast.error('No event media available to download.');
     return;
   }
 
-  const safeSlug = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'event';
+  const safeSlug = eventTitle
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'event';
   const toastId = toast.loading(`Preparing ZIP archive for ${media.length} media files...`);
   try {
     const zip = new JSZip();
@@ -176,6 +191,10 @@ export async function downloadEventMediaZip(
       const response = await fetch(item.url);
       if (response.ok) {
         const blob = await response.blob();
+        if (blob.size > 25 * 1024 * 1024) {
+          console.warn(`Media item ${index + 1} skipped: exceeds 25MB safety cap.`);
+          continue;
+        }
         const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || (item.folder === 'videos' ? 'mp4' : 'jpg');
         zip.file(`${safeSlug}-${item.folder}/${item.folder.slice(0, -1)}-${String(index + 1).padStart(2, '0')}.${extension}`, blob);
         successfulDownloads++;
@@ -187,7 +206,10 @@ export async function downloadEventMediaZip(
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${safeSlug}-media.zip`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
     toast.success(`Downloaded ${successfulDownloads} media files as ZIP!`, { id: toastId });
   } catch (error: any) {
     toast.error(error.message || 'Failed to generate ZIP file.', { id: toastId });

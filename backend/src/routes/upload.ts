@@ -5,6 +5,7 @@ import convert from 'heic-convert';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import { isAzureStorageConfigured, uploadToAzureBlob } from '../lib/azureStorage';
+import { validateMagicBytes, generateSecureFilename } from '../lib/uploadSecurity';
 
 const router = Router();
 
@@ -15,20 +16,10 @@ const ALLOWED_IMAGE_MIMES = new Set([
   'image/jpeg',
   'image/jpg',
   'image/webp',
-  'image/gif',
-  'image/avif',
-  'image/heic',
-  'image/heic-sequence',
-  'image/heif',
-  'image/heif-sequence',
-  'image/bmp',
-  'image/tiff',
-  'image/svg+xml',
-  'application/octet-stream',
 ]);
 
 const ALLOWED_IMAGE_EXTS = new Set([
-  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.heic', '.heif', '.bmp', '.tiff', '.tif', '.svg'
+  '.png', '.jpg', '.jpeg', '.webp'
 ]);
 
 function isAllowedImageFile(file: Express.Multer.File) {
@@ -73,12 +64,12 @@ async function processImageBuffer(file: Express.Multer.File): Promise<{ buffer: 
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (_req, file, cb) => {
     if (isAllowedImageFile(file)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PNG, JPG, WEBP, GIF, AVIF, HEIC, HEIF, SVG, BMP, TIFF images are allowed'));
+      cb(new Error('Only PNG, JPG, and WEBP images are allowed'));
     }
   },
 });
@@ -89,8 +80,13 @@ router.post('/banner', upload.single('file'), async (req: Request, res: Response
   }
 
   const processed = await processImageBuffer(req.file);
+
+  if (!validateMagicBytes(processed.buffer, 'image')) {
+    return res.status(400).json({ ok: false, error: 'Security validation failed: File content does not match image signature.' });
+  }
+
   const ext = imageExt(processed.mimetype, processed.originalname);
-  const fileName = `banners/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const fileName = `banners/${generateSecureFilename(processed.originalname, ext)}`;
 
   // 1. Try Azure Blob Storage if configured
   if (isAzureStorageConfigured()) {
@@ -126,17 +122,14 @@ router.post('/banner', upload.single('file'), async (req: Request, res: Response
   }
 });
 
-const DISALLOWED_EXTENSIONS = new Set([
-  '.exe', '.bat', '.cmd', '.sh', '.ps1', '.msi', '.dll', '.vbs', '.com', '.scr', '.pif'
-]);
-
 const documentUpload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB (allowing up to 48MB files comfortably with headers)
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB max for document uploads
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (DISALLOWED_EXTENSIONS.has(ext)) {
-      cb(new Error(`File extension "${ext}" is not allowed for security reasons`));
+    const allowedDocExts = new Set(['.pdf', '.docx', '.pptx', '.xlsx', '.txt']);
+    if (!allowedDocExts.has(ext)) {
+      cb(new Error(`File extension "${ext}" is not permitted. Only PDF and Office documents are allowed.`));
     } else {
       cb(null, true);
     }
@@ -159,23 +152,15 @@ function safeBaseName(name: string) {
 function imageExt(mimetype: string, originalName?: string) {
   if (originalName) {
     const ext = path.extname(originalName).toLowerCase().replace('.', '');
-    if (['heic', 'heif', 'avif', 'webp', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp', 'tiff', 'tif'].includes(ext)) {
-      return ext === 'jpeg' ? 'jpg' : ext === 'tif' ? 'tiff' : ext;
+    if (['webp', 'png', 'jpg', 'jpeg'].includes(ext)) {
+      return ext === 'jpeg' ? 'jpg' : ext;
     }
   }
   const mime = mimetype.toLowerCase();
   if (mime === 'image/jpeg' || mime === 'image/jpg') return 'jpg';
-  if (mime === 'image/heic' || mime === 'image/heic-sequence') return 'heic';
-  if (mime === 'image/heif' || mime === 'image/heif-sequence') return 'heif';
-  if (mime === 'image/avif') return 'avif';
   if (mime === 'image/webp') return 'webp';
   if (mime === 'image/png') return 'png';
-  if (mime === 'image/gif') return 'gif';
-  if (mime === 'image/svg+xml') return 'svg';
-  if (mime === 'image/bmp') return 'bmp';
-  if (mime === 'image/tiff') return 'tiff';
-  const sub = mime.split('/')[1];
-  return sub && sub !== 'octet-stream' ? sub : 'jpg';
+  return 'jpg';
 }
 
 const handleDocumentUpload = async (req: Request, res: Response) => {
@@ -183,15 +168,15 @@ const handleDocumentUpload = async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: 'No document file uploaded' });
   }
 
-  const rawExt = path.extname(req.file.originalname) || '';
-  const cleanExt = rawExt.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase();
-  const baseName = path.basename(req.file.originalname, rawExt)
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .slice(0, 100);
+  // Validate magic bytes for documents (PDF or Zip-based OpenDocument/Office)
+  if (!validateMagicBytes(req.file.buffer, 'document')) {
+    return res.status(400).json({ ok: false, error: 'Security validation failed: File content does not match allowed document signature.' });
+  }
 
-  const finalExt = cleanExt || (req.file.mimetype.includes('pdf') ? '.pdf' : '');
-  const fileName = `notes/${Date.now()}-${baseName}${finalExt}`;
-  const contentType = req.file.mimetype || 'application/octet-stream';
+  const rawExt = path.extname(req.file.originalname) || '';
+  const finalExt = rawExt.replace(/[^a-zA-Z0-9.]/g, '').toLowerCase() || '.pdf';
+  const fileName = `notes/${generateSecureFilename(req.file.originalname, finalExt)}`;
+  const contentType = req.file.mimetype || 'application/pdf';
 
   // 1. Try Azure Blob Storage if configured
   if (isAzureStorageConfigured()) {
@@ -215,26 +200,14 @@ const handleDocumentUpload = async (req: Request, res: Response) => {
   // 2. Supabase Storage fallback
   try {
     const supabase = createAdminClient();
-    let bucketName = 'documents';
-    let { error } = await supabase.storage
+    const bucketName = 'documents';
+    const { error } = await supabase.storage
       .from(bucketName)
       .upload(fileName, req.file.buffer, {
         cacheControl: '3600',
         upsert: false,
         contentType,
       });
-
-    if (error && error.message?.includes('Bucket not found')) {
-      bucketName = 'banners';
-      const fallbackUpload = await supabase.storage
-        .from(bucketName)
-        .upload(fileName, req.file.buffer, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType,
-        });
-      error = fallbackUpload.error;
-    }
 
     if (error) {
       return res.status(500).json({ ok: false, error: error.message });
@@ -259,25 +232,25 @@ router.post('/document', documentUpload.single('file'), handleDocumentUpload);
 
 const photoUpload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per photo
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per photo
   fileFilter: (_req, file, cb) => {
     if (isAllowedImageFile(file)) {
       cb(null, true);
     } else {
-      cb(new Error('Only PNG, JPG, WEBP, GIF, AVIF, HEIC, HEIF, SVG, BMP, TIFF images are allowed'));
+      cb(new Error('Only PNG, JPG, and WEBP images are allowed'));
     }
   },
 });
 
 const videoUpload = multer({
   storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // Up to 500MB video files
+  limits: { fileSize: 50 * 1024 * 1024 }, // Capped at 50MB to protect memory heap
   fileFilter: (_req, file, cb) => {
-    const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    const allowed = ['video/mp4', 'video/webm'];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only MP4, WEBM, OGG, and MOV videos are allowed'));
+      cb(new Error('Only MP4 and WEBM videos are allowed'));
     }
   },
 });
@@ -288,9 +261,13 @@ router.post('/photo', requireRole('admin', 'organizer'), photoUpload.single('fil
   }
 
   const processed = await processImageBuffer(req.file);
+
+  if (!validateMagicBytes(processed.buffer, 'image')) {
+    return res.status(400).json({ ok: false, error: 'Security validation failed: File content does not match image signature.' });
+  }
+
   const ext = imageExt(processed.mimetype, processed.originalname);
-  const cleanName = safeBaseName(processed.originalname);
-  const fileName = `event-photos/${Date.now()}-${cleanName}.${ext}`;
+  const fileName = `event-photos/${generateSecureFilename(processed.originalname, ext)}`;
 
   // 1. Try Azure Blob Storage if configured
   if (isAzureStorageConfigured()) {
@@ -335,7 +312,11 @@ router.post('/photos', requireRole('admin', 'organizer'), photoUpload.array('fil
 
   const files: Array<{ buffer: Buffer; mimetype: string; originalname: string }> = [];
   for (const f of rawFiles) {
-    files.push(await processImageBuffer(f));
+    const processed = await processImageBuffer(f);
+    if (!validateMagicBytes(processed.buffer, 'image')) {
+      return res.status(400).json({ ok: false, error: `Security validation failed: "${f.originalname}" does not match image signature.` });
+    }
+    files.push(processed);
   }
   const uploadedUrls: string[] = [];
 
@@ -473,11 +454,17 @@ router.post('/zip', requireRole('admin', 'organizer'), zipUpload.single('file'),
     return res.status(400).json({ ok: false, error: 'Invalid or corrupted ZIP archive: ' + (parseErr.message || '') });
   }
 
-  const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.heic', '.heif', '.bmp', '.tiff', '.tif', '.svg']);
+  // SVG excluded — can carry XSS payloads; BMP/TIFF excluded — rarely needed and large attack surface
+  const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif', '.heic', '.heif']);
   const VIDEO_EXTS = new Set(['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.m4v']);
+
+  // Zip bomb protection limits
+  const MAX_EXTRACTED_FILES = 200;
+  const MAX_TOTAL_EXTRACTED_BYTES = 1 * 1024 * 1024 * 1024; // 1 GB
 
   type ExtractedFile = { name: string; ext: string; buffer: Buffer; type: 'photo' | 'video' };
   const extracted: ExtractedFile[] = [];
+  let totalExtractedBytes = 0;
 
   const entries = Object.values(zip.files).filter(f => !f.dir);
   for (const entry of entries) {
@@ -492,8 +479,20 @@ router.post('/zip', requireRole('admin', 'organizer'), zipUpload.single('file'),
 
     if (!fileType) continue; // skip non-media files
 
+    if (extracted.length >= MAX_EXTRACTED_FILES) {
+      console.warn(`[Upload/ZIP] Reached max file limit (${MAX_EXTRACTED_FILES}), skipping remaining entries`);
+      break;
+    }
+
     try {
       const buf = await entry.async('nodebuffer');
+      totalExtractedBytes += buf.length;
+      if (totalExtractedBytes > MAX_TOTAL_EXTRACTED_BYTES) {
+        return res.status(400).json({
+          ok: false,
+          error: 'ZIP archive exceeds maximum total extraction size (1 GB). Please upload a smaller archive.',
+        });
+      }
       extracted.push({ name: baseName, ext, buffer: buf, type: fileType });
     } catch (readErr: any) {
       console.warn(`[Upload/ZIP] Could not read entry "${entry.name}":`, readErr.message);
@@ -541,6 +540,13 @@ router.post('/zip', requireRole('admin', 'organizer'), zipUpload.single('file'),
       }
 
       const blobName = `event-photos/${timestamp}-${i}-${cleanEntryName}.${uploadExt}`;
+
+      // Validate magic bytes on extracted image
+      if (!validateMagicBytes(uploadBuffer, 'image')) {
+        console.warn(`[Upload/ZIP] Skipped "${file.name}": failed magic byte validation`);
+        uploadErrors++;
+        continue;
+      }
 
       if (isAzureStorageConfigured()) {
         try {

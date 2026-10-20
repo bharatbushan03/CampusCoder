@@ -43,12 +43,39 @@ export function ZipPhotoViewer({
         const blob = await res.blob();
         const zip = await JSZip.loadAsync(blob);
         const extractedUrls: string[] = [];
+        let totalExtractedBytes = 0;
+        const MAX_ENTRIES = 50;
+        const MAX_TOTAL_BYTES = 50 * 1024 * 1024; // 50MB total decompression threshold
+        const MAX_SINGLE_FILE_BYTES = 10 * 1024 * 1024; // 10MB per image
 
-        for (const [filename, fileEntry] of Object.entries(zip.files)) {
-          if (fileEntry.dir) continue;
-          if (/\.(jpe?g|png|webp|gif|avif|heic|heif|bmp|tiff?|svg)$/i.test(filename)) {
+        const entries = Object.entries(zip.files).filter(([, entry]) => !entry.dir);
+        if (entries.length > MAX_ENTRIES) {
+          throw new Error(`Archive exceeds maximum limit of ${MAX_ENTRIES} entries.`);
+        }
+
+        for (const [filename, fileEntry] of entries) {
+          // Zip Slip defense: reject directory traversal patterns
+          const normalizedPath = filename.replace(/\\/g, '/');
+          if (normalizedPath.includes('../') || normalizedPath.startsWith('/')) {
+            console.warn('Zip entry rejected due to suspicious path traversal:', filename);
+            continue;
+          }
+
+          // Disallow SVG from zip extraction to prevent XSS in viewer
+          if (/\.(jpe?g|png|webp|avif|heic|heif)$/i.test(normalizedPath)) {
             let imgBlob = await fileEntry.async('blob');
-            if (/\.(heic|heif)$/i.test(filename)) {
+
+            // Decompression Bomb defense: inspect actual extracted blob size
+            if (imgBlob.size > MAX_SINGLE_FILE_BYTES) {
+              console.warn('Zip entry exceeded single file limit:', normalizedPath);
+              continue;
+            }
+            totalExtractedBytes += imgBlob.size;
+            if (totalExtractedBytes > MAX_TOTAL_BYTES) {
+              throw new Error('Decompression limit exceeded. Archive extraction stopped.');
+            }
+
+            if (/\.(heic|heif)$/i.test(normalizedPath)) {
               try {
                 const heic2any = (await import('heic2any')).default;
                 const converted = await heic2any({ blob: imgBlob, toType: 'image/jpeg', quality: 0.9 });

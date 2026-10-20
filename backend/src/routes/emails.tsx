@@ -1,6 +1,6 @@
 import React from 'react';
 import { Router, type Request, type Response } from 'express';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole, type AuthedRequest } from '../middleware/auth';
 import { createAdminClient } from '../utils/supabase/admin';
 import { sendAppEmail } from '../lib/email';
 import { MeetingLinkEmail } from '../components/emails/MeetingLinkAnnouncement';
@@ -17,6 +17,8 @@ type MeetingRecipient = Pick<Database['public']['Tables']['registrations']['Row'
 
 router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
   try {
+    const authedReq = req as AuthedRequest;
+    const caller = authedReq.profile;
     const { eventId } = req.params;
     const force = Boolean(req.body.force) || false;
     const supabase = createAdminClient();
@@ -30,8 +32,26 @@ router.post('/meeting-link/:eventId', async (req: Request, res: Response) => {
     if (eventError || !event) {
       return res.status(404).json({ ok: false, error: 'Event not found' });
     }
+
+    // Role scoping: Non-admin organizers can ONLY broadcast for events belonging to their college
+    if (caller?.role !== 'admin') {
+      const callerCollege = (caller?.college || '').trim().toUpperCase();
+      const eventCollege = (event.college || '').trim().toUpperCase();
+      if (!callerCollege || callerCollege !== eventCollege) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Forbidden: Organizers can only broadcast meeting links for events within their own college.',
+        });
+      }
+    }
+
     if (!event.meeting_link) {
       return res.status(400).json({ ok: false, error: 'Meeting link not set for this event' });
+    }
+
+    // Validate meeting link scheme (strictly HTTP/HTTPS)
+    if (!/^https?:\/\//i.test(event.meeting_link.trim())) {
+      return res.status(400).json({ ok: false, error: 'Invalid meeting link scheme. Must be http:// or https://' });
     }
 
     if (event.meeting_link_sent_at && !force) {
