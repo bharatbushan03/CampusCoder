@@ -32,20 +32,10 @@ import { checkAzureDb, initAzureTables, isAzureDbConfigured } from './lib/azureD
 import { isAzureStorageConfigured } from './lib/azureStorage';
 
 import { requireAuth, requireRole } from './middleware/auth';
-import { verifyCsrf } from './middleware/csrf';
+import { verifyCsrf, isOriginAllowed } from './middleware/csrf';
 
 const PORT = process.env.PORT || process.env.BACKEND_PORT || 4000;
 const startTime = Date.now();
-
-const rawAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-const allowedOriginsSet = new Set(
-  rawAllowedOrigins
-    .split(',')
-    .map((url) => url.trim().replace(/\/$/, ''))
-    .filter(Boolean)
-);
-// Ensure localhost is allowed for local development
-allowedOriginsSet.add('http://localhost:3000');
 
 const app = express();
 
@@ -75,8 +65,7 @@ app.use(
       if (!origin) {
         return callback(null, true);
       }
-      const normalized = origin.trim().replace(/\/$/, '');
-      if (allowedOriginsSet.has(normalized)) {
+      if (isOriginAllowed(origin)) {
         return callback(null, true);
       }
       return callback(null, false);

@@ -1,6 +1,104 @@
 import type { Request, Response, NextFunction } from 'express';
 
 /**
+ * Normalizes an origin or URL string to lowercase protocol://host (without trailing slash).
+ * If protocol is missing, defaults to https://.
+ */
+export function normalizeOrigin(originStr: string): string {
+  const trimmed = originStr.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+  const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const parsed = new URL(withProto);
+    return `${parsed.protocol}//${parsed.host}`.toLowerCase();
+  } catch {
+    return trimmed.toLowerCase();
+  }
+}
+
+/**
+ * Returns the list of trusted origins configured across all environment variables.
+ * Merges CORS_ALLOWED_ORIGINS, FRONTEND_URL, and NEXT_PUBLIC_SITE_URL,
+ * and always includes localhost for local development.
+ */
+export function getAllowedOrigins(): string[] {
+  const envSources = [
+    process.env.CORS_ALLOWED_ORIGINS,
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_SITE_URL,
+  ]
+    .filter(Boolean)
+    .join(',');
+
+  const rawList = envSources ? envSources.split(',') : [];
+  const origins = new Set<string>();
+
+  // Always allow standard local dev origins
+  origins.add('http://localhost:3000');
+  origins.add('http://127.0.0.1:3000');
+
+  for (const entry of rawList) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes('*')) {
+      origins.add(trimmed.toLowerCase().replace(/\/+$/, ''));
+    } else {
+      const normalized = normalizeOrigin(trimmed);
+      if (normalized) origins.add(normalized);
+    }
+  }
+
+  return Array.from(origins);
+}
+
+/**
+ * Checks if a candidate origin matches any allowed origin,
+ * supporting exact host matches and wildcard subdomain patterns (e.g. *.vercel.app).
+ */
+export function isOriginAllowed(
+  candidateOrigin: string,
+  allowedOrigins: string[] = getAllowedOrigins()
+): boolean {
+  if (!candidateOrigin || candidateOrigin === 'null') {
+    return false;
+  }
+
+  let candidateNormalized = '';
+  let candidateHostname = '';
+  let candidateProto = '';
+  try {
+    const parsed = new URL(candidateOrigin);
+    candidateNormalized = `${parsed.protocol}//${parsed.host}`.toLowerCase();
+    candidateHostname = parsed.hostname.toLowerCase();
+    candidateProto = parsed.protocol.toLowerCase();
+  } catch {
+    candidateNormalized = candidateOrigin.trim().toLowerCase().replace(/\/+$/, '');
+    candidateHostname = candidateNormalized;
+  }
+
+  return allowedOrigins.some((allowed) => {
+    if (allowed.includes('*')) {
+      try {
+        const withProto = /^https?:\/\//i.test(allowed) ? allowed : `https://${allowed}`;
+        const allowedUrl = new URL(withProto);
+        const patternHost = allowedUrl.hostname.toLowerCase();
+        if (/^https?:\/\//i.test(allowed) && candidateProto && candidateProto !== allowedUrl.protocol.toLowerCase()) {
+          return false;
+        }
+        if (patternHost.startsWith('*.')) {
+          const rootDomain = patternHost.slice(2);
+          return candidateHostname === rootDomain || candidateHostname.endsWith(`.${rootDomain}`);
+        }
+      } catch {
+        const regexStr = '^' + allowed.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$';
+        return new RegExp(regexStr, 'i').test(candidateNormalized);
+      }
+    }
+    return candidateNormalized === allowed.toLowerCase();
+  });
+}
+
+/**
  * Validates Origin and Referer on state-modifying requests (POST, PUT, PATCH, DELETE).
  * Provides CSRF defense for session-cookie authenticated endpoints.
  */
@@ -18,7 +116,7 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction) {
   }
 
   const origin = (req.headers['origin'] || req.headers['referer']) as string | undefined;
-  
+
   // If Origin or Referer is absent on browser mutating calls, check Sec-Fetch-Site if available
   const secFetchSite = req.headers['sec-fetch-site'] as string | undefined;
   if (secFetchSite === 'cross-site') {
@@ -30,12 +128,6 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction) {
     return next();
   }
 
-  const rawAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000';
-  const allowedOrigins = rawAllowedOrigins
-    .split(',')
-    .map((url) => url.trim().replace(/\/$/, ''))
-    .filter(Boolean);
-
   // Normalize origin / referer to origin base (protocol + host)
   let originHost = '';
   try {
@@ -45,18 +137,18 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction) {
     return res.status(403).json({ ok: false, error: 'CSRF validation failed: Malformed origin header.' });
   }
 
-  const isAllowed = allowedOrigins.some((allowed) => {
-    try {
-      const allowedParsed = new URL(allowed);
-      return originHost.toLowerCase() === `${allowedParsed.protocol}//${allowedParsed.host}`.toLowerCase();
-    } catch {
-      return originHost.toLowerCase() === allowed.toLowerCase();
-    }
-  });
+  const allowedOrigins = getAllowedOrigins();
+  const isAllowed = isOriginAllowed(originHost, allowedOrigins);
 
   if (!isAllowed) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn(
+        `[CSRF] Untrusted origin blocked: "${originHost}". Configured allowed origins: [${allowedOrigins.join(', ')}]. Please configure FRONTEND_URL or CORS_ALLOWED_ORIGINS in your backend environment variables.`
+      );
+    }
     return res.status(403).json({ ok: false, error: 'CSRF validation failed: Untrusted origin.' });
   }
 
   next();
 }
+

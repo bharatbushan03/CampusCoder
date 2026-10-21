@@ -150,8 +150,8 @@ export async function getClubByIdOrSlug(idOrSlug: string): Promise<Club | null> 
   return staticMatch || null;
 }
 
-export function getDefaultClub(): Club {
-  return DEFAULT_CLUBS[0];
+export function getDefaultClub(): Club | null {
+  return inMemoryClubs[0] || null;
 }
 
 /**
