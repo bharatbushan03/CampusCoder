@@ -17,11 +17,10 @@ export function normalizeOrigin(originStr: string): string {
 }
 
 /**
- * Returns the list of trusted origins configured across all environment variables.
- * Merges CORS_ALLOWED_ORIGINS, FRONTEND_URL, and NEXT_PUBLIC_SITE_URL,
- * and always includes localhost for local development.
+ * Returns the list of trusted origins configured across all environment variables,
+ * plus optional request-specific host origins (same-origin / reverse-proxy target host).
  */
-export function getAllowedOrigins(): string[] {
+export function getAllowedOrigins(req?: Request): string[] {
   const envSources = [
     process.env.CORS_ALLOWED_ORIGINS,
     process.env.FRONTEND_URL,
@@ -37,6 +36,24 @@ export function getAllowedOrigins(): string[] {
   origins.add('http://localhost:3000');
   origins.add('http://127.0.0.1:3000');
 
+  // If request is provided, automatically trust the request's own target host and proxy host
+  if (req) {
+    const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
+
+    const hostHeader = req.get('host');
+    if (hostHeader) {
+      origins.add(normalizeOrigin(`${proto}://${hostHeader}`));
+    }
+
+    const forwardedHost = req.get('x-forwarded-host');
+    if (forwardedHost) {
+      const clientHost = forwardedHost.split(',')[0].trim();
+      if (clientHost) {
+        origins.add(normalizeOrigin(`${proto}://${clientHost}`));
+      }
+    }
+  }
+
   for (const entry of rawList) {
     const trimmed = entry.trim();
     if (!trimmed) continue;
@@ -46,6 +63,25 @@ export function getAllowedOrigins(): string[] {
       const normalized = normalizeOrigin(trimmed);
       if (normalized) origins.add(normalized);
     }
+  }
+
+  // Also auto-pair apex domains and www subdomains
+  const additionalWww: string[] = [];
+  for (const origin of origins) {
+    try {
+      const u = new URL(origin);
+      if (u.hostname.startsWith('www.')) {
+        const apexHost = u.hostname.replace(/^www\./, '');
+        additionalWww.push(`${u.protocol}//${apexHost}${u.port ? ':' + u.port : ''}`);
+      } else if (!u.hostname.includes('*') && u.hostname.includes('.') && u.hostname !== 'localhost' && !u.hostname.startsWith('127.')) {
+        additionalWww.push(`${u.protocol}//www.${u.hostname}${u.port ? ':' + u.port : ''}`);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  for (const extra of additionalWww) {
+    origins.add(extra.toLowerCase());
   }
 
   return Array.from(origins);
@@ -137,7 +173,7 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction) {
     return res.status(403).json({ ok: false, error: 'CSRF validation failed: Malformed origin header.' });
   }
 
-  const allowedOrigins = getAllowedOrigins();
+  const allowedOrigins = getAllowedOrigins(req);
   const isAllowed = isOriginAllowed(originHost, allowedOrigins);
 
   if (!isAllowed) {
@@ -146,7 +182,10 @@ export function verifyCsrf(req: Request, res: Response, next: NextFunction) {
         `[CSRF] Untrusted origin blocked: "${originHost}". Configured allowed origins: [${allowedOrigins.join(', ')}]. Please configure FRONTEND_URL or CORS_ALLOWED_ORIGINS in your backend environment variables.`
       );
     }
-    return res.status(403).json({ ok: false, error: 'CSRF validation failed: Untrusted origin.' });
+    return res.status(403).json({
+      ok: false,
+      error: `CSRF validation failed: Untrusted origin (${originHost}). Configured allowed: [${allowedOrigins.join(', ')}]`,
+    });
   }
 
   next();
